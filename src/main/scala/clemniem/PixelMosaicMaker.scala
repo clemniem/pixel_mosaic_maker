@@ -7,30 +7,81 @@ import tyrian.*
 import scala.scalajs.js.annotation.*
 
 @JSExportTopLevel("TyrianApp")
-object PixelMosaicMaker extends TyrianIOApp[Msg, Model]:
+object PixelMosaicMaker extends TyrianIOApp[Msg, Model] {
+
 
   def router: Location => Msg =
     Routing.none(Msg.NoOp)
 
   def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) =
-    (0, Cmd.None)
+    (
+      Model(
+        grid = GridConfig.make(List(48, 16, 48), List(48, 32, 48))
+      ),
+      Cmd.Emit(Msg.DrawGrid)
+    )
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) =
-    case Msg.Increment => (model + 1, Cmd.None)
-    case Msg.Decrement => (model - 1, Cmd.None)
-    case Msg.NoOp      => (model, Cmd.None)
+    case Msg.DrawGrid =>
+      (
+        model,
+        Cmd.SideEffect(drawGrid(model.grid))
+      )
+    case Msg.NoOp => (model, Cmd.None)
 
-  def view(model: Model): Html[Msg] =
+
+  def view(model: Model): Html[Msg] = {
     div(
-      button(onClick(Msg.Decrement))("-"),
-      div(model.toString),
-      button(onClick(Msg.Increment))("+")
+      h3("Grid preview"),
+      button(
+        onClick(Msg.DrawGrid)
+      )(
+        text("Redraw grid")
+      ),
+      div(
+        onLoad(Msg.DrawGrid))(
+        canvas(
+          id := "grid-canvas",
+          width := model.grid.width,
+          height := model.grid.height,
+          style := "border: 1px solid black;"
+        )()
+      )
     )
+  }
 
   def subscriptions(model: Model): Sub[IO, Msg] =
     Sub.None
 
-type Model = Int
+  def drawGrid(grid: GridConfig): IO[Unit] = {
+    IO {
+      import org.scalajs.dom
+
+      val canvas =
+        dom.document
+          .getElementById("grid-canvas")
+          .asInstanceOf[dom.html.Canvas]
+
+      val ctx =
+        canvas.getContext("2d")
+          .asInstanceOf[dom.CanvasRenderingContext2D]
+
+      ctx.clearRect(0, 0, grid.width, grid.height)
+      ctx.strokeStyle = "#000000"
+      grid.parts.foreach { part =>
+        ctx.strokeRect(
+          part.x,
+          part.y,
+          part.width,
+          part.height
+        )
+      }
+    }
+  }
+}
+
+final case class Model(grid: GridConfig)
 
 enum Msg:
-  case Increment, Decrement, NoOp
+  case DrawGrid
+  case NoOp
