@@ -14,8 +14,11 @@ lazy val pixel_mosaic_maker =
       scalaVersion := "3.6.4",
       organization := "clemniem",
       libraryDependencies ++= Seq(
-        "io.indigoengine" %%% "tyrian-io" % "0.14.0",
-        "org.scalameta"   %%% "munit"     % "1.1.1" % Test
+        "io.indigoengine" %%% "tyrian-io"   % "0.14.0",
+        "io.circe"        %%% "circe-core"   % "0.14.6",
+        "io.circe"        %%% "circe-parser" % "0.14.6",
+        "io.circe"        %%% "circe-generic"% "0.14.6",
+        "org.scalameta"   %%% "munit"        % "1.1.1" % Test
       ),
       testFrameworks += new TestFramework("munit.Framework"),
       scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },

@@ -1,6 +1,14 @@
 package clemniem
 
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.{Decoder, Encoder}
+
 final case class GridPart(x: Int, y: Int, width: Int, height: Int)
+
+object GridPart {
+  given Encoder[GridPart] = deriveEncoder
+  given Decoder[GridPart] = deriveDecoder
+}
 
 final case class GridConfig(cols: Int, rows: Int, parts: Array[GridPart]) {
 //  require(
@@ -26,6 +34,8 @@ final case class GridConfig(cols: Int, rows: Int, parts: Array[GridPart]) {
 }
 
 object GridConfig {
+  given Encoder[GridConfig] = deriveEncoder
+  given Decoder[GridConfig] = deriveDecoder
 
   def make(rows: Seq[Int], columns: Seq[Int]): GridConfig = {
 

@@ -1,87 +1,101 @@
 package clemniem
 
 import cats.effect.IO
+import clemniem.screens.{GridConfigMsg, GridConfigScreen}
 import tyrian.Html.*
 import tyrian.*
 
 import scala.scalajs.js.annotation.*
 
+/** Root model: current screen and its model (type-erased). Registry is fixed at startup. */
+final case class RootModel(
+    registry: ScreenRegistry,
+    currentScreenId: ScreenId,
+    currentModel: Any
+)
+
 @JSExportTopLevel("TyrianApp")
-object PixelMosaicMaker extends TyrianIOApp[Msg, Model] {
+object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
 
-
-  def router: Location => Msg =
-    Routing.none(Msg.NoOp)
-
-  def init(flags: Map[String, String]): (Model, Cmd[IO, Msg]) =
-    (
-      Model(
-        grid = GridConfig.make(List(48, 16, 48), List(48, 32, 48))
-      ),
-      Cmd.Emit(Msg.DrawGrid)
+  private val registry: ScreenRegistry =
+    ScreenRegistry(
+      screens = List(GridConfigScreen),
+      initialScreenId = ScreenId.GridConfigId
     )
 
-  def update(model: Model): Msg => (Model, Cmd[IO, Msg]) =
-    case Msg.DrawGrid =>
-      (
-        model,
-        Cmd.SideEffect(drawGrid(model.grid))
-      )
-    case Msg.NoOp => (model, Cmd.None)
+  def router: Location => RootMsg =
+    Routing.none(RootMsg.HandleScreenMsg(registry.initialScreenId, GridConfigMsg.NoOp))
 
-
-  def view(model: Model): Html[Msg] = {
-    div(
-      h3("Grid preview"),
-      button(
-        onClick(Msg.DrawGrid)
-      )(
-        text("Redraw grid")
-      ),
-      div(
-        onLoad(Msg.DrawGrid))(
-        canvas(
-          id := "grid-canvas",
-          width := model.grid.width,
-          height := model.grid.height,
-          style := "border: 1px solid black;"
-        )()
-      )
+  def init(flags: Map[String, String]): (RootModel, Cmd[IO, RootMsg]) = {
+    val screen = registry.screenFor(registry.initialScreenId).get
+    val (model, cmd) = screen.init(None)
+    (
+      RootModel(registry, registry.initialScreenId, model),
+      cmd.map(screen.wrapMsg)
     )
   }
 
-  def subscriptions(model: Model): Sub[IO, Msg] =
-    Sub.None
-
-  def drawGrid(grid: GridConfig): IO[Unit] = {
-    IO {
-      import org.scalajs.dom
-
-      val canvas =
-        dom.document
-          .getElementById("grid-canvas")
-          .asInstanceOf[dom.html.Canvas]
-
-      val ctx =
-        canvas.getContext("2d")
-          .asInstanceOf[dom.CanvasRenderingContext2D]
-
-      ctx.clearRect(0, 0, grid.width, grid.height)
-      ctx.strokeStyle = "#000000"
-      grid.parts.foreach { part =>
-        ctx.strokeRect(
-          part.x,
-          part.y,
-          part.width,
-          part.height
-        )
+  def update(model: RootModel): RootMsg => (RootModel, Cmd[IO, RootMsg]) = {
+    case RootMsg.NavigateTo(screenId, output) =>
+      model.registry.screenFor(screenId) match {
+        case None =>
+          (model, Cmd.None)
+        case Some(screen) =>
+          val (newScreenModel, cmd) = screen.init(output)
+          (
+            model.copy(currentScreenId = screenId, currentModel = newScreenModel),
+            cmd.map(screen.wrapMsg)
+          )
       }
+
+    case RootMsg.HandleScreenMsg(screenId, msg) =>
+      msg match {
+        case n: NavigateNext =>
+          model.registry.screenFor(n.screenId) match {
+            case None => (model, Cmd.None)
+            case Some(screen) =>
+              val (newScreenModel, cmd) = screen.init(n.output)
+              (
+                model.copy(currentScreenId = n.screenId, currentModel = newScreenModel),
+                cmd.map(screen.wrapMsg)
+              )
+          }
+        case _ =>
+          if (screenId != model.currentScreenId) (model, Cmd.None)
+          else
+            model.registry.screenFor(screenId) match {
+              case None =>
+                (model, Cmd.None)
+              case Some(screen) =>
+                val (newScreenModel, cmd) =
+                  screen.update(model.currentModel.asInstanceOf[screen.Model])(
+                    msg.asInstanceOf[screen.Msg]
+                  )
+                (
+                  model.copy(currentModel = newScreenModel),
+                  cmd.map(screen.wrapMsg)
+                )
+            }
+      }
+  }
+
+  def view(model: RootModel): Html[RootMsg] = {
+    model.registry.screenFor(model.currentScreenId) match {
+      case None =>
+        div(text("Unknown screen"))
+      case Some(screen) =>
+        screen
+          .view(model.currentModel.asInstanceOf[screen.Model])
+          .map(screen.wrapMsg)
     }
   }
+
+  def subscriptions(model: RootModel): Sub[IO, RootMsg] =
+    model.registry.screenFor(model.currentScreenId) match {
+      case None => Sub.None
+      case Some(screen) =>
+        screen
+          .subscriptions(model.currentModel.asInstanceOf[screen.Model])
+          .map(screen.wrapMsg)
+    }
 }
-
-final case class Model(grid: GridConfig)
-
-enum Msg:
-  case DrawGrid
-  case NoOp
