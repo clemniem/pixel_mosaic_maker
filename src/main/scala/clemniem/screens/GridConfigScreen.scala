@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{ColumnDef, GridConfig, GridDefMode, NavigateNext, RowDef, Screen, ScreenId, StoredGridConfig, StorageKeys}
+import clemniem.{ColumnDef, GridConfig, GridDefMode, NavigateNext, RowDef, Screen, ScreenId, ScreenOutput, StoredGridConfig, StorageKeys}
 import clemniem.common.CanvasUtils
 import clemniem.common.LocalStorageUtils
 import tyrian.Html.*
@@ -22,13 +22,54 @@ object GridConfigScreen extends Screen {
   private val defaultCellHeight = 16
   private def clampSize(n: Int): Int = math.max(1, math.min(500, n))
 
+  /** Infer row definitions from a saved grid (for old saves that only have config, not rowDefs). */
+  private def inferRowDefsFromConfig(config: GridConfig): List[RowDef] =
+    if (config.parts.isEmpty) List(RowDef(defaultRowHeight, List(defaultCellWidth)))
+    else {
+      val byRow = config.parts.groupBy(_.y).toList.sortBy(_._1).map(_._2.toList.sortBy(_.x))
+      byRow.map { rowParts =>
+        val h      = rowParts.head.height
+        val widths = rowParts.map(_.width)
+        RowDef(h, widths)
+      }
+    }
+
+  /** Infer column definitions from a saved grid (for old saves that only have config, not columnDefs). */
+  private def inferColumnDefsFromConfig(config: GridConfig): List[ColumnDef] =
+    if (config.parts.isEmpty) List(ColumnDef(defaultColWidth, List(defaultCellHeight)))
+    else {
+      val byCol = config.parts.groupBy(_.x).toList.sortBy(_._1).map(_._2.toList.sortBy(_.y))
+      byCol.map { colParts =>
+        val w       = colParts.head.width
+        val heights = colParts.map(_.height)
+        ColumnDef(w, heights)
+      }
+    }
+
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
-    val model = GridConfigModel(
-      mode = GridDefMode.ByRows,
-      rowDefs = List(RowDef(defaultRowHeight, List(defaultCellWidth))),
-      columnDefs = List(ColumnDef(defaultColWidth, List(defaultCellHeight))),
-      name = "Unnamed grid"
-    )
+    val model = previous match {
+      case Some(ScreenOutput.EditGridConfig(stored)) =>
+        val mode = stored.mode.getOrElse(GridDefMode.ByRows)
+        val rowDefs =
+          stored.rowDefs.filter(_.nonEmpty).getOrElse(inferRowDefsFromConfig(stored.config))
+        val columnDefs =
+          stored.columnDefs.filter(_.nonEmpty).getOrElse(inferColumnDefsFromConfig(stored.config))
+        GridConfigModel(
+          mode = mode,
+          rowDefs = rowDefs,
+          columnDefs = columnDefs,
+          name = stored.name,
+          editingId = Some(stored.id)
+        )
+      case _ =>
+        GridConfigModel(
+          mode = GridDefMode.ByRows,
+          rowDefs = List(RowDef(defaultRowHeight, List(defaultCellWidth))),
+          columnDefs = List(ColumnDef(defaultColWidth, List(defaultCellHeight))),
+          name = "Unnamed grid",
+          editingId = None
+        )
+    }
     (model, Cmd.SideEffect(drawGrid(model.grid)))
   }
 
@@ -116,18 +157,60 @@ object GridConfigScreen extends Screen {
       (model.copy(name = name), Cmd.None)
 
     case GridConfigMsg.Save =>
-      val cmd = LocalStorageUtils.loadList(StorageKeys.gridConfigs)(
-        GridConfigMsg.LoadedForSave.apply,
-        _ => GridConfigMsg.LoadedForSave(Nil),
-        (_, _) => GridConfigMsg.LoadedForSave(Nil)
+      if (model.pendingNormalizeChoice) (model, Cmd.None)
+      else if (!model.isNormalized)
+        (model.copy(pendingNormalizeChoice = true), Cmd.None)
+      else {
+        val cmd = LocalStorageUtils.loadList(StorageKeys.gridConfigs)(
+          GridConfigMsg.LoadedForSave.apply,
+          _ => GridConfigMsg.LoadedForSave(Nil),
+          (_, _) => GridConfigMsg.LoadedForSave(Nil)
+        )
+        (model, cmd)
+      }
+
+    case GridConfigMsg.NormalizeWithEnlarging =>
+      val next = model.copy(
+        rowDefs =
+          if (model.mode == GridDefMode.ByRows) RowDef.normalizeByEnlarging(model.rowDefs)
+          else model.rowDefs,
+        columnDefs =
+          if (model.mode == GridDefMode.ByColumns) ColumnDef.normalizeByEnlarging(model.columnDefs)
+          else model.columnDefs,
+        pendingNormalizeChoice = false
       )
-      (model, cmd)
+      (next, Cmd.SideEffect(drawGrid(next.grid)))
+
+    case GridConfigMsg.NormalizeWithNewPlates =>
+      val next = model.copy(
+        rowDefs =
+          if (model.mode == GridDefMode.ByRows) RowDef.normalizeToRectangle(model.rowDefs)
+          else model.rowDefs,
+        columnDefs =
+          if (model.mode == GridDefMode.ByColumns) ColumnDef.normalizeToRectangle(model.columnDefs)
+          else model.columnDefs,
+        pendingNormalizeChoice = false
+      )
+      (next, Cmd.SideEffect(drawGrid(next.grid)))
+
+    case GridConfigMsg.CancelNormalizeChoice =>
+      (model.copy(pendingNormalizeChoice = false), Cmd.None)
 
     case GridConfigMsg.LoadedForSave(list) =>
       val normalizedConfig = model.normalizedGrid
-      val id               = "grid-" + js.Date.now().toLong
-      val stored           = StoredGridConfig(id = id, name = model.name, config = normalizedConfig)
-      val newList          = list :+ stored
+      val id                = model.editingId.getOrElse("grid-" + js.Date.now().toLong)
+      val stored            = StoredGridConfig(
+        id = id,
+        name = model.name,
+        config = normalizedConfig,
+        mode = Some(model.mode),
+        rowDefs = Some(model.rowDefs),
+        columnDefs = Some(model.columnDefs)
+      )
+      val newList = model.editingId match {
+        case Some(editId) => list.filterNot(_.id == editId) :+ stored
+        case None         => list :+ stored
+      }
       val saveCmd = LocalStorageUtils.saveList(StorageKeys.gridConfigs, newList)(
         _ => NavigateNext(ScreenId.GridConfigsId, None),
         (msg, _) => GridConfigMsg.SaveFailed(msg)
@@ -166,6 +249,28 @@ object GridConfigScreen extends Screen {
             style := "padding: 6px 14px; cursor: pointer; background: #2e7d32; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
             onClick(GridConfigMsg.Save)
           )(text("Save"))
+        )
+      ),
+      div(
+        style := (if (model.pendingNormalizeChoice) "margin-bottom: 1rem; padding: 12px; background: #fff3e0; border: 1px solid #ffb74d; border-radius: 6px;"
+         else "display: none;")
+      )(
+        p(style := "margin: 0 0 10px 0; font-weight: 500;")(
+          text("Grid is not a rectangle (rows have different total widths or columns different heights). Choose how to fix it; then press Save.")
+        ),
+        div(style := "display: flex; flex-wrap: wrap; gap: 8px; align-items: center;")(
+            button(
+              style := "padding: 6px 14px; cursor: pointer; background: #1565c0; color: #fff; border: none; border-radius: 4px;",
+              onClick(GridConfigMsg.NormalizeWithEnlarging)
+            )(text("Enlarge existing cells")),
+            button(
+              style := "padding: 6px 14px; cursor: pointer; background: #2e7d32; color: #fff; border: none; border-radius: 4px;",
+              onClick(GridConfigMsg.NormalizeWithNewPlates)
+            )(text("Add new plates to fill gaps")),
+          button(
+            style := "padding: 6px 14px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 4px;",
+            onClick(GridConfigMsg.CancelNormalizeChoice)
+          )(text("Cancel"))
         )
       ),
       p(style := "color: #444; margin-bottom: 1rem;")(
@@ -322,12 +427,24 @@ final case class GridConfigModel(
     mode: GridDefMode,
     rowDefs: List[RowDef],
     columnDefs: List[ColumnDef],
-    name: String
+    name: String,
+    editingId: Option[String] = None,
+    pendingNormalizeChoice: Boolean = false
 ) {
   def grid: GridConfig =
     mode match
       case GridDefMode.ByRows    => GridConfig.fromRowDefs(rowDefs)
       case GridDefMode.ByColumns => GridConfig.fromColumnDefs(columnDefs)
+
+  /** True if grid is a full rectangle (all rows same total width, or all columns same total height). */
+  def isNormalized: Boolean =
+    mode match
+      case GridDefMode.ByRows =>
+        rowDefs.nonEmpty && rowDefs.forall(_.cellWidths.nonEmpty) &&
+          rowDefs.map(_.totalWidth).distinct.size == 1
+      case GridDefMode.ByColumns =>
+        columnDefs.nonEmpty && columnDefs.forall(_.cellHeights.nonEmpty) &&
+          columnDefs.map(_.totalHeight).distinct.size == 1
 
   /** Grid built from row/column defs normalized to a rectangle (no gaps at end of any row or column). */
   def normalizedGrid: GridConfig =
@@ -355,5 +472,8 @@ enum GridConfigMsg:
   case Save
   case LoadedForSave(list: List[StoredGridConfig])
   case SaveFailed(message: String)
+  case NormalizeWithEnlarging
+  case NormalizeWithNewPlates
+  case CancelNormalizeChoice
   case Back
   case NoOp

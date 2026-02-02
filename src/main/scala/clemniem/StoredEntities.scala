@@ -5,7 +5,14 @@ import io.circe.{Decoder, Encoder}
 
 /** Stored entities for galleries: each has id and display name for listing. */
 
-final case class StoredGridConfig(id: String, name: String, config: GridConfig)
+final case class StoredGridConfig(
+    id: String,
+    name: String,
+    config: GridConfig,
+    mode: Option[GridDefMode] = None,
+    rowDefs: Option[List[RowDef]] = None,
+    columnDefs: Option[List[ColumnDef]] = None
+)
 object StoredGridConfig {
   given Encoder[StoredGridConfig] = deriveEncoder
   given Decoder[StoredGridConfig] = deriveDecoder

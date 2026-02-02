@@ -45,6 +45,9 @@ object ScreenOutput {
 
   /** Step 5 → Print: same config, for PDF generation. */
   final case class BuildStarted(config: BuildConfig) extends ScreenOutput
+
+  /** Open grid config editor to edit an existing stored config. */
+  final case class EditGridConfig(stored: StoredGridConfig) extends ScreenOutput
 }
 
 /** Stateless build definition: Palette + GridConfig + Image + Offset. */

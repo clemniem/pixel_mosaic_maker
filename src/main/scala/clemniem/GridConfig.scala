@@ -15,6 +15,11 @@ enum GridDefMode:
   case ByRows
   case ByColumns
 
+object GridDefMode {
+  given Encoder[GridDefMode] = deriveEncoder
+  given Decoder[GridDefMode] = deriveDecoder
+}
+
 /** One row: height of the row and width of each cell in the row (variable number of cells allowed). */
 final case class RowDef(height: Int, cellWidths: List[Int]) {
   def totalWidth: Int = cellWidths.sum
@@ -24,7 +29,7 @@ object RowDef {
   given Encoder[RowDef] = deriveEncoder
   given Decoder[RowDef] = deriveDecoder
 
-  /** Pad each row so all rows have the same total width (no gaps at the end of any row). */
+  /** Pad each row so all rows have the same total width (no gaps): add a new cell to fill the gap. */
   def normalizeToRectangle(rowDefs: List[RowDef]): List[RowDef] =
     if (rowDefs.isEmpty) rowDefs
     else {
@@ -33,6 +38,21 @@ object RowDef {
         val gap = maxWidth - row.totalWidth
         if (gap <= 0) row
         else row.copy(cellWidths = row.cellWidths :+ gap)
+      }
+    }
+
+  /** Normalize by enlarging the last cell of each short row (no new plates). */
+  def normalizeByEnlarging(rowDefs: List[RowDef]): List[RowDef] =
+    if (rowDefs.isEmpty) rowDefs
+    else {
+      val maxWidth = rowDefs.map(_.totalWidth).max.max(1)
+      rowDefs.map { row =>
+        val gap = maxWidth - row.totalWidth
+        if (gap <= 0 || row.cellWidths.isEmpty) row
+        else
+          row.copy(cellWidths =
+            row.cellWidths.dropRight(1) :+ (row.cellWidths.last + gap)
+          )
       }
     }
 }
@@ -46,7 +66,7 @@ object ColumnDef {
   given Encoder[ColumnDef] = deriveEncoder
   given Decoder[ColumnDef] = deriveDecoder
 
-  /** Pad each column so all columns have the same total height (no gaps at the end of any column). */
+  /** Pad each column so all columns have the same total height (no gaps): add a new cell to fill the gap. */
   def normalizeToRectangle(colDefs: List[ColumnDef]): List[ColumnDef] =
     if (colDefs.isEmpty) colDefs
     else {
@@ -55,6 +75,21 @@ object ColumnDef {
         val gap = maxHeight - col.totalHeight
         if (gap <= 0) col
         else col.copy(cellHeights = col.cellHeights :+ gap)
+      }
+    }
+
+  /** Normalize by enlarging the last cell of each short column (no new plates). */
+  def normalizeByEnlarging(colDefs: List[ColumnDef]): List[ColumnDef] =
+    if (colDefs.isEmpty) colDefs
+    else {
+      val maxHeight = colDefs.map(_.totalHeight).max.max(1)
+      colDefs.map { col =>
+        val gap = maxHeight - col.totalHeight
+        if (gap <= 0 || col.cellHeights.isEmpty) col
+        else
+          col.copy(cellHeights =
+            col.cellHeights.dropRight(1) :+ (col.cellHeights.last + gap)
+          )
       }
     }
 }
