@@ -10,56 +10,118 @@ object GridPart {
   given Decoder[GridPart] = deriveDecoder
 }
 
+/** Definition mode: define grid by rows (fixed height per row + widths per cell) or by columns (fixed width per column + heights per cell). */
+enum GridDefMode:
+  case ByRows
+  case ByColumns
+
+/** One row: height of the row and width of each cell in the row (variable number of cells allowed). */
+final case class RowDef(height: Int, cellWidths: List[Int]) {
+  def totalWidth: Int = cellWidths.sum
+}
+
+object RowDef {
+  given Encoder[RowDef] = deriveEncoder
+  given Decoder[RowDef] = deriveDecoder
+
+  /** Pad each row so all rows have the same total width (no gaps at the end of any row). */
+  def normalizeToRectangle(rowDefs: List[RowDef]): List[RowDef] =
+    if (rowDefs.isEmpty) rowDefs
+    else {
+      val maxWidth = rowDefs.map(_.totalWidth).max.max(1)
+      rowDefs.map { row =>
+        val gap = maxWidth - row.totalWidth
+        if (gap <= 0) row
+        else row.copy(cellWidths = row.cellWidths :+ gap)
+      }
+    }
+}
+
+/** One column: width of the column and height of each cell in the column (variable number of cells allowed). */
+final case class ColumnDef(width: Int, cellHeights: List[Int]) {
+  def totalHeight: Int = cellHeights.sum
+}
+
+object ColumnDef {
+  given Encoder[ColumnDef] = deriveEncoder
+  given Decoder[ColumnDef] = deriveDecoder
+
+  /** Pad each column so all columns have the same total height (no gaps at the end of any column). */
+  def normalizeToRectangle(colDefs: List[ColumnDef]): List[ColumnDef] =
+    if (colDefs.isEmpty) colDefs
+    else {
+      val maxHeight = colDefs.map(_.totalHeight).max.max(1)
+      colDefs.map { col =>
+        val gap = maxHeight - col.totalHeight
+        if (gap <= 0) col
+        else col.copy(cellHeights = col.cellHeights :+ gap)
+      }
+    }
+}
+
 final case class GridConfig(cols: Int, rows: Int, parts: Array[GridPart]) {
-//  require(
-//    parts.length == cols * rows,
-//    s"Expected ${cols * rows} grid parts, but got ${parts.length}"
-//  )
 
-  val width: Int = {
-    (0 until cols).map { col =>
-      parts(col).width
-    }.sum
-  }
+  /** Total width = bounding box (works for uniform and variable layouts). */
+  val width: Int =
+    if (parts.isEmpty) 0
+    else parts.iterator.map(p => p.x + p.width).max
 
-  val height: Int = {
-    (0 until rows).map { row =>
-      parts(row * cols).height
-    }.sum
-  }
+  /** Total height = bounding box (works for uniform and variable layouts). */
+  val height: Int =
+    if (parts.isEmpty) 0
+    else parts.iterator.map(p => p.y + p.height).max
 
-  def partAt(col: Int, row: Int): GridPart = {
-    parts(row * cols + col)
-  }
+  def partAt(col: Int, row: Int): Option[GridPart] =
+    if (row >= 0 && row < rows && col >= 0 && col < cols && row * cols + col < parts.length)
+      Some(parts(row * cols + col))
+    else None
 }
 
 object GridConfig {
   given Encoder[GridConfig] = deriveEncoder
   given Decoder[GridConfig] = deriveDecoder
 
-  def make(rows: Seq[Int], columns: Seq[Int]): GridConfig = {
-
-    val rowOffsets: Seq[Int] =
-      rows.scanLeft(0)(_ + _).dropRight(1)
-
-    val colOffsets: Seq[Int] =
-      columns.scanLeft(0)(_ + _).dropRight(1)
-
+  /** Uniform grid: same column widths for all rows, same row heights for all columns. */
+  def make(rowHeights: Seq[Int], columnWidths: Seq[Int]): GridConfig = {
+    val rowOffsets  = rowHeights.scanLeft(0)(_ + _).dropRight(1)
+    val colOffsets  = columnWidths.scanLeft(0)(_ + _).dropRight(1)
     val parts: Array[GridPart] =
       (for {
-        (rowHeight, y) <- rows.zip(rowOffsets)
-        (colWidth, x) <- columns.zip(colOffsets)
-      } yield GridPart(
-        x = x,
-        y = y,
-        width = colWidth,
-        height = rowHeight
-      )).toArray
+        (rowHeight, y) <- rowHeights.zip(rowOffsets)
+        (colWidth, x)  <- columnWidths.zip(colOffsets)
+      } yield GridPart(x = x, y = y, width = colWidth, height = rowHeight)).toArray
+    GridConfig(cols = columnWidths.length, rows = rowHeights.length, parts = parts)
+  }
 
-    GridConfig(
-      cols = columns.length,
-      rows = rows.length,
-      parts = parts
-    )
+  /** Build from row definitions: each row has a height and a list of cell widths (variable count per row). */
+  def fromRowDefs(rowDefs: List[RowDef]): GridConfig = {
+    if (rowDefs.isEmpty) GridConfig(0, 0, Array.empty)
+    else {
+      val cols = rowDefs.map(_.cellWidths.length).max
+      val rows = rowDefs.length
+      val (_, parts) = rowDefs.foldLeft((0, Vector.empty[GridPart])) { case ((y, acc), row) =>
+        val (_, rowParts) = row.cellWidths.foldLeft((0, Vector.empty[GridPart])) { case ((x, pacc), w) =>
+          (x + w, pacc :+ GridPart(x = x, y = y, width = w, height = row.height))
+        }
+        (y + row.height, acc ++ rowParts)
+      }
+      GridConfig(cols = cols, rows = rows, parts = parts.toArray)
+    }
+  }
+
+  /** Build from column definitions: each column has a width and a list of cell heights (variable count per column). */
+  def fromColumnDefs(colDefs: List[ColumnDef]): GridConfig = {
+    if (colDefs.isEmpty) GridConfig(0, 0, Array.empty)
+    else {
+      val rows = colDefs.map(_.cellHeights.length).max
+      val cols = colDefs.length
+      val (_, parts) = colDefs.foldLeft((0, Vector.empty[GridPart])) { case ((x, acc), col) =>
+        val (_, colParts) = col.cellHeights.foldLeft((0, Vector.empty[GridPart])) { case ((y, pacc), h) =>
+          (y + h, pacc :+ GridPart(x = x, y = y, width = col.width, height = h))
+        }
+        (x + col.width, acc ++ colParts)
+      }
+      GridConfig(cols = cols, rows = rows, parts = parts.toArray)
+    }
   }
 }

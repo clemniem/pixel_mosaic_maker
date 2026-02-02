@@ -1,7 +1,16 @@
 package clemniem
 
 import cats.effect.IO
-import clemniem.screens.{GridConfigMsg, GridConfigScreen}
+import clemniem.screens.{
+  BuildConfigGalleryScreen,
+  BuildsGalleryScreen,
+  GridConfigGalleryScreen,
+  GridConfigScreen,
+  ImagesGalleryScreen,
+  OverviewMsg,
+  OverviewScreen,
+  PalettesGalleryScreen
+}
 import tyrian.Html.*
 import tyrian.*
 
@@ -19,12 +28,20 @@ object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
 
   private val registry: ScreenRegistry =
     ScreenRegistry(
-      screens = List(GridConfigScreen),
-      initialScreenId = ScreenId.GridConfigId
+      screens = List(
+        OverviewScreen,
+        GridConfigGalleryScreen,
+        GridConfigScreen,
+        PalettesGalleryScreen,
+        ImagesGalleryScreen,
+        BuildConfigGalleryScreen,
+        BuildsGalleryScreen
+      ),
+      initialScreenId = ScreenId.OverviewId
     )
 
   def router: Location => RootMsg =
-    Routing.none(RootMsg.HandleScreenMsg(registry.initialScreenId, GridConfigMsg.NoOp))
+    Routing.none(RootMsg.HandleScreenMsg(registry.initialScreenId, OverviewMsg.NoOp))
 
   def init(flags: Map[String, String]): (RootModel, Cmd[IO, RootMsg]) = {
     val screen = registry.screenFor(registry.initialScreenId).get

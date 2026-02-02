@@ -1,6 +1,8 @@
 package clemniem
 
 import cats.effect.IO
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.{Decoder, Encoder}
 import tyrian.{Cmd, Html, Sub}
 
 /** Identifies a screen in the SPA. See FLOW.md for the six-step flow. */
@@ -8,13 +10,18 @@ trait ScreenId {
   def name: String
 }
 
-/** All screen IDs for the app flow (GridConfig → ImageUpload → Palettes → BuildConfig → Build → Print). */
+/** All screen IDs: Overview (home), galleries (list of saved items), and flow/editor screens. */
 object ScreenId {
-  case object GridConfigId       extends ScreenId { val name = "grid-config" }
+  case object OverviewId          extends ScreenId { val name = "overview" }
+  case object GridConfigsId       extends ScreenId { val name = "grid-configs" }
+  case object GridConfigId        extends ScreenId { val name = "grid-config" }
+  case object PalettesId          extends ScreenId { val name = "palettes" }
+  case object ImagesId            extends ScreenId { val name = "images" }
+  case object BuildConfigsId      extends ScreenId { val name = "build-configs" }
+  case object BuildsId            extends ScreenId { val name = "builds" }
   case object ImageUploadId      extends ScreenId { val name = "image-upload" }
-  case object PalettesId         extends ScreenId { val name = "palettes" }
-  case object BuildConfigId      extends ScreenId { val name = "build-config" }
-  case object BuildId            extends ScreenId { val name = "build" }
+  case object BuildConfigId       extends ScreenId { val name = "build-config" }
+  case object BuildId             extends ScreenId { val name = "build" }
   case object PrintInstructionsId extends ScreenId { val name = "print-instructions" }
 }
 
@@ -48,6 +55,11 @@ final case class BuildConfig(
     offsetX: Int,
     offsetY: Int
 )
+
+object BuildConfig {
+  given Encoder[BuildConfig] = deriveEncoder
+  given Decoder[BuildConfig] = deriveDecoder
+}
 
 /** Root-level messages: navigation or delegation to the current screen. */
 sealed trait RootMsg
