@@ -18,10 +18,19 @@ object StoredGridConfig {
   given Decoder[StoredGridConfig] = deriveDecoder
 }
 
-final case class StoredPalette(id: String, name: String)
+/** Default palette when loading old saves that had no colors field. */
+private val defaultPaletteColors: Vector[Color] =
+  Vector(Color(0, 0, 0), Color(255, 255, 255), Color(200, 50, 50), Color(50, 120, 200))
+
+final case class StoredPalette(id: String, name: String, colors: Vector[Color])
 object StoredPalette {
   given Encoder[StoredPalette] = deriveEncoder
-  given Decoder[StoredPalette] = deriveDecoder
+  private def storedPaletteDecoder: Decoder[StoredPalette] = {
+    val withColors    = io.circe.Decoder.forProduct3("id", "name", "colors")(StoredPalette.apply)
+    val withoutColors = io.circe.Decoder.forProduct2("id", "name")((id: String, name: String) => StoredPalette(id, name, defaultPaletteColors))
+    withColors.or(withoutColors)
+  }
+  given Decoder[StoredPalette] = storedPaletteDecoder
 }
 
 final case class StoredImage(id: String, name: String)

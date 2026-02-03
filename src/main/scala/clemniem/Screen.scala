@@ -16,6 +16,7 @@ object ScreenId {
   case object GridConfigsId       extends ScreenId { val name = "grid-configs" }
   case object GridConfigId        extends ScreenId { val name = "grid-config" }
   case object PalettesId          extends ScreenId { val name = "palettes" }
+  case object PaletteId           extends ScreenId { val name = "palette" }
   case object ImagesId            extends ScreenId { val name = "images" }
   case object BuildConfigsId      extends ScreenId { val name = "build-configs" }
   case object BuildsId            extends ScreenId { val name = "builds" }
@@ -48,6 +49,9 @@ object ScreenOutput {
 
   /** Open grid config editor to edit an existing stored config. */
   final case class EditGridConfig(stored: StoredGridConfig) extends ScreenOutput
+
+  /** Open palette editor to edit an existing stored palette. */
+  final case class EditPalette(stored: StoredPalette) extends ScreenOutput
 }
 
 /** Stateless build definition: Palette + GridConfig + Image + Offset. */

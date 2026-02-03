@@ -9,6 +9,7 @@ import clemniem.screens.{
   ImagesGalleryScreen,
   OverviewMsg,
   OverviewScreen,
+  PaletteScreen,
   PalettesGalleryScreen
 }
 import tyrian.Html.*
@@ -33,6 +34,7 @@ object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
         GridConfigGalleryScreen,
         GridConfigScreen,
         PalettesGalleryScreen,
+        PaletteScreen,
         ImagesGalleryScreen,
         BuildConfigGalleryScreen,
         BuildsGalleryScreen
