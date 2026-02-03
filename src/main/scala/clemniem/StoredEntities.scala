@@ -46,16 +46,27 @@ object StoredImage {
   given Decoder[StoredImage] = storedImageDecoder
 }
 
-final case class StoredBuildConfig(id: String, name: String, config: BuildConfig)
+final case class StoredBuildConfig(id: String, name: String, config: BuildConfig, savedStepIndex: Option[Int] = None)
 object StoredBuildConfig {
   given Encoder[StoredBuildConfig] = deriveEncoder
-  given Decoder[StoredBuildConfig] = deriveDecoder
+  private def storedBuildConfigDecoder: Decoder[StoredBuildConfig] = {
+    val withStep = io.circe.Decoder.forProduct4("id", "name", "config", "savedStepIndex")(StoredBuildConfig.apply)
+    val withoutStep = io.circe.Decoder.forProduct3("id", "name", "config")((id: String, name: String, config: BuildConfig) => StoredBuildConfig(id, name, config, None))
+    withStep.or(withoutStep)
+  }
+  given Decoder[StoredBuildConfig] = storedBuildConfigDecoder
 }
 
-final case class StoredBuild(id: String, name: String)
+/** A build in progress: references a build config and stores saved step. */
+final case class StoredBuild(id: String, name: String, buildConfigRef: String, savedStepIndex: Option[Int] = None)
 object StoredBuild {
   given Encoder[StoredBuild] = deriveEncoder
-  given Decoder[StoredBuild] = deriveDecoder
+  private def storedBuildDecoder: Decoder[StoredBuild] = {
+    val withRef = io.circe.Decoder.forProduct4("id", "name", "buildConfigRef", "savedStepIndex")(StoredBuild.apply)
+    val withoutRef = io.circe.Decoder.forProduct2("id", "name")((id: String, name: String) => StoredBuild(id, name, "", None))
+    withRef.or(withoutRef)
+  }
+  given Decoder[StoredBuild] = storedBuildDecoder
 }
 
 /** LocalStorage keys for gallery lists. */

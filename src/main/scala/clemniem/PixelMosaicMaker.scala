@@ -4,6 +4,7 @@ import cats.effect.IO
 import clemniem.screens.{
   BuildConfigGalleryScreen,
   BuildConfigScreen,
+  BuildScreen,
   BuildsGalleryScreen,
   GridConfigGalleryScreen,
   GridConfigScreen,
@@ -41,7 +42,8 @@ object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
         ImageUploadScreen,
         BuildConfigGalleryScreen,
         BuildConfigScreen,
-        BuildsGalleryScreen
+        BuildsGalleryScreen,
+        BuildScreen
       ),
       initialScreenId = ScreenId.OverviewId
     )

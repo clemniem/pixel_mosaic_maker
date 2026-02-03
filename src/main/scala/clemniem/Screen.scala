@@ -58,6 +58,12 @@ object ScreenOutput {
 
   /** Open build config editor to edit an existing stored config. */
   final case class EditBuildConfig(stored: StoredBuildConfig) extends ScreenOutput
+
+  /** Start the step-by-step build with the selected build config (plates → 16×16 cells). */
+  final case class StartBuild(stored: StoredBuildConfig) extends ScreenOutput
+
+  /** Resume a build from the builds list (has buildConfigRef + savedStepIndex). */
+  final case class ResumeBuild(stored: StoredBuild) extends ScreenOutput
 }
 
 /** Stateless build definition: Palette + GridConfig + Image + Offset. */

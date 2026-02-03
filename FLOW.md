@@ -1,8 +1,17 @@
 # Pixel Mosaic Maker – App Flow
 
-This document describes the six steps of the single-page app. Each step is a **Screen** with its own model, messages, and view. Data flows between steps via **ScreenOutput** and **NavigateNext**.
+This document describes the single-page app structure. The app is built with **Tyrian** (Elm-style) and **Scala.js**. Each step is a **Screen** with its own model, messages, and view. Data flows between steps via **ScreenOutput** and **NavigateNext**.
 
 Inspired by [gbcamutil](https://github.com/your-repo/gbcamutil); this app is a rewrite with a clearer step-by-step flow.
+
+---
+
+## Entry: Overview (Home)
+
+**Purpose:** Hub to reach all galleries.
+
+- Links to five galleries: **GridConfigs**, **Palettes**, **Images**, **BuildConfigs**, **Builds**.
+- No persistent data; navigation only.
 
 ---
 
@@ -10,81 +19,104 @@ Inspired by [gbcamutil](https://github.com/your-repo/gbcamutil); this app is a r
 
 **Purpose:** Define a grid of **plates** (Lego-style plates that together form the whole image).
 
-- The grid is the subdivision of the final mosaic into plates.
-- Important for instructions: instructions are generated **per plate**.
-- Each plate has an internal grid (cell resolution). For now this is fixed at **16×16 pixels**; later it can be configured.
-
-**Output:** The chosen `GridConfig` (e.g. `GridConfigDone(grid)`).
+- **Gallery:** `GridConfigGalleryScreen` – list of saved grid configs; Create / Edit / Delete.
+- **Editor:** `GridConfigScreen` – define grid by rows or columns (heights, cell widths/heights). Grid is normalized (rectangular); optional enlarge-cells vs add-plates when saving.
+- The grid is the subdivision of the final mosaic into plates. Each plate has an internal resolution; the **Build** step uses **16×16** cells per plate.
+- **Output:** Saved as `StoredGridConfig` in LocalStorage under `StorageKeys.gridConfigs`. Edit uses `EditGridConfig(stored)`.
 
 ---
 
-## 2. ImageUpload
+## 2. Images
 
 **Purpose:** Upload pixel art and prepare it for the mosaic pipeline.
 
-- Upload one or more images.
-- Make them **pixel-true**: downscale if needed so pixels align with the grid.
-- Store in a **PixelImage** format (similar to `PixelPic` in gbcamutil) to simplify later instruction generation.
-- **Color reduction:** downscale colors to a fixed palette (e.g. **4 colors** for Game Boy Camera; palette size to be configurable later).
-
-**Output:** The prepared pixel image(s) (e.g. `ImageUploaded(pixelImage)`).
+- **Gallery:** `ImagesGalleryScreen` – list of saved images with preview and palette row; click palette to save as palette. Create (→ Upload) / Delete.
+- **Upload:** `ImageUploadScreen` – pick file; image is decoded, nearest-neighbor scale detected and downscaled if needed, max 400×400 px. Stored as `StoredImage` (contains `PixelPic`) under `StorageKeys.images`.
+- **Output:** `StoredImage` with `PixelPic` (width, height, palette, pixels). No direct ScreenOutput for “chosen image”; selection happens in **BuildConfig**.
 
 ---
 
 ## 3. Palettes
 
-**Purpose:** Define different **palette combinations** (which colors map to which slots).
+**Purpose:** Define **palette combinations** (which colors map to which slots).
 
-- Same idea as palette selection in gbcamutil: e.g. 4 palette slots mapped to Lego/Game Boy colors.
-- User can define and name several palettes and pick one per build.
-
-**Output:** The chosen palette (e.g. `PaletteChosen(palette)` or id).
+- **Gallery:** `PalettesGalleryScreen` – list of saved palettes (name + swatches); Create / Edit / Delete.
+- **Editor:** `PaletteScreen` – add/remove colors (1–16), hex + color picker per color. Stored as `StoredPalette` under `StorageKeys.palettes`.
+- **Output:** Selection happens in **BuildConfig**. From Images gallery, “save as palette” uses `NewPaletteFromImage(name, colors)` to open Palette editor with pre-filled colors.
 
 ---
 
 ## 4. BuildConfig
 
-**Purpose:** Define **what** to build – stateless configuration.
+**Purpose:** Define **what** to build – stateless configuration (template).
 
-- A **build** is: **Palette** + **GridConfig** + **Image** + **Offset**.
-- The image is usually larger than the mosaic, so an **offset** selects which part of the image is visible in the mosaic.
-- **BuildConfig** is stateless: it only describes the combination; it does not hold “current step” or UI state.
-
-**Output:** The build config (e.g. `BuildConfigDone(config)`).
-
----
-
-## 5. Starting a Build (Build runner)
-
-**Purpose:** Run one **instance** of a build with state.
-
-- Takes a **BuildConfig** and creates one “build instance”.
-- State: current page/step, etc.
-- Computes Lego instructions **per plate**, **per cell**.
-- UI: next step, previous step, etc.
-
-**Output:** Optional (e.g. “done” or “go to print”); can navigate to Print Instructions with the same config.
+- **Gallery:** `BuildConfigGalleryScreen` – list of saved build configs with small preview canvas; Create / Edit / Delete.
+- **Editor:** `BuildConfigScreen` – choose one **GridConfig**, one **Image**, one **Palette**, and **offset (X, Y)**. Offset is clamped so the grid stays inside the image. Two canvases: **Overview** (full image + grid + current region) and **Preview** (grid region only). Stored as `StoredBuildConfig` under `StorageKeys.buildConfigs`. Optional `savedStepIndex` on config is legacy; step is now stored per **StoredBuild**.
+- **BuildConfig** = Grid + ImageRef + PaletteRef + OffsetX + OffsetY (no step state).
+- **Output:** Saved config; “Start Build” is done from **Builds** gallery, not from here.
 
 ---
 
-## 6. Printing Instructions
+## 5. Builds (list of build runs)
 
-**Purpose:** Produce a PDF of the full instruction set.
+**Purpose:** Manage multiple **build runs** and start new ones.
 
-- Same inputs as “Starting a Build” (BuildConfig).
-- Instead of interactive step-by-step, it **prints every step** into a PDF (one instruction per step, per plate/cell as needed).
+- **Screen:** `BuildsGalleryScreen`.
+- **Data:** Loads **builds** from `StorageKeys.builds` and **build configs** from `StorageKeys.buildConfigs`.
+- **List:** Each item is a **StoredBuild**: `id`, `name`, `buildConfigRef` (id of a BuildConfig), `savedStepIndex`. Display: name, config name, “step N” if saved, and **Resume** button.
+- **Start new build:** Button “+ Start new build” reveals a **dropdown** of build configs (no dropdown until this button is clicked). User picks a config and clicks **Start** → navigates to **Build** screen with `StartBuild(storedBuildConfig)`.
+- **Resume:** Click **Resume** on a list item → `ResumeBuild(storedBuild)` → **Build** screen loads the referenced config and restores `savedStepIndex`.
 
-**Output:** PDF generated (download / open).
+---
+
+## 6. Build (step-by-step runner)
+
+**Purpose:** Run one build instance: iterate plates, then 16×16 cells per plate; show current patch; save step to the **build** (in the builds list).
+
+- **Entry:** Either `StartBuild(storedBuildConfig)` (new run; no StoredBuild yet) or `ResumeBuild(storedBuild)` (load config by `buildConfigRef`, restore step).
+- **State:** Current **StoredBuildConfig** (or resolved from StoredBuild), optional **currentBuild** (StoredBuild), **stepIndex**, images/palettes loaded for drawing.
+- **Steps:** For each plate in the grid, for each 16×16 cell in that plate, one step. Order: plate-by-plate, row-by-row within plate. Step = (imageX, imageY) of the 16×16 patch.
+- **UI:** Overview canvas (grid region only, current 16×16 patch highlighted in green); Preview canvas (current 16×16 patch only); step counter; Previous / Next; “Go to” step input; **Save step** (writes to `StorageKeys.builds`: create or update **StoredBuild** with current step); Back → Builds gallery.
+- **Save step:** If there is no `currentBuild`, creates a new StoredBuild (id, name from config, `buildConfigRef`, `savedStepIndex`) and appends to the builds list. If there is a `currentBuild`, updates that build in the list. After save, model holds the updated `currentBuild` so further saves update the same build.
+
+---
+
+## 7. Print Instructions (future)
+
+**Purpose:** Produce a PDF of the full instruction set (same config as Build, non-interactive).
+
+- **Screen:** `PrintInstructionsId` exists; implementation is future.
+- **Output:** PDF generated (download / open).
 
 ---
 
 ## Flow summary
 
 ```
-GridConfig → ImageUpload → Palettes → BuildConfig → [Start Build] → [Print Instructions]
-     │              │           │           │              │                    │
-     └──────────────┴───────────┴───────────┴──────────────┴────────────────────┘
-                    (ScreenOutput / NavigateNext between steps)
+                    ┌─────────────┐
+                    │  Overview   │
+                    └──────┬──────┘
+         ┌─────────────────┼─────────────────┐
+         ▼                 ▼                 ▼
+   GridConfigs        Palettes          Images
+         │                 │                 │
+    [Create/Edit]    [Create/Edit]    [Upload]
+         │                 │                 │
+         └─────────────────┼─────────────────┘
+                           ▼
+                    BuildConfigs
+                    [Create/Edit]
+                           │
+                           ▼
+                      Builds (list)
+                    [Resume] or [+ Start new build → dropdown → Start]
+                           │
+                           ▼
+                       Build (runner)
+                    [Step nav, Save step]
+                           │
+                           ▼
+                 Print Instructions (future)
 ```
 
-Screens can be reached in different orders (e.g. from a home menu) by navigating with the right `ScreenOutput`; the diagram above is the main “create a mosaic” path.
+- **Galleries** list stored entities (LocalStorage); **editors** create/update them. **BuildConfig** is a template; **Builds** list **StoredBuild** instances (each references a config + saved step). **Build** screen runs one instance and persists step to the builds list.
