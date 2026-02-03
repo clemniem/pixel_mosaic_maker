@@ -52,9 +52,7 @@ object BuildScreen extends Screen {
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     previous match {
       case Some(ScreenOutput.StartBuild(storedConfig)) =>
-        val steps     = stepsForConfig(storedConfig.config)
-        val savedStep = storedConfig.savedStepIndex.getOrElse(0)
-        val stepIndex = if (steps.isEmpty) 0 else savedStep.max(0).min(steps.length - 1)
+        val stepIndex = 0
         val model = BuildScreenModel(
           buildConfig = Some(storedConfig),
           currentBuild = None,
@@ -176,7 +174,7 @@ object BuildScreen extends Screen {
       }
 
     case BuildScreenMsg.SaveDone =>
-      (model, Cmd.None)
+      (model, Cmd.Emit(NavigateNext(ScreenId.BuildsId, None)))
 
     case BuildScreenMsg.SaveFailed =>
       (model.copy(pendingSave = None), Cmd.None)
