@@ -1,17 +1,23 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{NavigateNext, Screen, ScreenId, StorageKeys, StoredImage}
-import clemniem.common.LocalStorageUtils
+import clemniem.{NavigateNext, PixelPic, Screen, ScreenId, StorageKeys, StoredImage}
+import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import org.scalajs.dom
+import org.scalajs.dom.CanvasRenderingContext2D
+import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
 import tyrian.*
 
-/** Gallery of saved images. Empty state: "+ Create Image". */
+/** Gallery of saved images. Empty state: "Upload". */
 object ImagesGalleryScreen extends Screen {
   type Model = Option[List[StoredImage]]
   type Msg   = ImagesGalleryMsg | NavigateNext
 
   val screenId: ScreenId = ScreenId.ImagesId
+
+  private val previewWidth  = 120
+  private val previewHeight = 80
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val cmd = LocalStorageUtils.loadList(StorageKeys.images)(
@@ -24,11 +30,21 @@ object ImagesGalleryScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case ImagesGalleryMsg.Loaded(list) =>
-      (Some(list), Cmd.None)
+      val drawPreviews =
+        if (list.isEmpty) Cmd.None
+        else
+          Cmd.SideEffect(
+            CanvasUtils.runAfterFrames(3)(
+              list.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
+            )
+          )
+      (Some(list), drawPreviews)
     case ImagesGalleryMsg.CreateNew =>
-      (model, Cmd.None)
+      (model, Cmd.Emit(NavigateNext(ScreenId.ImageUploadId, None)))
     case ImagesGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
+    case ImagesGalleryMsg.DrawPreview(stored) =>
+      (model, Cmd.SideEffect(drawPreview(stored)))
     case _: NavigateNext =>
       (model, Cmd.None)
   }
@@ -48,19 +64,69 @@ object ImagesGalleryScreen extends Screen {
             )
           ),
           if (list.isEmpty)
-            emptyState("Create Image", ImagesGalleryMsg.CreateNew)
+            emptyState("Upload", ImagesGalleryMsg.CreateNew)
           else
             div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
-              (list.map(item =>
-                div(
-                  style := "padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;"
-                )(span(style := "font-weight: 500;")(text(item.name)))
-              ) :+ button(
+              (list.map(item => entryCard(item)) :+ button(
                 style := "margin-top: 0.5rem; padding: 8px 16px; cursor: pointer;",
                 onClick(ImagesGalleryMsg.CreateNew)
-              )(text("+ Create Image")))*
+              )(text("Upload")))*
             )
         )
+    }
+  }
+
+  private def entryCard(item: StoredImage): Html[Msg] =
+    div(
+      style := "display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;"
+    )(
+      div(onLoad(ImagesGalleryMsg.DrawPreview(item)))(
+        canvas(
+          id := s"image-preview-${item.id}",
+          width := previewWidth,
+          height := previewHeight,
+          style := "border: 1px solid #999; border-radius: 2px; flex-shrink: 0; image-rendering: pixelated; image-rendering: crisp-edges;"
+        )()
+      ),
+      div(style := "min-width: 0; flex: 1;")(
+        span(style := "font-weight: 500;")(text(item.name)),
+        span(style := "display: block; color: #666; font-size: 0.875rem; margin-top: 0.25rem;")(
+          text(s"${item.pixelPic.width}×${item.pixelPic.height} px · ${item.pixelPic.paletteLookup.size} color(s)")
+        )
+      )
+    )
+
+  private def drawPreview(stored: StoredImage): IO[Unit] =
+    CanvasUtils.drawAfterViewReadyDelayed(
+      id = s"image-preview-${stored.id}",
+      framesToWait = 2,
+      maxRetries = 100,
+      delayMs = 3
+    )((canvas: Canvas, ctx: CanvasRenderingContext2D) => drawPixelPicScaled(canvas, ctx, stored.pixelPic))
+
+  private def drawPixelPicScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
+    canvas.width = previewWidth
+    canvas.height = previewHeight
+    ctx.clearRect(0, 0, previewWidth, previewHeight)
+    if (pic.width > 0 && pic.height > 0) {
+      val scale = (previewWidth.toDouble / pic.width).min(previewHeight.toDouble / pic.height)
+      val imgData = ctx.createImageData(pic.width, pic.height)
+      val data    = imgData.data
+      for (i <- pic.pixels.indices) {
+        val px     = pic.paletteLookup(pic.pixels(i))
+        val offset = i * 4
+        data(offset) = px.r
+        data(offset + 1) = px.g
+        data(offset + 2) = px.b
+        data(offset + 3) = px.a
+      }
+      val scaled = dom.document.createElement("canvas").asInstanceOf[Canvas]
+      scaled.width = pic.width
+      scaled.height = pic.height
+      val sctx = scaled.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
+      sctx.putImageData(imgData, 0, 0)
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(scaled, 0, 0, pic.width, pic.height, 0, 0, (pic.width * scale).toInt, (pic.height * scale).toInt)
     }
   }
 
@@ -72,11 +138,12 @@ object ImagesGalleryScreen extends Screen {
       button(
         style := "padding: 10px 20px; font-size: 1rem; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 6px;",
         onClick(createMsg)
-      )(text(s"+ $createLabel"))
+      )(text(createLabel))
     )
 }
 
 enum ImagesGalleryMsg:
   case Loaded(list: List[StoredImage])
   case CreateNew
+  case DrawPreview(stored: StoredImage)
   case Back

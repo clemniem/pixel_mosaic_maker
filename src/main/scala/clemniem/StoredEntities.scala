@@ -33,10 +33,17 @@ object StoredPalette {
   given Decoder[StoredPalette] = storedPaletteDecoder
 }
 
-final case class StoredImage(id: String, name: String)
+/** Placeholder for old saves that had no pixelPic. */
+private def defaultPixelPic(name: String): PixelPic =
+  PixelPic(1, 1, Vector(Pixel(0, 0, 0, 255)), Vector(0), Map(0 -> 1), name).get
+
+final case class StoredImage(id: String, name: String, pixelPic: PixelPic)
 object StoredImage {
   given Encoder[StoredImage] = deriveEncoder
-  given Decoder[StoredImage] = deriveDecoder
+  private def storedImageDecoder: Decoder[StoredImage] =
+    io.circe.Decoder.forProduct3("id", "name", "pixelPic")(StoredImage.apply)
+      .or(io.circe.Decoder.forProduct2("id", "name")((id: String, name: String) => StoredImage(id, name, defaultPixelPic(name))))
+  given Decoder[StoredImage] = storedImageDecoder
 }
 
 final case class StoredBuildConfig(id: String, name: String, config: BuildConfig)
