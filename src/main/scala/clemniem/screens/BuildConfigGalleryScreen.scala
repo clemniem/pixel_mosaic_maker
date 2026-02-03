@@ -29,7 +29,7 @@ object BuildConfigGalleryScreen extends Screen {
   private val previewHeight = 80
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
-    val model = BuildConfigGalleryModel(None, None, None)
+    val model = BuildConfigGalleryModel(None, None, None, None)
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       BuildConfigGalleryMsg.LoadedBuildConfigs.apply,
       _ => BuildConfigGalleryMsg.LoadedBuildConfigs(Nil),
@@ -67,6 +67,22 @@ object BuildConfigGalleryScreen extends Screen {
       (model, Cmd.Emit(NavigateNext(ScreenId.BuildConfigId, None)))
     case BuildConfigGalleryMsg.Edit(stored) =>
       (model, Cmd.Emit(NavigateNext(ScreenId.BuildConfigId, Some(ScreenOutput.EditBuildConfig(stored)))))
+    case BuildConfigGalleryMsg.Delete(stored) =>
+      (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
+    case BuildConfigGalleryMsg.ConfirmDelete(id) =>
+      model.buildConfigs match {
+        case Some(list) =>
+          val newList = list.filterNot(_.id == id)
+          val saveCmd = LocalStorageUtils.saveList(StorageKeys.buildConfigs, newList)(
+            _ => BuildConfigGalleryMsg.CancelDelete,
+            (_, _) => BuildConfigGalleryMsg.CancelDelete
+          )
+          (model.copy(buildConfigs = Some(newList), pendingDeleteId = None), saveCmd)
+        case None =>
+          (model.copy(pendingDeleteId = None), Cmd.None)
+      }
+    case BuildConfigGalleryMsg.CancelDelete =>
+      (model.copy(pendingDeleteId = None), Cmd.None)
     case BuildConfigGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case _: NavigateNext =>
@@ -98,12 +114,12 @@ object BuildConfigGalleryScreen extends Screen {
           val gh = stored.config.grid.height
           pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
             case Some(cropped) =>
-              canvas.width = previewWidth
-              canvas.height = previewHeight
-              ctx.clearRect(0, 0, previewWidth, previewHeight)
               val scale = (previewWidth.toDouble / cropped.width).min(previewHeight.toDouble / cropped.height).min(1.0)
               val cw = (cropped.width * scale).toInt.max(1)
               val ch = (cropped.height * scale).toInt.max(1)
+              canvas.width = cw
+              canvas.height = ch
+              ctx.clearRect(0, 0, cw, ch)
               CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
               ctx.strokeStyle = "rgba(255,0,0,0.7)"
               ctx.lineWidth = 1
@@ -151,7 +167,7 @@ object BuildConfigGalleryScreen extends Screen {
             GalleryEmptyState("No build configs yet.", "+ Create BuildConfig", BuildConfigGalleryMsg.CreateNew)
           else
             div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
-              (list.map(item => entryCard(item)) :+ button(
+              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+ button(
                 style := "margin-top: 0.5rem; padding: 8px 16px; cursor: pointer;",
                 onClick(BuildConfigGalleryMsg.CreateNew)
               )(text("+ Create BuildConfig")))*
@@ -160,7 +176,7 @@ object BuildConfigGalleryScreen extends Screen {
     }
   }
 
-  private def entryCard(item: StoredBuildConfig): Html[Msg] =
+  private def entryCard(item: StoredBuildConfig, confirmingDelete: Boolean): Html[Msg] =
     div(
       style := "display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;"
     )(
@@ -176,12 +192,31 @@ object BuildConfigGalleryScreen extends Screen {
         span(style := "font-weight: 500;")(text(item.name)),
         span(style := "display: block; color: #666; font-size: 0.875rem; margin-top: 0.25rem;")(
           text(s"${item.config.grid.width}×${item.config.grid.height} · ${item.config.imageRef}")
-        )
-      ),
-      button(
-        style := "padding: 4px 10px; cursor: pointer; flex-shrink: 0;",
-        onClick(BuildConfigGalleryMsg.Edit(item))
-      )(text("Edit"))
+        ),
+        if (confirmingDelete)
+          div(style := "margin-top: 0.5rem; padding: 6px 0;")(
+            span(style := "font-size: 0.875rem; color: #b71c1c; margin-right: 8px;")(text(s"Delete \"${item.name}\"?")),
+            button(
+              style := "padding: 4px 10px; margin-right: 6px; cursor: pointer; background: #b71c1c; color: #fff; border: none; border-radius: 4px; font-size: 0.875rem;",
+              onClick(BuildConfigGalleryMsg.ConfirmDelete(item.id))
+            )(text("Yes")),
+            button(
+              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #999; border-radius: 4px; font-size: 0.875rem; background: #fff;",
+              onClick(BuildConfigGalleryMsg.CancelDelete)
+            )(text("Cancel"))
+          )
+        else
+          div(style := "margin-top: 0.5rem; display: flex; gap: 6px;")(
+            button(
+              style := "padding: 4px 10px; cursor: pointer; flex-shrink: 0; border: 1px solid #555; border-radius: 4px; font-size: 0.875rem; background: #fff;",
+              onClick(BuildConfigGalleryMsg.Edit(item))
+            )(text("Edit")),
+            button(
+              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #b71c1c; color: #b71c1c; border-radius: 4px; font-size: 0.875rem; background: #fff; flex-shrink: 0;",
+              onClick(BuildConfigGalleryMsg.Delete(item))
+            )(text("Delete"))
+          )
+      )
     )
 
 }
@@ -189,7 +224,8 @@ object BuildConfigGalleryScreen extends Screen {
 final case class BuildConfigGalleryModel(
     buildConfigs: Option[List[StoredBuildConfig]],
     images: Option[List[StoredImage]],
-    palettes: Option[List[StoredPalette]]
+    palettes: Option[List[StoredPalette]],
+    pendingDeleteId: Option[String]
 ) {
   def canDrawPreviews: Boolean =
     buildConfigs.isDefined && images.isDefined && palettes.isDefined
@@ -202,4 +238,7 @@ enum BuildConfigGalleryMsg:
   case DrawPreview(stored: StoredBuildConfig)
   case CreateNew
   case Edit(stored: StoredBuildConfig)
+  case Delete(stored: StoredBuildConfig)
+  case ConfirmDelete(id: String)
+  case CancelDelete
   case Back

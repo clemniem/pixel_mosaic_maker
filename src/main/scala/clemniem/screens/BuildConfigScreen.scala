@@ -81,26 +81,29 @@ object BuildConfigScreen extends Screen {
       val next = model.copy(gridConfigs = Some(list))
       val sel  = model.prefill(list, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
       val withSel = next.copy(selectedGridId = sel._1.orElse(next.selectedGridId).orElse(list.headOption.map(_.id)))
-      (withSel, drawPreviewCmd(withSel))
+      val clamped = clampOffsets(withSel)
+      (clamped, drawPreviewCmd(clamped))
 
     case BuildConfigMsg.LoadedImages(list) =>
       val next = model.copy(images = Some(list))
       val sel  = model.prefill(model.gridConfigs.getOrElse(Nil), list, model.palettes.getOrElse(Nil))
       val withSel = next.copy(selectedImageId = sel._2.orElse(next.selectedImageId).orElse(list.headOption.map(_.id)))
-      (withSel, drawPreviewCmd(withSel))
+      val clamped = clampOffsets(withSel)
+      (clamped, drawPreviewCmd(clamped))
 
     case BuildConfigMsg.LoadedPalettes(list) =>
       val next = model.copy(palettes = Some(list))
       val sel  = model.prefill(model.gridConfigs.getOrElse(Nil), model.images.getOrElse(Nil), list)
       val withSel = next.copy(selectedPaletteId = sel._3.orElse(next.selectedPaletteId).orElse(list.headOption.map(_.id)))
-      (withSel, drawPreviewCmd(withSel))
+      val clamped = clampOffsets(withSel)
+      (clamped, drawPreviewCmd(clamped))
 
     case BuildConfigMsg.SetGrid(id) =>
-      val next = model.copy(selectedGridId = Some(id))
+      val next = clampOffsets(model.copy(selectedGridId = Some(id)))
       (next, drawPreviewCmd(next))
 
     case BuildConfigMsg.SetImage(id) =>
-      val next = model.copy(selectedImageId = Some(id))
+      val next = clampOffsets(model.copy(selectedImageId = Some(id)))
       (next, drawPreviewCmd(next))
 
     case BuildConfigMsg.SetPalette(id) =>
@@ -108,11 +111,11 @@ object BuildConfigScreen extends Screen {
       (next, drawPreviewCmd(next))
 
     case BuildConfigMsg.SetOffsetX(n) =>
-      val next = model.copy(offsetX = n)
+      val next = clampOffsets(model.copy(offsetX = n))
       (next, drawPreviewCmd(next))
 
     case BuildConfigMsg.SetOffsetY(n) =>
-      val next = model.copy(offsetY = n)
+      val next = clampOffsets(model.copy(offsetY = n))
       (next, drawPreviewCmd(next))
 
     case BuildConfigMsg.SetName(name) =>
@@ -268,6 +271,27 @@ object BuildConfigScreen extends Screen {
     CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
   }
 
+  /** Max (offsetX, offsetY) so that the grid stays inside the image; (0, 0) if no image/grid or grid larger than image. */
+  private def maxOffsets(model: Model): (Int, Int) =
+    (for {
+      grid <- model.selectedGridId.flatMap(id => model.gridConfigs.flatMap(_.find(_.id == id)))
+      img  <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
+    } yield {
+      val iw = img.pixelPic.width
+      val ih = img.pixelPic.height
+      val gw = grid.config.width
+      val gh = grid.config.height
+      ((iw - gw).max(0), (ih - gh).max(0))
+    }).getOrElse((0, 0))
+
+  private def clampOffsets(model: Model): Model = {
+    val (maxX, maxY) = maxOffsets(model)
+    model.copy(
+      offsetX = model.offsetX.max(0).min(maxX),
+      offsetY = model.offsetY.max(0).min(maxY)
+    )
+  }
+
   private def drawPlaceholder(canvas: Canvas, ctx: CanvasRenderingContext2D, w: Int, h: Int, text: String): Unit = {
     canvas.width = w
     canvas.height = h
@@ -301,26 +325,7 @@ object BuildConfigScreen extends Screen {
       selectRow("Grid", model.gridConfigs, model.selectedGridId, BuildConfigMsg.SetGrid.apply, (g: StoredGridConfig) => g.name, (g: StoredGridConfig) => g.id),
       selectRow("Image", model.images, model.selectedImageId, BuildConfigMsg.SetImage.apply, (i: StoredImage) => i.name, (i: StoredImage) => i.id),
       selectRow("Palette", model.palettes, model.selectedPaletteId, BuildConfigMsg.SetPalette.apply, (p: StoredPalette) => p.name, (p: StoredPalette) => p.id),
-      div(style := "display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;")(
-        label(style := "display: flex; align-items: center; gap: 0.5rem;")(
-          text("Offset X:"),
-          input(
-            `type` := "number",
-            value := model.offsetX.toString,
-            onInput(s => BuildConfigMsg.SetOffsetX(s.toIntOption.getOrElse(0))),
-            style := "width: 5rem; padding: 4px;"
-          )
-        ),
-        label(style := "display: flex; align-items: center; gap: 0.5rem;")(
-          text("Offset Y:"),
-          input(
-            `type` := "number",
-            value := model.offsetY.toString,
-            onInput(s => BuildConfigMsg.SetOffsetY(s.toIntOption.getOrElse(0))),
-            style := "width: 5rem; padding: 4px;"
-          )
-        )
-      ),
+      offsetRow(model),
       div(style := "margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start;")(
         div(style := "flex: 1; min-width: 200px;")(
           div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Overview")),
@@ -343,6 +348,34 @@ object BuildConfigScreen extends Screen {
               style := "border: 1px solid #333; display: block; max-width: 100%; image-rendering: pixelated; image-rendering: crisp-edges;"
             )()
           )
+        )
+      )
+    )
+  }
+
+  private def offsetRow(model: Model): Html[Msg] = {
+    val (maxX, maxY) = maxOffsets(model)
+    div(style := "display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;")(
+      label(style := "display: flex; align-items: center; gap: 0.5rem;")(
+        text("Offset X:"),
+        input(
+          `type` := "number",
+          min := "0",
+          max := maxX.toString,
+          value := model.offsetX.toString,
+          onInput(s => BuildConfigMsg.SetOffsetX(s.toIntOption.getOrElse(0))),
+          style := "width: 5rem; padding: 4px;"
+        )
+      ),
+      label(style := "display: flex; align-items: center; gap: 0.5rem;")(
+        text("Offset Y:"),
+        input(
+          `type` := "number",
+          min := "0",
+          max := maxY.toString,
+          value := model.offsetY.toString,
+          onInput(s => BuildConfigMsg.SetOffsetY(s.toIntOption.getOrElse(0))),
+          style := "width: 5rem; padding: 4px;"
         )
       )
     )

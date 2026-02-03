@@ -10,7 +10,7 @@ import tyrian.*
 
 /** Gallery of saved images. Empty state: "Upload". */
 object ImagesGalleryScreen extends Screen {
-  type Model = Option[List[StoredImage]]
+  type Model = ImagesGalleryModel
   type Msg   = ImagesGalleryMsg | NavigateNext
 
   val screenId: ScreenId = ScreenId.ImagesId
@@ -24,7 +24,7 @@ object ImagesGalleryScreen extends Screen {
       _ => ImagesGalleryMsg.Loaded(Nil),
       (_, _) => ImagesGalleryMsg.Loaded(Nil)
     )
-    (None, cmd)
+    (ImagesGalleryModel(None, None), cmd)
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
@@ -37,13 +37,29 @@ object ImagesGalleryScreen extends Screen {
               list.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
             )
           )
-      (Some(list), drawPreviews)
+      (model.copy(list = Some(list)), drawPreviews)
     case ImagesGalleryMsg.CreateNew =>
       (model, Cmd.Emit(NavigateNext(ScreenId.ImageUploadId, None)))
     case ImagesGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case ImagesGalleryMsg.DrawPreview(stored) =>
       (model, Cmd.SideEffect(drawPreview(stored)))
+    case ImagesGalleryMsg.Delete(stored) =>
+      (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
+    case ImagesGalleryMsg.ConfirmDelete(id) =>
+      model.list match {
+        case Some(list) =>
+          val newList = list.filterNot(_.id == id)
+          val saveCmd = LocalStorageUtils.saveList(StorageKeys.images, newList)(
+            _ => ImagesGalleryMsg.CancelDelete,
+            (_, _) => ImagesGalleryMsg.CancelDelete
+          )
+          (model.copy(list = Some(newList), pendingDeleteId = None), saveCmd)
+        case None =>
+          (model.copy(pendingDeleteId = None), Cmd.None)
+      }
+    case ImagesGalleryMsg.CancelDelete =>
+      (model.copy(pendingDeleteId = None), Cmd.None)
     case _: NavigateNext =>
       (model, Cmd.None)
   }
@@ -51,7 +67,7 @@ object ImagesGalleryScreen extends Screen {
   def view(model: Model): Html[Msg] = {
     val container =
       "font-family: system-ui, sans-serif; max-width: 40rem; margin: 0 auto; padding: 1.5rem;"
-    model match {
+    model.list match {
       case None =>
         div(style := container)(p(text("Loading…")))
       case Some(list) =>
@@ -66,7 +82,7 @@ object ImagesGalleryScreen extends Screen {
             GalleryEmptyState("No images yet.", "Upload", ImagesGalleryMsg.CreateNew)
           else
             div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
-              (list.map(item => entryCard(item)) :+ button(
+              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+ button(
                 style := "margin-top: 0.5rem; padding: 8px 16px; cursor: pointer;",
                 onClick(ImagesGalleryMsg.CreateNew)
               )(text("Upload")))*
@@ -75,7 +91,7 @@ object ImagesGalleryScreen extends Screen {
     }
   }
 
-  private def entryCard(item: StoredImage): Html[Msg] =
+  private def entryCard(item: StoredImage, confirmingDelete: Boolean): Html[Msg] =
     div(
       style := "display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;"
     )(
@@ -92,7 +108,26 @@ object ImagesGalleryScreen extends Screen {
         span(style := "display: block; color: #666; font-size: 0.875rem; margin-top: 0.25rem;")(
           text(s"${item.pixelPic.width}×${item.pixelPic.height} px · ${item.pixelPic.paletteLookup.size} color(s)")
         ),
-        paletteRow(item)
+        paletteRow(item),
+        if (confirmingDelete)
+          div(style := "margin-top: 0.5rem; padding: 6px 0;")(
+            span(style := "font-size: 0.875rem; color: #b71c1c; margin-right: 8px;")(text(s"Delete \"${item.name}\"?")),
+            button(
+              style := "padding: 4px 10px; margin-right: 6px; cursor: pointer; background: #b71c1c; color: #fff; border: none; border-radius: 4px; font-size: 0.875rem;",
+              onClick(ImagesGalleryMsg.ConfirmDelete(item.id))
+            )(text("Yes")),
+            button(
+              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #999; border-radius: 4px; font-size: 0.875rem; background: #fff;",
+              onClick(ImagesGalleryMsg.CancelDelete)
+            )(text("Cancel"))
+          )
+        else
+          div(style := "margin-top: 0.5rem; display: flex; gap: 6px;")(
+            button(
+              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #b71c1c; color: #b71c1c; border-radius: 4px; font-size: 0.875rem; background: #fff;",
+              onClick(ImagesGalleryMsg.Delete(item))
+            )(text("Delete"))
+          )
       )
     )
 
@@ -129,21 +164,33 @@ object ImagesGalleryScreen extends Screen {
     )((canvas: Canvas, ctx: CanvasRenderingContext2D) => drawPixelPicScaled(canvas, ctx, stored.pixelPic))
 
   private def drawPixelPicScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
-    canvas.width = previewWidth
-    canvas.height = previewHeight
-    ctx.clearRect(0, 0, previewWidth, previewHeight)
     if (pic.width > 0 && pic.height > 0) {
       val scale = (previewWidth.toDouble / pic.width).min(previewHeight.toDouble / pic.height)
       val cw = (pic.width * scale).toInt.max(1)
       val ch = (pic.height * scale).toInt.max(1)
+      canvas.width = cw
+      canvas.height = ch
+      ctx.clearRect(0, 0, cw, ch)
       CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
+    } else {
+      canvas.width = previewWidth
+      canvas.height = previewHeight
+      ctx.clearRect(0, 0, previewWidth, previewHeight)
     }
   }
 
 }
 
+final case class ImagesGalleryModel(
+    list: Option[List[StoredImage]],
+    pendingDeleteId: Option[String]
+)
+
 enum ImagesGalleryMsg:
   case Loaded(list: List[StoredImage])
   case CreateNew
   case DrawPreview(stored: StoredImage)
+  case Delete(stored: StoredImage)
+  case ConfirmDelete(id: String)
+  case CancelDelete
   case Back
