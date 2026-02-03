@@ -55,6 +55,9 @@ object ScreenOutput {
 
   /** Open palette editor with colors from an image (e.g. from Images gallery) so the user can save as a palette. */
   final case class NewPaletteFromImage(name: String, colors: Vector[Color]) extends ScreenOutput
+
+  /** Open build config editor to edit an existing stored config. */
+  final case class EditBuildConfig(stored: StoredBuildConfig) extends ScreenOutput
 }
 
 /** Stateless build definition: Palette + GridConfig + Image + Offset. */
