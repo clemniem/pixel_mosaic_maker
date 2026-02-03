@@ -2,6 +2,7 @@ package clemniem.common
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import clemniem.PixelPic
 import org.scalajs.dom
 import org.scalajs.dom.html.Canvas
 import org.scalajs.dom.CanvasRenderingContext2D
@@ -85,5 +86,42 @@ object CanvasUtils {
       }
 
     loop(maxRetries)
+  }
+
+  /** Draw a PixelPic onto the canvas, scaled to targetWidth×targetHeight. Uses an offscreen buffer and
+    * imageSmoothingEnabled = false for crisp pixel art. If pic is empty, clears the canvas.
+    */
+  def drawPixelPic(
+      canvas: Canvas,
+      ctx: CanvasRenderingContext2D,
+      pic: PixelPic,
+      targetWidth: Int,
+      targetHeight: Int
+  ): Unit = {
+    if (targetWidth <= 0 || targetHeight <= 0) ()
+    else if (pic.width <= 0 || pic.height <= 0) {
+      canvas.width = targetWidth
+      canvas.height = targetHeight
+      ctx.clearRect(0, 0, targetWidth, targetHeight)
+    }
+    else {
+      val imgData = ctx.createImageData(pic.width, pic.height)
+      val data    = imgData.data
+      for (i <- pic.pixels.indices) {
+        val px     = pic.paletteLookup(pic.pixels(i))
+        val offset = i * 4
+        data(offset) = px.r
+        data(offset + 1) = px.g
+        data(offset + 2) = px.b
+        data(offset + 3) = px.a
+      }
+      val tmp = dom.document.createElement("canvas").asInstanceOf[Canvas]
+      tmp.width = pic.width
+      tmp.height = pic.height
+      val tctx = tmp.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
+      tctx.putImageData(imgData, 0, 0)
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(tmp, 0, 0, pic.width, pic.height, 0, 0, targetWidth, targetHeight)
+    }
   }
 }

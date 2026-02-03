@@ -136,17 +136,7 @@ object ImageUploadScreen extends Screen {
       canvas.width = pic.width
       canvas.height = pic.height
       ctx.clearRect(0, 0, pic.width, pic.height)
-      val imgData = ctx.createImageData(pic.width, pic.height)
-      val data    = imgData.data
-      for (i <- pic.pixels.indices) {
-        val px     = pic.paletteLookup(pic.pixels(i))
-        val offset = i * 4
-        data(offset) = px.r
-        data(offset + 1) = px.g
-        data(offset + 2) = px.b
-        data(offset + 3) = px.a
-      }
-      ctx.putImageData(imgData, 0, 0)
+      clemniem.common.CanvasUtils.drawPixelPic(canvas, ctx, pic, pic.width, pic.height)
     })
 
   def view(model: Model): Html[Msg] =

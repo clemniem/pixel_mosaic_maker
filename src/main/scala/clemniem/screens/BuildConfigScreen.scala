@@ -5,7 +5,6 @@ import clemniem.{
   BuildConfig,
   GridConfig,
   NavigateNext,
-  Pixel,
   PixelPic,
   Screen,
   ScreenId,
@@ -17,7 +16,6 @@ import clemniem.{
   StoredPalette
 }
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
-import org.scalajs.dom
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -212,23 +210,7 @@ object BuildConfigScreen extends Screen {
               canvas.width = cw
               canvas.height = ch
               ctx.clearRect(0, 0, cw, ch)
-              val imgData = ctx.createImageData(cropped.width, cropped.height)
-              val data    = imgData.data
-              for (i <- cropped.pixels.indices) {
-                val px     = cropped.paletteLookup(cropped.pixels(i))
-                val offset = i * 4
-                data(offset) = px.r
-                data(offset + 1) = px.g
-                data(offset + 2) = px.b
-                data(offset + 3) = px.a
-              }
-              val tmp = dom.document.createElement("canvas").asInstanceOf[Canvas]
-              tmp.width = cropped.width
-              tmp.height = cropped.height
-              val tctx = tmp.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
-              tctx.putImageData(imgData, 0, 0)
-              ctx.imageSmoothingEnabled = false
-              ctx.drawImage(tmp, 0, 0, cropped.width, cropped.height, 0, 0, cw, ch)
+              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
               ctx.strokeStyle = "rgba(255,0,0,0.8)"
               ctx.lineWidth = 1
               val gsx = scale
@@ -248,12 +230,7 @@ object BuildConfigScreen extends Screen {
     for {
       img     <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
       palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
-    } yield {
-      val pixels = palette.colors.map(c => Pixel(c.r, c.g, c.b, 255)).toVector
-      val needed = img.pixelPic.paletteLookup.size
-      val padded = if (pixels.size >= needed) pixels.take(needed) else pixels ++ Vector.fill(needed - pixels.size)(Pixel(0, 0, 0, 255))
-      img.pixelPic.setPalette(padded)
-    }
+    } yield clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
 
   private def drawFullImageWithGrid(
       canvas: Canvas,
@@ -269,23 +246,7 @@ object BuildConfigScreen extends Screen {
     canvas.width = cw
     canvas.height = ch
     ctx.clearRect(0, 0, cw, ch)
-    val imgData = ctx.createImageData(pic.width, pic.height)
-    val data    = imgData.data
-    for (i <- pic.pixels.indices) {
-      val px     = pic.paletteLookup(pic.pixels(i))
-      val offset = i * 4
-      data(offset) = px.r
-      data(offset + 1) = px.g
-      data(offset + 2) = px.b
-      data(offset + 3) = px.a
-    }
-    val tmp = dom.document.createElement("canvas").asInstanceOf[Canvas]
-    tmp.width = pic.width
-    tmp.height = pic.height
-    val tctx = tmp.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
-    tctx.putImageData(imgData, 0, 0)
-    ctx.imageSmoothingEnabled = false
-    ctx.drawImage(tmp, 0, 0, pic.width, pic.height, 0, 0, cw, ch)
+    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
     ctx.strokeStyle = "rgba(255,0,0,0.8)"
     ctx.lineWidth = 1
     val ox  = (offsetX * scale).toInt
@@ -304,23 +265,7 @@ object BuildConfigScreen extends Screen {
     canvas.width = cw
     canvas.height = ch
     ctx.clearRect(0, 0, cw, ch)
-    val imgData = ctx.createImageData(pic.width, pic.height)
-    val data    = imgData.data
-    for (i <- pic.pixels.indices) {
-      val px     = pic.paletteLookup(pic.pixels(i))
-      val offset = i * 4
-      data(offset) = px.r
-      data(offset + 1) = px.g
-      data(offset + 2) = px.b
-      data(offset + 3) = px.a
-    }
-    val tmp = dom.document.createElement("canvas").asInstanceOf[Canvas]
-    tmp.width = pic.width
-    tmp.height = pic.height
-    val tctx = tmp.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
-    tctx.putImageData(imgData, 0, 0)
-    ctx.imageSmoothingEnabled = false
-    ctx.drawImage(tmp, 0, 0, pic.width, pic.height, 0, 0, cw, ch)
+    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
   }
 
   private def drawPlaceholder(canvas: Canvas, ctx: CanvasRenderingContext2D, w: Int, h: Int, text: String): Unit = {

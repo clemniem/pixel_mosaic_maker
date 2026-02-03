@@ -3,7 +3,6 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{Color, NavigateNext, PixelPic, Screen, ScreenId, ScreenOutput, StorageKeys, StoredImage}
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
-import org.scalajs.dom
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -64,7 +63,7 @@ object ImagesGalleryScreen extends Screen {
             )
           ),
           if (list.isEmpty)
-            emptyState("Upload", ImagesGalleryMsg.CreateNew)
+            GalleryEmptyState("No images yet.", "Upload", ImagesGalleryMsg.CreateNew)
           else
             div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
               (list.map(item => entryCard(item)) :+ button(
@@ -135,36 +134,12 @@ object ImagesGalleryScreen extends Screen {
     ctx.clearRect(0, 0, previewWidth, previewHeight)
     if (pic.width > 0 && pic.height > 0) {
       val scale = (previewWidth.toDouble / pic.width).min(previewHeight.toDouble / pic.height)
-      val imgData = ctx.createImageData(pic.width, pic.height)
-      val data    = imgData.data
-      for (i <- pic.pixels.indices) {
-        val px     = pic.paletteLookup(pic.pixels(i))
-        val offset = i * 4
-        data(offset) = px.r
-        data(offset + 1) = px.g
-        data(offset + 2) = px.b
-        data(offset + 3) = px.a
-      }
-      val scaled = dom.document.createElement("canvas").asInstanceOf[Canvas]
-      scaled.width = pic.width
-      scaled.height = pic.height
-      val sctx = scaled.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
-      sctx.putImageData(imgData, 0, 0)
-      ctx.imageSmoothingEnabled = false
-      ctx.drawImage(scaled, 0, 0, pic.width, pic.height, 0, 0, (pic.width * scale).toInt, (pic.height * scale).toInt)
+      val cw = (pic.width * scale).toInt.max(1)
+      val ch = (pic.height * scale).toInt.max(1)
+      CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
     }
   }
 
-  private def emptyState(createLabel: String, createMsg: Msg): Html[Msg] =
-    div(
-      style := "border: 2px dashed #ccc; border-radius: 8px; padding: 2rem; text-align: center; background: #fafafa;"
-    )(
-      p(style := "color: #666; margin-bottom: 1rem;")(text("No images yet.")),
-      button(
-        style := "padding: 10px 20px; font-size: 1rem; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 6px;",
-        onClick(createMsg)
-      )(text(createLabel))
-    )
 }
 
 enum ImagesGalleryMsg:

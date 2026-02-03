@@ -3,7 +3,6 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{
   NavigateNext,
-  Pixel,
   PixelPic,
   Screen,
   ScreenId,
@@ -14,7 +13,6 @@ import clemniem.{
   StoredPalette
 }
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
-import org.scalajs.dom
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -95,10 +93,7 @@ object BuildConfigGalleryScreen extends Screen {
       val paletteOpt = palettes.find(_.id == stored.config.paletteRef)
       (imgOpt, paletteOpt) match {
         case (Some(img), Some(palette)) =>
-          val pixels = palette.colors.map(c => Pixel(c.r, c.g, c.b, 255)).toVector
-          val needed = img.pixelPic.paletteLookup.size
-          val padded = if (pixels.size >= needed) pixels.take(needed) else pixels ++ Vector.fill(needed - pixels.size)(Pixel(0, 0, 0, 255))
-          val pic = img.pixelPic.setPalette(padded)
+          val pic = clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
           val gw = stored.config.grid.width
           val gh = stored.config.grid.height
           pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
@@ -109,23 +104,7 @@ object BuildConfigGalleryScreen extends Screen {
               val scale = (previewWidth.toDouble / cropped.width).min(previewHeight.toDouble / cropped.height).min(1.0)
               val cw = (cropped.width * scale).toInt.max(1)
               val ch = (cropped.height * scale).toInt.max(1)
-              val imgData = ctx.createImageData(cropped.width, cropped.height)
-              val data    = imgData.data
-              for (i <- cropped.pixels.indices) {
-                val px     = cropped.paletteLookup(cropped.pixels(i))
-                val offset = i * 4
-                data(offset) = px.r
-                data(offset + 1) = px.g
-                data(offset + 2) = px.b
-                data(offset + 3) = px.a
-              }
-              val tmp = dom.document.createElement("canvas").asInstanceOf[Canvas]
-              tmp.width = cropped.width
-              tmp.height = cropped.height
-              val tctx = tmp.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
-              tctx.putImageData(imgData, 0, 0)
-              ctx.imageSmoothingEnabled = false
-              ctx.drawImage(tmp, 0, 0, cropped.width, cropped.height, 0, 0, cw, ch)
+              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
               ctx.strokeStyle = "rgba(255,0,0,0.7)"
               ctx.lineWidth = 1
               val gsx = scale
@@ -169,7 +148,7 @@ object BuildConfigGalleryScreen extends Screen {
             )(text("← Overview"))
           ),
           if (list.isEmpty)
-            emptyState("Create BuildConfig", BuildConfigGalleryMsg.CreateNew)
+            GalleryEmptyState("No build configs yet.", "+ Create BuildConfig", BuildConfigGalleryMsg.CreateNew)
           else
             div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
               (list.map(item => entryCard(item)) :+ button(
@@ -205,16 +184,6 @@ object BuildConfigGalleryScreen extends Screen {
       )(text("Edit"))
     )
 
-  private def emptyState(createLabel: String, createMsg: Msg): Html[Msg] =
-    div(
-      style := "border: 2px dashed #ccc; border-radius: 8px; padding: 2rem; text-align: center; background: #fafafa;"
-    )(
-      p(style := "color: #666; margin-bottom: 1rem;")(text("No build configs yet.")),
-      button(
-        style := "padding: 10px 20px; font-size: 1rem; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 6px;",
-        onClick(createMsg)
-      )(text(s"+ $createLabel"))
-    )
 }
 
 final case class BuildConfigGalleryModel(

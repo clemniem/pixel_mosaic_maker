@@ -66,7 +66,7 @@ object PalettesGalleryScreen extends Screen {
             )
           ),
           if (list.isEmpty)
-            emptyState("Create Palette", PalettesGalleryMsg.CreateNew, "No palettes yet.")
+            GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew)
           else
             div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+ button(
@@ -122,16 +122,6 @@ object PalettesGalleryScreen extends Screen {
       )
     )
 
-  private def emptyState(createLabel: String, createMsg: Msg, emptyText: String): Html[Msg] =
-    div(
-      style := "border: 2px dashed #ccc; border-radius: 8px; padding: 2rem; text-align: center; background: #fafafa;"
-    )(
-      p(style := "color: #666; margin-bottom: 1rem;")(text(emptyText)),
-      button(
-        style := "padding: 10px 20px; font-size: 1rem; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 6px;",
-        onClick(createMsg)
-      )(text(s"+ $createLabel"))
-    )
 }
 
 final case class PalettesGalleryModel(
