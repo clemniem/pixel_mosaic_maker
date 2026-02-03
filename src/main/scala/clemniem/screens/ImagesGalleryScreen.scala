@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{NavigateNext, PixelPic, Screen, ScreenId, StorageKeys, StoredImage}
+import clemniem.{Color, NavigateNext, PixelPic, Screen, ScreenId, ScreenOutput, StorageKeys, StoredImage}
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
 import org.scalajs.dom
 import org.scalajs.dom.CanvasRenderingContext2D
@@ -92,9 +92,34 @@ object ImagesGalleryScreen extends Screen {
         span(style := "font-weight: 500;")(text(item.name)),
         span(style := "display: block; color: #666; font-size: 0.875rem; margin-top: 0.25rem;")(
           text(s"${item.pixelPic.width}×${item.pixelPic.height} px · ${item.pixelPic.paletteLookup.size} color(s)")
-        )
+        ),
+        paletteRow(item)
       )
     )
+
+  private def paletteRow(item: StoredImage): Html[Msg] = {
+    val colors = item.pixelPic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toList
+    val output = ScreenOutput.NewPaletteFromImage(
+      name = item.name + " palette",
+      colors = item.pixelPic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
+    )
+    div(
+      style := "margin-top: 0.35rem;",
+      title := "Click to save as palette"
+    )(
+      span(style := "font-size: 0.75rem; color: #888; margin-right: 4px;")(text("Palette:")),
+        button(
+        style := "display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; align-items: center;",
+        onClick(NavigateNext(ScreenId.PaletteId, Some(output)))
+      )(
+        colors.map(c =>
+          div(
+            style := s"width: 14px; height: 14px; border-radius: 2px; border: 1px solid #666; background: ${c.toHex};"
+          )()
+        )*
+      )
+    )
+  }
 
   private def drawPreview(stored: StoredImage): IO[Unit] =
     CanvasUtils.drawAfterViewReadyDelayed(

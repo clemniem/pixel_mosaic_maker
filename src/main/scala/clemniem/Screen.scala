@@ -52,6 +52,9 @@ object ScreenOutput {
 
   /** Open palette editor to edit an existing stored palette. */
   final case class EditPalette(stored: StoredPalette) extends ScreenOutput
+
+  /** Open palette editor with colors from an image (e.g. from Images gallery) so the user can save as a palette. */
+  final case class NewPaletteFromImage(name: String, colors: Vector[Color]) extends ScreenOutput
 }
 
 /** Stateless build definition: Palette + GridConfig + Image + Offset. */

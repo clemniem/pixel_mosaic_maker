@@ -30,6 +30,9 @@ object PaletteScreen extends Screen {
           colors = colors,
           editingId = Some(stored.id)
         )
+      case Some(ScreenOutput.NewPaletteFromImage(name, colors)) =>
+        val cs = if (colors.nonEmpty) colors else defaultColors
+        PaletteModel(name = name, colors = cs, editingId = None)
       case _ =>
         PaletteModel(
           name = "Unnamed palette",
