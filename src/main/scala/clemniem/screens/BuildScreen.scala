@@ -4,6 +4,7 @@ import cats.effect.IO
 import clemniem.{
   BuildConfig,
   NavigateNext,
+  Pixel,
   PixelPic,
   Screen,
   ScreenId,
@@ -248,7 +249,14 @@ object BuildScreen extends Screen {
       }
     })
 
-  /** Preview: current 16×16 patch only. */
+  /** Colors in patch sorted by count ascending (least to most); each gets its own 16×16 patch drawn. */
+  private def colorsByCountAsc(patch: PixelPic): Vector[(Int, Int)] =
+    patch.palette.toVector.sortBy(_._2)
+
+  private def cssRgba(p: Pixel): String =
+    s"rgba(${p.r},${p.g},${p.b},${p.a / 255.0})"
+
+  /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. */
   private def drawPreview(model: Model): IO[Unit] =
     CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
       val picOpt = picWithPalette(model)
@@ -256,10 +264,46 @@ object BuildScreen extends Screen {
         case Some((sx, sy)) =>
           picOpt.flatMap(_.crop(sx, sy, patchSize, patchSize)) match {
             case Some(patch) =>
-              canvas.width = patchSize
-              canvas.height = patchSize
-              ctx.clearRect(0, 0, patchSize, patchSize)
-              CanvasUtils.drawPixelPic(canvas, ctx, patch, patchSize, patchSize)
+              val sortedColors = colorsByCountAsc(patch)
+              val cellPx       = 8
+              val cellW        = patchSize * cellPx
+              val cellH        = patchSize * cellPx
+              val gap          = 8
+              val gridStep     = 4
+              val n            = sortedColors.size
+              val totalW       = if (n <= 0) cellW else n * cellW + (n - 1) * gap
+              val totalH       = cellH
+              canvas.width = totalW.max(1)
+              canvas.height = totalH.max(1)
+              ctx.clearRect(0, 0, canvas.width, canvas.height)
+              sortedColors.zipWithIndex.foreach { case ((paletteIndex, _), i) =>
+                val px = patch.paletteLookup(paletteIndex)
+                val ox = i * (cellW + gap)
+                for (y <- 0 until patchSize; x <- 0 until patchSize) {
+                  val idx = y * patchSize + x
+                  val isThisColor = patch.pixels(idx) == paletteIndex
+                  if (isThisColor) {
+                    ctx.fillStyle = cssRgba(px)
+                    ctx.fillRect(ox + x * cellPx, y * cellPx, cellPx, cellPx)
+                  } else {
+                    ctx.fillStyle = "#eee"
+                    ctx.fillRect(ox + x * cellPx, y * cellPx, cellPx, cellPx)
+                  }
+                }
+                ctx.strokeStyle = "rgba(0,0,0,0.45)"
+                ctx.lineWidth = 1
+                for (g <- 1 until 4) {
+                  val pos = g * gridStep * cellPx
+                  ctx.beginPath()
+                  ctx.moveTo(ox + pos, 0)
+                  ctx.lineTo(ox + pos, cellH)
+                  ctx.stroke()
+                  ctx.beginPath()
+                  ctx.moveTo(ox, pos)
+                  ctx.lineTo(ox + cellW, pos)
+                  ctx.stroke()
+                }
+              }
             case None =>
               canvas.width = patchSize
               canvas.height = patchSize
@@ -326,14 +370,14 @@ object BuildScreen extends Screen {
             )()
           )
         ),
-        div(style := "flex: 0 0 auto;")(
-          div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Current patch (16×16)")),
-          div(onLoad(BuildScreenMsg.Draw))(
+        div(style := "flex: 0 0 auto; max-width: 100%;")(
+          div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Current patch by color (least → most)")),
+          div(style := "overflow-x: auto; display: inline-block;", onLoad(BuildScreenMsg.Draw))(
             canvas(
               id := previewCanvasId,
-              width := patchSize,
-              height := patchSize,
-              style := "border: 1px solid #333; display: block; image-rendering: pixelated; image-rendering: crisp-edges; width: 128px; height: 128px;"
+              width := 32,
+              height := 32,
+              style := "display: block; image-rendering: pixelated; image-rendering: crisp-edges; min-height: 128px;"
             )()
           )
         )

@@ -78,6 +78,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 - **Disabled attribute:** Tyrian’s HTML helpers may not support `disabled := true` on buttons in the same way; use conditional **style** (e.g. `cursor: not-allowed; opacity: 0.6`) instead of disabled when needed.
 - **Number inputs:** Use `min := "0"`, `max := value.toString` for range; `value := model.value.toString` and `onInput` that parses and dispatches.
 - **Reserved names:** Use backticks for HTML attributes that are Scala keywords, e.g. `` `type` := "number" ``.
+- **onLoad:** `onLoad` is an **attribute** that takes a single message (e.g. to trigger a draw). It does **not** take a child; put it on the parent: `div(onLoad(DrawMsg))(canvas()())`, not `onLoad(DrawMsg)(canvas()())` (the latter fails with “onLoad does not take more parameters”).
 
 ---
 

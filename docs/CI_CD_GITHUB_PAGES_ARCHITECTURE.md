@@ -120,7 +120,30 @@ No need to create a `gh-pages` branch manually; the `peaceiris/actions-gh-pages`
 
 ---
 
-## 6. Summary checklist
+## 6. Where to see your site
+
+After the first successful deploy:
+
+1. Open your repo on GitHub → **Settings** → **Pages** (under “Code and automation”).
+2. At the top you’ll see: **“Your site is live at …”** with the real URL.
+3. That URL is always: **`https://<owner>.github.io/<repo>/`**  
+   Replace `<owner>` with your GitHub username and `<repo>` with the repository name (e.g. `https://clemniem.github.io/pixel_mosaic_maker/`).
+
+After the workflow finishes, allow **1–2 minutes** for the site to update. The **first time** you enable Pages or switch the source to GitHub Actions, it can take **up to 5–10 minutes** before the site is available. Use the link from **Settings → Pages** to avoid typos.
+
+---
+
+## 7. If you see 404 or a blank page
+
+| Symptom | What to check |
+|--------|----------------|
+| **“There isn’t a GitHub Pages site here”** or **404** | **Settings → Pages** → **Source** must be **“GitHub Actions”**. After saving, wait **5–10 minutes** (first time can be slow). Then confirm the **Actions** tab shows a successful deploy. |
+| **404** | **Actions** tab → last “Deploy to GitHub Pages” run → confirm it completed successfully (green). If it failed, fix the workflow and push again. |
+| **Blank white page** | Open the same URL, then **Developer tools (F12) → Console**. Look for red errors (e.g. script failed to load or module not found). Share the error message to debug further. |
+
+---
+
+## 8. Summary checklist
 
 | Item | Where / What |
 |------|----------------|
@@ -129,6 +152,6 @@ No need to create a `gh-pages` branch manually; the `peaceiris/actions-gh-pages`
 | Assemble step | Copy `index.html`; write production loader that imports `./main.js`; copy `target/scala-*/pixel_mosaic_maker-opt/main.js` into `publish_dir` |
 | Deploy action | `peaceiris/actions-gh-pages@v4`, `publish_dir` = assembled directory |
 | Repo setting | **Settings → Pages → Source = GitHub Actions** |
-| URL after deploy | `https://<owner>.github.io/<repo>/` |
+| **Live URL** | **Settings → Pages** shows: **`https://<owner>.github.io/<repo>/`** (replace owner and repo with your username and repo name). |
 
 Once this is in place, every push to `main` will build the optimized JS, assemble the deployable root, and publish it to GitHub Pages.
