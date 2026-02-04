@@ -82,7 +82,18 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 9. Linting (Scalafix)
+## 9. PDF (jsPDF)
+
+- **Providing jsPDF to the app:** Use the **npm** package and an **export wrapper**, not a CDN script. In `export-wrapper.js`: `import { jsPDF } from "jspdf"; window.jspdf = { jsPDF };` then import and launch the Scala.js app. `index.html` loads `export-wrapper.js` as the module entry. This way the bundler includes jsPDF and it is on `window` before the app runs.
+- **Never reference the global `jsPDF` from Scala:** Using `js.Dynamic.global.selectDynamic("jsPDF")` can make the Scala.js compiler emit a direct reference to a global variable named `jsPDF`. That causes `ReferenceError: jsPDF is not defined` because we only set `window.jspdf` (lowercase). Only ever use `selectDynamic("jspdf")` on the global; then get the constructor from that object using a **dynamic key** (e.g. `val ctorKey = "js" + "PDF"` and `jspdfObj.selectDynamic(ctorKey)`) so the compiler does not emit a global `jsPDF` access.
+- **Calling a JavaScript constructor:** Use **`js.Dynamic.newInstance(ctor)(arg1, arg2, ...)`**, not `ctor.newInstance(args)`. The latter is not a function; `newInstance` is on the `js.Dynamic` object, not on the constructor value.
+- **Scala.js global scope:** Do not assign `js.Dynamic.global` to a variable (e.g. `val g = js.Dynamic.global`); the compiler disallows “loading the global scope as a value”. Use `js.Dynamic.global.selectDynamic("...")` directly.
+- **Abstraction:** PDF behaviour is described as **`Instruction`**s in `common/pdf/Instruction.scala` (e.g. `PageSize`, `FontSize`, `Text`, `Save`). **`JsPDF.run(instructions)`** in `common/pdf/JsPDF.scala` runs them; all use of the jsPDF API is confined there. High-level helpers (e.g. `PdfUtils.printTestPdf()`) build a list of instructions and call `JsPDF.run`.
+
+---
+
+## 10. Linting (Scalafix)
+
 
 - **No `return`:** Use if/else or pattern match instead of early return.
 - **No `null`:** Use `Option` and `.filter` / `.getOrElse`.
@@ -92,7 +103,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 10. Where things live
+## 11. Where things live
 
 | Concern | Location |
 |--------|----------|
@@ -102,6 +113,10 @@ This document captures what was learned during development of the Pixel Mosaic M
 | Image load, scale detection, downscale | `common/ImageUtils.scala` |
 | LocalStorage load/save list | `common/LocalStorageUtils.scala` |
 | Apply StoredPalette to PixelPic | `PaletteUtils.scala` |
+| PDF instructions (PageSize, Text, Save, …) | `common/pdf/Instruction.scala` |
+| PDF runner (jsPDF behind the scenes) | `common/pdf/JsPDF.scala` |
+| High-level PDF helpers (e.g. printTestPdf) | `common/PdfUtils.scala` |
+| App entry: sets window.jspdf, then launches app | `export-wrapper.js` |
 | Gallery empty state component | `screens/GalleryEmptyState.scala` |
 | Root app, screen registry | `PixelMosaicMaker.scala` |
 | Grid logic (parts, row/column defs) | `GridConfig.scala` |
@@ -109,14 +124,14 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 11. Testing
+## 12. Testing
 
 - Unit tests in `src/test/scala/clemniem/`: e.g. `ResizeSpec` (scale detection, downscale), `PixelPicTests`, `GridConfigSpec`, `LocalStorageUtilsSpec`. Run with `sbt test`.
 - No browser/E2E tests in this repo; manual check in browser after `yarn start` and `fastLinkJS`.
 
 ---
 
-## 12. Quick checklist for new features
+## 13. Quick checklist for new features
 
 1. **New screen:** Add `ScreenId`, implement `Screen` (init, update, view), register in `PixelMosaicMaker`’s `ScreenRegistry`.
 2. **New stored entity:** Add case class in `StoredEntities.scala`, Circe encoder + backward-compatible decoder if needed, add `StorageKeys` key if it’s a new list.
