@@ -1,8 +1,8 @@
-name: Deploy
+name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: write
@@ -11,18 +11,29 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
       - name: Build
-        run: sbt fastLinkJS
+        run: sbt fullLinkJS
 
-      - name: Deploy
+      - name: Assemble deployable directory
+        run: |
+          mkdir -p dist
+          cp index.html dist/
+          cp target/scala-*/pixel_mosaic_maker-opt/main.js dist/
+          cp target/scala-*/pixel_mosaic_maker-opt/main.js.map dist/ 2>/dev/null || true
+          echo "import { TyrianApp } from './main.js';" > dist/tyrianapp.js
+          echo "TyrianApp.launch(\"myapp\");" >> dist/tyrianapp.js
+
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: \${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist
