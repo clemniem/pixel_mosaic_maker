@@ -15,7 +15,7 @@ import clemniem.{
   StoredImage,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils}
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -170,7 +170,8 @@ object BuildConfigScreen extends Screen {
 
     case BuildConfigMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.BuildConfigsId, None)))
-
+    case BuildConfigMsg.PrintPdf =>
+      (model, Cmd.SideEffect(PdfUtils.printTestPdf()))
     case BuildConfigMsg.DrawPreview =>
       (model, drawPreviewCmd(model))
 
@@ -307,7 +308,7 @@ object BuildConfigScreen extends Screen {
     div(style := container)(
       div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
         h2(style := "margin: 0;")(text("Build config")),
-        div(style := "display: flex; align-items: center; gap: 8px;")(
+        div(style := "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;")(
           button(style := "padding: 6px 12px; cursor: pointer;", onClick(BuildConfigMsg.Back))(text("← Build configs")),
           input(
             `type` := "text",
@@ -319,7 +320,11 @@ object BuildConfigScreen extends Screen {
           button(
             style := "padding: 6px 14px; cursor: pointer; background: #2e7d32; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
             onClick(BuildConfigMsg.Save)
-          )(text("Save"))
+          )(text("Save")),
+          button(
+            style := "padding: 6px 14px; cursor: pointer; background: #1565c0; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
+            onClick(BuildConfigMsg.PrintPdf)
+          )(text("Print PDF"))
         )
       ),
       selectRow("Grid", model.gridConfigs, model.selectedGridId, BuildConfigMsg.SetGrid.apply, (g: StoredGridConfig) => g.name, (g: StoredGridConfig) => g.id),
@@ -437,6 +442,7 @@ enum BuildConfigMsg:
   case SetOffsetY(n: Int)
   case SetName(name: String)
   case Save
+  case PrintPdf
   case LoadedForSave(list: List[StoredBuildConfig])
   case SaveFailed
   case Back
