@@ -23,28 +23,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Assemble static test page
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: sbt
+
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Build Scala.js
+        run: sbt fullLinkJS
+
+      - name: Assemble deployable directory
         run: |
           mkdir -p dist
-          cat > dist/index.html << 'EOF'
+          cp target/scala-*/pixel_mosaic_maker-opt/main.js dist/
+          cp target/scala-*/pixel_mosaic_maker-opt/main.js.map dist/ 2>/dev/null || true
+          echo "import { TyrianApp } from './main.js';" > dist/loader.js
+          echo "TyrianApp.launch(\"myapp\");" >> dist/loader.js
+          cat > dist/index.html << 'INDEX'
           <!DOCTYPE html>
-          <html lang="en">
+          <html>
           <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>Pixel Mosaic Maker</title>
-            <style>
-              body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
-              h1 { color: #333; }
-              p { color: #666; line-height: 1.6; }
-            </style>
           </head>
           <body>
-            <h1>Pixel Mosaic Maker</h1>
-            <p>GitHub Pages is working. This is a static test page.</p>
+            <div id="myapp"></div>
+            <script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+            <script>window.jspdf = { jsPDF: window.jsPDF };</script>
+            <script type="module" src="./loader.js"></script>
           </body>
           </html>
-          EOF
+          INDEX
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
