@@ -39,6 +39,9 @@ object JsPDF {
             case Instruction.AddPage =>
               docOpt.foreach { doc => val _ = doc.addPage() }
               docOpt
+            case Instruction.AddPageWithSize(w, h) =>
+              docOpt.foreach { doc => val _ = doc.addPage(js.Array(w, h), "p") }
+              docOpt
             case Instruction.AddImage(dataUrl, x, y, w, h) =>
               docOpt.foreach { doc =>
                 val format = if (dataUrl.contains("image/svg+xml")) "SVG" else "PNG"
@@ -68,6 +71,12 @@ object JsPDF {
                 val _ = doc.setDrawColor(r, g, b)
                 val _ = doc.setLineWidth(0.3)
                 rects.foreach { case (x, y, w, h) => val _ = doc.rect(x, y, w, h, "S") }
+              }
+              docOpt
+            case Instruction.FillRect(x, y, w, h, r, g, b) =>
+              docOpt.foreach { doc =>
+                val _ = doc.setFillColor(r, g, b)
+                val _ = doc.rect(x, y, w, h, "F")
               }
               docOpt
             case Instruction.Save(filename) =>

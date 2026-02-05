@@ -88,7 +88,9 @@ This document captures what was learned during development of the Pixel Mosaic M
 - **Never reference the global `jsPDF` from Scala:** Using `js.Dynamic.global.selectDynamic("jsPDF")` can make the Scala.js compiler emit a direct reference to a global variable named `jsPDF`. That causes `ReferenceError: jsPDF is not defined` because we only set `window.jspdf` (lowercase). Only ever use `selectDynamic("jspdf")` on the global; then get the constructor from that object using a **dynamic key** (e.g. `val ctorKey = "js" + "PDF"` and `jspdfObj.selectDynamic(ctorKey)`) so the compiler does not emit a global `jsPDF` access.
 - **Calling a JavaScript constructor:** Use **`js.Dynamic.newInstance(ctor)(arg1, arg2, ...)`**, not `ctor.newInstance(args)`. The latter is not a function; `newInstance` is on the `js.Dynamic` object, not on the constructor value.
 - **Scala.js global scope:** Do not assign `js.Dynamic.global` to a variable (e.g. `val g = js.Dynamic.global`); the compiler disallows “loading the global scope as a value”. Use `js.Dynamic.global.selectDynamic("...")` directly.
-- **Abstraction:** PDF behaviour is described as **`Instruction`**s in `common/pdf/Instruction.scala` (e.g. `PageSize`, `FontSize`, `Text`, `Save`). **`JsPDF.run(instructions)`** in `common/pdf/JsPDF.scala` runs them; all use of the jsPDF API is confined there. High-level helpers (e.g. `PdfUtils.printTestPdf()`) build a list of instructions and call `JsPDF.run`.
+- **Abstraction:** PDF behaviour is described as **`Instruction`**s in `common/pdf/Instruction.scala`. **`JsPDF.run(instructions)`** in `common/pdf/JsPDF.scala` runs them; all use of the jsPDF API is confined there. High-level logic lives in **`PdfUtils.scala`**: it builds instruction lists and calls `JsPDF.run`. Entry point for the book is **`PdfUtils.printBookPdf(PrintBookRequest(title, mosaicPicAndGridOpt))`** (used by both Print PDF buttons).
+- **Instruction set:** `PageSize(w, h)`, `AddPage`, **`AddPageWithSize(w, h)`** (for custom page size, e.g. 20×20 cm), `FontSize`, `Text`, `DrawPixelGrid` (pixel or block grid with flat RGB), `DrawStrokeRects` (e.g. plate grid or 4×4 overlay), `FillRect` (e.g. color swatches), `Save(filename)`.
+- **Book layout:** See **`print_instructions_layout.md`** for the full spec. In short: (1) Cover (A4, title); (2) Overview (A4, full mosaic + red plate grid); (3) Chapter 1 – Plate overview (A4: small mosaic with current plate in blue, plate image, color swatches + counts); (4) Layer patch pages (20×20 cm, 4 patches per page in 2×2). Each patch is a **cumulative color layer** at **16×16 block** resolution (colors added least-used first); layer background is light grey (configurable later); each patch has a 4×4 stroke grid overlay and “Layer N” label.
 
 ---
 
@@ -113,9 +115,10 @@ This document captures what was learned during development of the Pixel Mosaic M
 | Image load, scale detection, downscale | `common/ImageUtils.scala` |
 | LocalStorage load/save list | `common/LocalStorageUtils.scala` |
 | Apply StoredPalette to PixelPic | `PaletteUtils.scala` |
-| PDF instructions (PageSize, Text, Save, …) | `common/pdf/Instruction.scala` |
+| PDF instructions (PageSize, AddPageWithSize, DrawPixelGrid, …) | `common/pdf/Instruction.scala` |
 | PDF runner (jsPDF behind the scenes) | `common/pdf/JsPDF.scala` |
-| High-level PDF helpers (e.g. printTestPdf) | `common/PdfUtils.scala` |
+| High-level PDF book (printBookPdf, chapter/layer logic) | `common/PdfUtils.scala` |
+| Print book layout spec (cover, overview, chapter, layers) | `print_instructions_layout.md` |
 | App entry: sets window.jspdf, then launches app | `export-wrapper.js` |
 | Gallery empty state component | `screens/GalleryEmptyState.scala` |
 | Root app, screen registry | `PixelMosaicMaker.scala` |
