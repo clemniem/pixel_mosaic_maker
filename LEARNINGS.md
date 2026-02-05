@@ -84,7 +84,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ## 9. PDF (jsPDF)
 
-- **Providing jsPDF to the app:** Use the **npm** package and an **export wrapper**, not a CDN script. In `export-wrapper.js`: `import { jsPDF } from "jspdf"; window.jspdf = { jsPDF };` then import and launch the Scala.js app. `index.html` loads `export-wrapper.js` as the module entry. This way the bundler includes jsPDF and it is on `window` before the app runs.
+- **Providing jsPDF to the app:** **Local dev:** Use the **npm** package and an **export wrapper**. In `export-wrapper.js`: `import { jsPDF } from "jspdf"; window.jspdf = { jsPDF };` then import and launch the Scala.js app. `index.html` loads `export-wrapper.js` as the module entry so the bundler includes jsPDF. **Production (GitHub Pages):** The deploy workflow builds its own `index.html` that loads jsPDF from a CDN (e.g. unpkg `jspdf.umd.min.js`) and sets `window.jspdf = { jsPDF: window.jsPDF }` before loading the app; see **Deployment (GitHub Pages)** below.
 - **Never reference the global `jsPDF` from Scala:** Using `js.Dynamic.global.selectDynamic("jsPDF")` can make the Scala.js compiler emit a direct reference to a global variable named `jsPDF`. That causes `ReferenceError: jsPDF is not defined` because we only set `window.jspdf` (lowercase). Only ever use `selectDynamic("jspdf")` on the global; then get the constructor from that object using a **dynamic key** (e.g. `val ctorKey = "js" + "PDF"` and `jspdfObj.selectDynamic(ctorKey)`) so the compiler does not emit a global `jsPDF` access.
 - **Calling a JavaScript constructor:** Use **`js.Dynamic.newInstance(ctor)(arg1, arg2, ...)`**, not `ctor.newInstance(args)`. The latter is not a function; `newInstance` is on the `js.Dynamic` object, not on the constructor value.
 - **Scala.js global scope:** Do not assign `js.Dynamic.global` to a variable (e.g. `val g = js.Dynamic.global`); the compiler disallows “loading the global scope as a value”. Use `js.Dynamic.global.selectDynamic("...")` directly.
@@ -120,6 +120,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 | High-level PDF book (printBookPdf, chapter/layer logic) | `common/PdfUtils.scala` |
 | Print book layout spec (cover, overview, chapter, layers) | `print_instructions_layout.md` |
 | App entry: sets window.jspdf, then launches app | `export-wrapper.js` |
+| GitHub Pages deploy (Scala.js build + upload-pages-artifact + deploy-pages) | `.github/workflows/deploy.yml` |
 | Gallery empty state component | `screens/GalleryEmptyState.scala` |
 | Root app, screen registry | `PixelMosaicMaker.scala` |
 | Grid logic (parts, row/column defs) | `GridConfig.scala` |
@@ -127,14 +128,25 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 12. Testing
+## 12. Deployment (GitHub Pages)
+
+- **Publishing source:** In the repo **Settings → Pages**, set **Source** to **GitHub Actions** (not “Deploy from a branch”). No need to create or maintain a `gh-pages` branch manually.
+- **Official deployment flow:** When Source is “GitHub Actions”, GitHub serves from the **artifact** deployed by the workflow. Use **`actions/upload-pages-artifact`** then **`actions/deploy-pages`**. Do **not** use `peaceiris/actions-gh-pages` (which pushes to the `gh-pages` branch); with “GitHub Actions” as source, that branch is not what Pages serves, so you get 404.
+- **Workflow requirements:** The deploy job needs **permissions** `contents: read`, `pages: write`, `id-token: write`, and an **environment** `github-pages` (GitHub creates it if missing). Use **concurrency** (e.g. `group: "pages"`) to avoid overlapping deploys.
+- **Project site URL:** The site is at **`https://<owner>.github.io/<repo>/`** (e.g. `https://clemniem.github.io/pixel_mosaic_maker/`). The repo name is required; `https://<owner>.github.io/` alone returns 404 for a project site.
+- **Scala.js build:** Run **`sbt fullLinkJS`**; output is under **`target/scala-<ver>/pixel_mosaic_maker-opt/`** (`main.js`, `main.js.map`). The workflow assembles a **`dist/`** directory: copy `main.js` (and optional `.map`), add a **production loader** (e.g. `loader.js` that does `import { TyrianApp } from './main.js'; TyrianApp.launch("myapp");`), and an **index.html** that loads **jsPDF from a CDN** (e.g. `jspdf.umd.min.js` from unpkg), sets `window.jspdf = { jsPDF: window.jsPDF }`, then loads the loader as `type="module"`. Local dev continues to use `index.html` + `export-wrapper.js` (target path, npm jspdf); the workflow builds its own dist and never uses `target/` in the deployed artifact.
+- **Docs:** See **`docs/CI_CD_GITHUB_PAGES_ARCHITECTURE.md`** for the high-level pipeline; the actual workflow file is **`.github/workflows/deploy.yml`**.
+
+---
+
+## 13. Testing
 
 - Unit tests in `src/test/scala/clemniem/`: e.g. `ResizeSpec` (scale detection, downscale), `PixelPicTests`, `GridConfigSpec`, `LocalStorageUtilsSpec`. Run with `sbt test`.
 - No browser/E2E tests in this repo; manual check in browser after `yarn start` and `fastLinkJS`.
 
 ---
 
-## 13. Quick checklist for new features
+## 14. Quick checklist for new features
 
 1. **New screen:** Add `ScreenId`, implement `Screen` (init, update, view), register in `PixelMosaicMaker`’s `ScreenRegistry`.
 2. **New stored entity:** Add case class in `StoredEntities.scala`, Circe encoder + backward-compatible decoder if needed, add `StorageKeys` key if it’s a new list.
