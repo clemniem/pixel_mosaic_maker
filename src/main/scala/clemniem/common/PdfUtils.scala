@@ -181,13 +181,13 @@ object PdfUtils {
             Instruction.FontSize(10),
             Instruction.Text(patchMargin, patchMargin + 6, "Plate 1 – color layers (least → most)")
           ) ++ perPage.flatMap { case (x0, y0, w, h, rgb, labelY, layerNum) =>
-            val grid16Rects = grid16x16PatchStrokeRects(x0, y0, w, h, platePic.width, platePic.height, patchSizePx)
-            val grid4x4Rects = grid4x4StrokeRects(x0, y0, w, h)
+            val grid16Rects = grid16x16PatchStrokeRects(x0, y0, w, h, platePic.width, platePic.height, patchSizePx, lineWidthMm = 0.25)
+            val grid4x4Rects = grid4x4StrokeRects(x0, y0, w, h, lineWidthMm = 0.1)
             val gridGrey = 120
             List(
               Instruction.DrawPixelGrid(x0, y0, w, h, platePic.width, platePic.height, rgb),
-              Instruction.DrawStrokeRects(grid16Rects, gridGrey, gridGrey, gridGrey),
-              Instruction.DrawStrokeRects(grid4x4Rects, gridGrey, gridGrey, gridGrey),
+              Instruction.DrawStrokeRects(grid16Rects, gridGrey, gridGrey, gridGrey, 0.25),
+              Instruction.DrawStrokeRects(grid4x4Rects, gridGrey, gridGrey, gridGrey, 0.1),
               Instruction.FontSize(8),
               Instruction.Text(x0, labelY, s"Layer $layerNum")
             )
@@ -198,18 +198,17 @@ object PdfUtils {
     }
   }
 
-  /** Stroke rects for a 4×4 grid overlay: 3 vertical + 3 horizontal lines inside (x0, y0, imageW, imageH). */
-  private def grid4x4StrokeRects(x0: Double, y0: Double, imageW: Double, imageH: Double): List[(Double, Double, Double, Double)] = {
-    val lineWidth = 0.25
-    val half      = lineWidth / 2
+  /** Stroke rects for a 4×4 grid overlay: 3 vertical + 3 horizontal lines. lineWidthMm should be small (e.g. 0.1) for thin strokes. */
+  private def grid4x4StrokeRects(x0: Double, y0: Double, imageW: Double, imageH: Double, lineWidthMm: Double): List[(Double, Double, Double, Double)] = {
+    val half      = lineWidthMm / 2
     val cellW     = imageW / 4
     val cellH     = imageH / 4
-    val verticals   = (1 to 3).map { i => (x0 + i * cellW - half, y0, lineWidth, imageH) }.toList
-    val horizontals = (1 to 3).map { i => (x0, y0 + i * cellH - half, imageW, lineWidth) }.toList
+    val verticals   = (1 to 3).map { i => (x0 + i * cellW - half, y0, lineWidthMm, imageH) }.toList
+    val horizontals = (1 to 3).map { i => (x0, y0 + i * cellH - half, imageW, lineWidthMm) }.toList
     verticals ++ horizontals
   }
 
-  /** Stroke rects for 16×16 step grid (like BuildScreen overview): one line every patchSizePx pixels in plate space. */
+  /** Stroke rects for 16×16 step grid: one line every patchSizePx pixels in plate space. */
   private def grid16x16PatchStrokeRects(
       x0: Double,
       y0: Double,
@@ -217,21 +216,21 @@ object PdfUtils {
       imageH: Double,
       plateWidth: Int,
       plateHeight: Int,
-      patchSizePx: Int
+      patchSizePx: Int,
+      lineWidthMm: Double
   ): List[(Double, Double, Double, Double)] = {
-    val lineWidth = 0.25
-    val half      = lineWidth / 2
+    val half      = lineWidthMm / 2
     val nCols     = plateWidth / patchSizePx
     val nRows     = plateHeight / patchSizePx
     val pxW       = imageW / plateWidth
     val pxH       = imageH / plateHeight
     val verticals   = (1 until nCols).map { i =>
       val x = x0 + i * patchSizePx * pxW - half
-      (x, y0, lineWidth, imageH)
+      (x, y0, lineWidthMm, imageH)
     }.toList
     val horizontals = (1 until nRows).map { j =>
       val y = y0 + j * patchSizePx * pxH - half
-      (x0, y, imageW, lineWidth)
+      (x0, y, imageW, lineWidthMm)
     }.toList
     verticals ++ horizontals
   }

@@ -33,8 +33,14 @@ object Instruction {
       rgbFlat: Vector[Int]
   ) extends Instruction
 
-  /** Draw stroke-only rects (e.g. plate grid overlay). Each (xMm, yMm, widthMm, heightMm). */
-  case class DrawStrokeRects(rectsMm: List[(Double, Double, Double, Double)], strokeR: Int, strokeG: Int, strokeB: Int) extends Instruction
+  /** Draw stroke-only rects (e.g. plate grid overlay). Each (xMm, yMm, widthMm, heightMm). Line width in mm. */
+  case class DrawStrokeRects(
+      rectsMm: List[(Double, Double, Double, Double)],
+      strokeR: Int,
+      strokeG: Int,
+      strokeB: Int,
+      lineWidthMm: Double = 0.25
+  ) extends Instruction
 
   /** Draw a filled rectangle (e.g. color swatch). */
   case class FillRect(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, r: Int, g: Int, b: Int) extends Instruction

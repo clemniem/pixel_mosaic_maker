@@ -256,7 +256,9 @@ object BuildScreen extends Screen {
   private def cssRgba(p: Pixel): String =
     s"rgba(${p.r},${p.g},${p.b},${p.a / 255.0})"
 
-  /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. */
+  /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. Up to 16 colors in a 4-column grid. */
+  private val previewCols = 4
+
   private def drawPreview(model: Model): IO[Unit] =
     CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
       val picOpt = picWithPalette(model)
@@ -270,24 +272,29 @@ object BuildScreen extends Screen {
               val cellH        = patchSize * cellPx
               val gap          = 8
               val gridStep     = 4
-              val n            = sortedColors.size
-              val totalW       = if (n <= 0) cellW else n * cellW + (n - 1) * gap
-              val totalH       = cellH
+              val n            = sortedColors.size.min(16)
+              val cols         = previewCols
+              val rows         = if (n <= 0) 0 else (n + cols - 1) / cols
+              val totalW       = if (cols <= 0) 1 else cols * cellW + (cols - 1) * gap
+              val totalH       = if (rows <= 0) 1 else rows * cellH + (rows - 1) * gap
               canvas.width = totalW.max(1)
               canvas.height = totalH.max(1)
               ctx.clearRect(0, 0, canvas.width, canvas.height)
-              sortedColors.zipWithIndex.foreach { case ((paletteIndex, _), i) =>
-                val px = patch.paletteLookup(paletteIndex)
-                val ox = i * (cellW + gap)
+              sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), i) =>
+                val px  = patch.paletteLookup(paletteIndex)
+                val col = i % cols
+                val row = i / cols
+                val ox  = col * (cellW + gap)
+                val oy  = row * (cellH + gap)
                 for (y <- 0 until patchSize; x <- 0 until patchSize) {
                   val idx = y * patchSize + x
                   val isThisColor = patch.pixels(idx) == paletteIndex
                   if (isThisColor) {
                     ctx.fillStyle = cssRgba(px)
-                    ctx.fillRect(ox + x * cellPx, y * cellPx, cellPx, cellPx)
+                    ctx.fillRect(ox + x * cellPx, oy + y * cellPx, cellPx, cellPx)
                   } else {
                     ctx.fillStyle = "#eee"
-                    ctx.fillRect(ox + x * cellPx, y * cellPx, cellPx, cellPx)
+                    ctx.fillRect(ox + x * cellPx, oy + y * cellPx, cellPx, cellPx)
                   }
                 }
                 ctx.strokeStyle = "rgba(0,0,0,0.45)"
@@ -295,12 +302,12 @@ object BuildScreen extends Screen {
                 for (g <- 1 until 4) {
                   val pos = g * gridStep * cellPx
                   ctx.beginPath()
-                  ctx.moveTo(ox + pos, 0)
-                  ctx.lineTo(ox + pos, cellH)
+                  ctx.moveTo(ox + pos, oy)
+                  ctx.lineTo(ox + pos, oy + cellH)
                   ctx.stroke()
                   ctx.beginPath()
-                  ctx.moveTo(ox, pos)
-                  ctx.lineTo(ox + cellW, pos)
+                  ctx.moveTo(ox, oy + pos)
+                  ctx.lineTo(ox + cellW, oy + pos)
                   ctx.stroke()
                 }
               }
@@ -372,7 +379,7 @@ object BuildScreen extends Screen {
         ),
         div(style := "flex: 0 0 auto; max-width: 100%;")(
           div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Current patch by color (least → most)")),
-          div(style := "overflow-x: auto; display: inline-block;", onLoad(BuildScreenMsg.Draw))(
+          div(style := "overflow: auto; display: inline-block; max-height: 70vh;", onLoad(BuildScreenMsg.Draw))(
             canvas(
               id := previewCanvasId,
               width := 32,

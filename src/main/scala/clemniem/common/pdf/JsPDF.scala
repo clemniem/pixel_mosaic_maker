@@ -66,10 +66,10 @@ object JsPDF {
                 }
               }
               docOpt
-            case Instruction.DrawStrokeRects(rects, r, g, b) =>
+            case Instruction.DrawStrokeRects(rects, r, g, b, lineWidthMm) =>
               docOpt.foreach { doc =>
                 val _ = doc.setDrawColor(r, g, b)
-                val _ = doc.setLineWidth(0.3)
+                val _ = doc.setLineWidth(lineWidthMm)
                 rects.foreach { case (x, y, w, h) => val _ = doc.rect(x, y, w, h, "S") }
               }
               docOpt
