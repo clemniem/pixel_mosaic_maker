@@ -21,7 +21,7 @@ lazy val pixel_mosaic_maker =
         "org.scalameta"   %%% "munit"        % "1.1.1" % Test
       ),
       testFrameworks += new TestFramework("munit.Framework"),
-      scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+      scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
       scalafixOnCompile := true,
       semanticdbEnabled := true,
       semanticdbVersion := scalafixSemanticdb.revision,
