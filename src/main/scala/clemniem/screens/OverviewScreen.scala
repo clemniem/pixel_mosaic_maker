@@ -5,7 +5,7 @@ import clemniem.{NavigateNext, Screen, ScreenId}
 import tyrian.Html.*
 import tyrian.*
 
-/** Home page: links to the five galleries (GridConfigs, Palettes, Images, BuildConfigs, Builds). */
+/** Home page: links to Upload Images, Define Grid, Create Palettes, Mosaic Configurator, Mosaic Builder, Print Instructions. */
 object OverviewScreen extends Screen {
   type Model = Unit
   type Msg   = OverviewMsg | NavigateNext
@@ -36,11 +36,12 @@ object OverviewScreen extends Screen {
         text("Choose a gallery to manage saved items, or create new ones.")
       ),
       div(style := "display: flex; flex-direction: column;")(
-        linkCard("GridConfigs", ScreenId.GridConfigsId, "Grid configs (plate layouts)"),
-        linkCard("Palettes", ScreenId.PalettesId, "Color palettes"),
-        linkCard("Images", ScreenId.ImagesId, "Uploaded pixel images"),
-        linkCard("BuildConfigs", ScreenId.BuildConfigsId, "Build configurations"),
-        linkCard("Builds", ScreenId.BuildsId, "Build runs")
+        linkCard("Upload Images", ScreenId.ImagesId, "Upload and manage pixel images"),
+        linkCard("Define Grid", ScreenId.GridConfigsId, "Grid configs (plate layouts)"),
+        linkCard("Create Palettes", ScreenId.PalettesId, "Color palettes"),
+        linkCard("Mosaic Configurator", ScreenId.BuildConfigsId, "Build configurations (grid + image + palette)"),
+        linkCard("Mosaic Builder", ScreenId.BuildsId, "Step-by-step build runs"),
+        linkCard("Print Instructions", ScreenId.PrintInstructionsId, "Generate PDF print instructions")
       )
     )
 

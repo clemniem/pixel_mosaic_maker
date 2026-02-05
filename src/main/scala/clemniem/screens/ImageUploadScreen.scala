@@ -12,15 +12,15 @@ import tyrian.*
 import scala.scalajs.js
 import scala.concurrent.duration.*
 
-/** Upload image from computer: max 400×400, preview, palette preview, auto downscale if nearest-neighbor scaled. */
+/** Upload image from computer: max 500×500, preview, palette preview, auto downscale if nearest-neighbor scaled. */
 object ImageUploadScreen extends Screen {
   type Model = ImageUploadModel
   type Msg   = ImageUploadMsg | NavigateNext
 
   val screenId: ScreenId = ScreenId.ImageUploadId
 
-  private val maxWidth  = 400
-  private val maxHeight = 400
+  private val maxWidth  = 500
+  private val maxHeight = 500
   private val fileInputId = "image-upload-file"
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {

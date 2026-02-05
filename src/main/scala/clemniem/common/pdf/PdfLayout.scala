@@ -6,11 +6,11 @@ object PdfLayout {
   /** All pages use 20×20 cm. */
   val pageSizeMm = 200.0
 
-  private val coverTitleY = 95.0
-  private val coverTitleX = 25.0
-  private val coverTitleFontSize = 28
+  private val coverTitleX   = 25.0
+  private val coverTitleY   = 95.0   // used when no mosaic (title-only cover)
+  val coverTitleFontSize    = 28
 
-  /** Instructions for the cover page: 20×20 cm with centered title. Does not include Save. */
+  /** Instructions for the cover page (title only, no mosaic). Does not include Save. */
   def coverInstructions(title: String): List[Instruction] =
     List(
       Instruction.PageSize(pageSizeMm, pageSizeMm),

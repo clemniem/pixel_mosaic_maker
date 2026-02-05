@@ -15,7 +15,7 @@ import clemniem.{
   StoredImage,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
+import clemniem.common.{CanvasUtils, LocalStorageUtils}
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -170,12 +170,6 @@ object BuildConfigScreen extends Screen {
 
     case BuildConfigMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.BuildConfigsId, None)))
-    case BuildConfigMsg.PrintPdf =>
-      val request = PrintBookRequest(
-        title = if (model.name.nonEmpty) model.name else "Mosaic",
-        mosaicPicAndGridOpt = mosaicPicAndGridFromModel(model)
-      )
-      (model, Cmd.SideEffect(PdfUtils.printBookPdf(request)))
     case BuildConfigMsg.DrawPreview =>
       (model, drawPreviewCmd(model))
 
@@ -239,16 +233,6 @@ object BuildConfigScreen extends Screen {
       img     <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
       palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
     } yield clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
-
-  /** Cropped mosaic pic and grid from current model for PDF (gbcamutil-style rect drawing). */
-  private def mosaicPicAndGridFromModel(model: Model): Option[(PixelPic, GridConfig)] =
-    for {
-      pic     <- picWithPalette(model)
-      stored  <- model.selectedGridId.flatMap(id => model.gridConfigs.flatMap(_.find(_.id == id)))
-      gw      = stored.config.width
-      gh      = stored.config.height
-      cropped <- pic.crop(model.offsetX, model.offsetY, gw, gh)
-    } yield (cropped, stored.config)
 
   private def drawFullImageWithGrid(
       canvas: Canvas,
@@ -334,11 +318,7 @@ object BuildConfigScreen extends Screen {
           button(
             style := "padding: 6px 14px; cursor: pointer; background: #2e7d32; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
             onClick(BuildConfigMsg.Save)
-          )(text("Save")),
-          button(
-            style := "padding: 6px 14px; cursor: pointer; background: #1565c0; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
-            onClick(BuildConfigMsg.PrintPdf)
-          )(text("Print PDF"))
+          )(text("Save"))
         )
       ),
       selectRow("Grid", model.gridConfigs, model.selectedGridId, BuildConfigMsg.SetGrid.apply, (g: StoredGridConfig) => g.name, (g: StoredGridConfig) => g.id),
@@ -456,7 +436,6 @@ enum BuildConfigMsg:
   case SetOffsetY(n: Int)
   case SetName(name: String)
   case Save
-  case PrintPdf
   case LoadedForSave(list: List[StoredBuildConfig])
   case SaveFailed
   case Back

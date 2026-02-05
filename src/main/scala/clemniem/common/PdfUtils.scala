@@ -55,30 +55,43 @@ object PdfUtils {
     val availableW     = pageW - 2 * marginLR
     val availableH     = pageH - 2 * marginTB
 
-    val (overviewInstrs, chapterInstrs) = mosaicPicAndGridOpt match {
+    val (coverInstrs, chapterInstrs) = mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
-        val (pw, ph, rgbFlat) = pixelPicToRgbFlat(pic)
-        val scale             = (availableW / pw).min(availableH / ph)
-        val imageW            = pw * scale
-        val imageH            = ph * scale
-        val x0                = marginLR + (availableW - imageW) / 2
-        val y0                = marginTB + (availableH - imageH) / 2
-        val gridRectsMm = grid.parts.toList.map { part =>
-          (x0 + part.x * scale, y0 + part.y * scale, part.width * scale, part.height * scale)
-        }
-        val overview = List(
-          Instruction.AddPage,
-          Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat),
-          Instruction.DrawStrokeRects(gridRectsMm, 255, 0, 0)
-        )
+        val cover  = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW)
         val chapter1 = firstChapterInstructions(pic, grid, marginLR, marginTB, availableW, availableH)
-        (overview, chapter1)
+        (cover, chapter1)
       case None =>
-        (Nil, Nil)
+        (PdfLayout.coverInstructions(title), Nil)
     }
-    val instructions =
-      PdfLayout.coverInstructions(title) ++ overviewInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
+    val instructions = coverInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
     JsPDF.run(instructions)
+  }
+
+  /** Cover page: title above full mosaic, no grids. */
+  private def coverWithMosaic(
+      title: String,
+      pic: PixelPic,
+      pageW: Double,
+      pageH: Double,
+      marginLR: Double,
+      marginTB: Double,
+      availableW: Double
+  ): List[Instruction] = {
+    val titleBlockHeight = 12.0
+    val titleY           = marginTB + 8.0
+    val mosaicAvailableH = pageH - marginTB - titleBlockHeight - marginTB
+    val (pw, ph, rgbFlat) = pixelPicToRgbFlat(pic)
+    val scale             = (availableW / pw).min(mosaicAvailableH / ph)
+    val imageW            = pw * scale
+    val imageH            = ph * scale
+    val x0                = marginLR + (availableW - imageW) / 2
+    val y0                = marginTB + titleBlockHeight + (mosaicAvailableH - imageH) / 2
+    List(
+      Instruction.PageSize(pageW, pageH),
+      Instruction.FontSize(PdfLayout.coverTitleFontSize),
+      Instruction.Text(marginLR, titleY, title),
+      Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat)
+    )
   }
 
   /** First chapter (plate 0): plate overview page + single-color patch pages (up to 4 per page). */
@@ -168,11 +181,13 @@ object PdfUtils {
             Instruction.FontSize(10),
             Instruction.Text(patchMargin, patchMargin + 6, "Plate 1 – color layers (least → most)")
           ) ++ perPage.flatMap { case (x0, y0, w, h, rgb, labelY, layerNum) =>
-            val gridRects = grid16x16PatchStrokeRects(x0, y0, w, h, platePic.width, platePic.height, patchSizePx)
+            val grid16Rects = grid16x16PatchStrokeRects(x0, y0, w, h, platePic.width, platePic.height, patchSizePx)
+            val grid4x4Rects = grid4x4StrokeRects(x0, y0, w, h)
             val gridGrey = 120
             List(
               Instruction.DrawPixelGrid(x0, y0, w, h, platePic.width, platePic.height, rgb),
-              Instruction.DrawStrokeRects(gridRects, gridGrey, gridGrey, gridGrey),
+              Instruction.DrawStrokeRects(grid16Rects, gridGrey, gridGrey, gridGrey),
+              Instruction.DrawStrokeRects(grid4x4Rects, gridGrey, gridGrey, gridGrey),
               Instruction.FontSize(8),
               Instruction.Text(x0, labelY, s"Layer $layerNum")
             )
@@ -181,6 +196,17 @@ object PdfUtils {
         chapterOverviewPage ++ patchPages
       }
     }
+  }
+
+  /** Stroke rects for a 4×4 grid overlay: 3 vertical + 3 horizontal lines inside (x0, y0, imageW, imageH). */
+  private def grid4x4StrokeRects(x0: Double, y0: Double, imageW: Double, imageH: Double): List[(Double, Double, Double, Double)] = {
+    val lineWidth = 0.25
+    val half      = lineWidth / 2
+    val cellW     = imageW / 4
+    val cellH     = imageH / 4
+    val verticals   = (1 to 3).map { i => (x0 + i * cellW - half, y0, lineWidth, imageH) }.toList
+    val horizontals = (1 to 3).map { i => (x0, y0 + i * cellH - half, imageW, lineWidth) }.toList
+    verticals ++ horizontals
   }
 
   /** Stroke rects for 16×16 step grid (like BuildScreen overview): one line every patchSizePx pixels in plate space. */
