@@ -15,7 +15,7 @@ import clemniem.{
   StoredImage,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils}
+import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -171,7 +171,11 @@ object BuildConfigScreen extends Screen {
     case BuildConfigMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.BuildConfigsId, None)))
     case BuildConfigMsg.PrintPdf =>
-      (model, Cmd.SideEffect(PdfUtils.printTestPdf()))
+      val request = PrintBookRequest(
+        title = if (model.name.nonEmpty) model.name else "Mosaic",
+        mosaicPicAndGridOpt = mosaicPicAndGridFromModel(model)
+      )
+      (model, Cmd.SideEffect(PdfUtils.printBookPdf(request)))
     case BuildConfigMsg.DrawPreview =>
       (model, drawPreviewCmd(model))
 
@@ -235,6 +239,16 @@ object BuildConfigScreen extends Screen {
       img     <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
       palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
     } yield clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
+
+  /** Cropped mosaic pic and grid from current model for PDF (gbcamutil-style rect drawing). */
+  private def mosaicPicAndGridFromModel(model: Model): Option[(PixelPic, GridConfig)] =
+    for {
+      pic     <- picWithPalette(model)
+      stored  <- model.selectedGridId.flatMap(id => model.gridConfigs.flatMap(_.find(_.id == id)))
+      gw      = stored.config.width
+      gh      = stored.config.height
+      cropped <- pic.crop(model.offsetX, model.offsetY, gw, gh)
+    } yield (cropped, stored.config)
 
   private def drawFullImageWithGrid(
       canvas: Canvas,

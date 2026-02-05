@@ -36,6 +36,40 @@ object JsPDF {
             case Instruction.Text(x, y, value) =>
               docOpt.foreach { doc => val _ = doc.text(value, x, y) }
               docOpt
+            case Instruction.AddPage =>
+              docOpt.foreach { doc => val _ = doc.addPage() }
+              docOpt
+            case Instruction.AddImage(dataUrl, x, y, w, h) =>
+              docOpt.foreach { doc =>
+                val format = if (dataUrl.contains("image/svg+xml")) "SVG" else "PNG"
+                val _      = doc.addImage(dataUrl, format, x, y, w, h)
+              }
+              docOpt
+            case Instruction.DrawPixelGrid(x0, y0, wMm, hMm, cols, rows, rgbFlat) =>
+              docOpt.foreach { doc =>
+                if (cols > 0 && rows > 0 && rgbFlat.length >= cols * rows * 3) {
+                  val cellW = wMm / cols
+                  val cellH = hMm / rows
+                  (0 until rows).foreach { y =>
+                    (0 until cols).foreach { x =>
+                      val i = (y * cols + x) * 3
+                      val r = rgbFlat(i)
+                      val g = rgbFlat(i + 1)
+                      val b = rgbFlat(i + 2)
+                      val _ = doc.setFillColor(r, g, b)
+                      val _ = doc.rect(x0 + x * cellW, y0 + y * cellH, cellW, cellH, "F")
+                    }
+                  }
+                }
+              }
+              docOpt
+            case Instruction.DrawStrokeRects(rects, r, g, b) =>
+              docOpt.foreach { doc =>
+                val _ = doc.setDrawColor(r, g, b)
+                val _ = doc.setLineWidth(0.3)
+                rects.foreach { case (x, y, w, h) => val _ = doc.rect(x, y, w, h, "S") }
+              }
+              docOpt
             case Instruction.Save(filename) =>
               docOpt.foreach { doc => val _ = doc.save(filename) }
               docOpt

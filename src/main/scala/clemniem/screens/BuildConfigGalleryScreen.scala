@@ -2,6 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{
+  GridConfig,
   NavigateNext,
   PixelPic,
   Screen,
@@ -12,7 +13,7 @@ import clemniem.{
   StoredImage,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -83,6 +84,12 @@ object BuildConfigGalleryScreen extends Screen {
       }
     case BuildConfigGalleryMsg.CancelDelete =>
       (model.copy(pendingDeleteId = None), Cmd.None)
+    case BuildConfigGalleryMsg.PrintPdf(stored) =>
+      val request = PrintBookRequest(
+        title = stored.name,
+        mosaicPicAndGridOpt = mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
+      )
+      (model, Cmd.SideEffect(PdfUtils.printBookPdf(request)))
     case BuildConfigGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case _: NavigateNext =>
@@ -93,6 +100,21 @@ object BuildConfigGalleryScreen extends Screen {
     model.buildConfigs.getOrElse(Nil).foldLeft(IO.unit)((acc, item) =>
       acc.flatMap(_ => drawBuildConfigPreview(item, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil)))
     )
+
+  /** Resolve cropped mosaic (pic + grid) for a stored build config; used for PDF. */
+  private def mosaicPicAndGridForStored(
+      stored: StoredBuildConfig,
+      images: List[StoredImage],
+      palettes: List[StoredPalette]
+  ): Option[(PixelPic, GridConfig)] =
+    for {
+      img     <- images.find(_.id == stored.config.imageRef)
+      palette <- palettes.find(_.id == stored.config.paletteRef)
+      pic     = clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
+      gw      = stored.config.grid.width
+      gh      = stored.config.grid.height
+      cropped <- pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh)
+    } yield (cropped, stored.config.grid)
 
   private def drawBuildConfigPreview(
       stored: StoredBuildConfig,
@@ -212,6 +234,10 @@ object BuildConfigGalleryScreen extends Screen {
               onClick(BuildConfigGalleryMsg.Edit(item))
             )(text("Edit")),
             button(
+              style := "padding: 4px 10px; cursor: pointer; flex-shrink: 0; border: 1px solid #555; border-radius: 4px; font-size: 0.875rem; background: #fff;",
+              onClick(BuildConfigGalleryMsg.PrintPdf(item))
+            )(text("Print")),
+            button(
               style := "padding: 4px 10px; cursor: pointer; border: 1px solid #b71c1c; color: #b71c1c; border-radius: 4px; font-size: 0.875rem; background: #fff; flex-shrink: 0;",
               onClick(BuildConfigGalleryMsg.Delete(item))
             )(text("Delete"))
@@ -241,4 +267,5 @@ enum BuildConfigGalleryMsg:
   case Delete(stored: StoredBuildConfig)
   case ConfirmDelete(id: String)
   case CancelDelete
+  case PrintPdf(stored: StoredBuildConfig)
   case Back

@@ -13,6 +13,26 @@ object Instruction {
   /** Draw text at (x, y) in mm. */
   case class Text(xMm: Double, yMm: Double, value: String) extends Instruction
 
+  /** Add a new page (same size as document). Must be used after at least one PageSize. */
+  case object AddPage extends Instruction
+
+  /** Embed an image (data URL, e.g. PNG or SVG). Position and size in mm. */
+  case class AddImage(dataUrl: String, xMm: Double, yMm: Double, widthMm: Double, heightMm: Double) extends Instruction
+
+  /** Draw a pixel grid as small rects (gbcamutil-style). rgbFlat: row-major, 3 ints per pixel (r,g,b). */
+  case class DrawPixelGrid(
+      xMm: Double,
+      yMm: Double,
+      widthMm: Double,
+      heightMm: Double,
+      pixelWidth: Int,
+      pixelHeight: Int,
+      rgbFlat: Vector[Int]
+  ) extends Instruction
+
+  /** Draw stroke-only rects (e.g. plate grid overlay). Each (xMm, yMm, widthMm, heightMm). */
+  case class DrawStrokeRects(rectsMm: List[(Double, Double, Double, Double)], strokeR: Int, strokeG: Int, strokeB: Int) extends Instruction
+
   /** Trigger browser download with the given filename. */
   case class Save(filename: String) extends Instruction
 }
