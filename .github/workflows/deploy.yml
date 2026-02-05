@@ -14,27 +14,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: sbt
-
-      - name: Set up sbt
-        uses: sbt/setup-sbt@v1
-
-      - name: Build
-        run: sbt fullLinkJS
-
-      - name: Assemble deployable directory
+      - name: Assemble static test page
         run: |
           mkdir -p dist
-          cp index.html dist/
-          cp target/scala-*/pixel_mosaic_maker-opt/main.js dist/
-          cp target/scala-*/pixel_mosaic_maker-opt/main.js.map dist/ 2>/dev/null || true
-          echo "import { TyrianApp } from './main.js';" > dist/tyrianapp.js
-          echo "TyrianApp.launch(\"myapp\");" >> dist/tyrianapp.js
+          cat > dist/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Pixel Mosaic Maker</title>
+            <style>
+              body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+              h1 { color: #333; }
+              p { color: #666; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <h1>Pixel Mosaic Maker</h1>
+            <p>GitHub Pages is working. This is a static test page.</p>
+          </body>
+          </html>
+          EOF
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
