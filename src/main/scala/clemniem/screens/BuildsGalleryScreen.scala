@@ -30,7 +30,7 @@ object BuildsGalleryScreen extends Screen {
   private val patchSize          = 16
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
-    val model = BuildsGalleryModel(None, None, None, None, None, showNewBuildDropdown = false)
+    val model = BuildsGalleryModel(None, None, None, None, None, showNewBuildDropdown = false, pendingDeleteId = None)
     val loadBuilds   = LocalStorageUtils.loadList(StorageKeys.builds)(
       BuildsGalleryMsg.LoadedBuilds.apply,
       _ => BuildsGalleryMsg.LoadedBuilds(Nil),
@@ -91,6 +91,22 @@ object BuildsGalleryScreen extends Screen {
       (model.copy(showNewBuildDropdown = false, selectedBuildConfigId = None), Cmd.None)
     case BuildsGalleryMsg.ResumeBuild(stored) =>
       (model, Cmd.Emit(NavigateNext(ScreenId.BuildId, Some(ScreenOutput.ResumeBuild(stored)))))
+    case BuildsGalleryMsg.Delete(stored) =>
+      (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
+    case BuildsGalleryMsg.ConfirmDelete(id) =>
+      model.builds match {
+        case Some(list) =>
+          val newList = list.filterNot(_.id == id)
+          val saveCmd = LocalStorageUtils.saveList(StorageKeys.builds, newList)(
+            _ => BuildsGalleryMsg.CancelDelete,
+            (_, _) => BuildsGalleryMsg.CancelDelete
+          )
+          (model.copy(builds = Some(newList), pendingDeleteId = None), saveCmd)
+        case None =>
+          (model.copy(pendingDeleteId = None), Cmd.None)
+      }
+    case BuildsGalleryMsg.CancelDelete =>
+      (model.copy(pendingDeleteId = None), Cmd.None)
     case BuildsGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case _: NavigateNext =>
@@ -196,7 +212,7 @@ object BuildsGalleryScreen extends Screen {
             )
           ),
           div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
-            builds.map(b => entryCard(b, configs))*
+            builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))*
           ),
           if (model.showNewBuildDropdown)
             div(
@@ -232,7 +248,7 @@ object BuildsGalleryScreen extends Screen {
     }
   }
 
-  private def entryCard(item: StoredBuild, configs: List[StoredBuildConfig]): Html[Msg] = {
+  private def entryCard(item: StoredBuild, configs: List[StoredBuildConfig], confirmingDelete: Boolean): Html[Msg] = {
     val configOpt   = configs.find(_.id == item.buildConfigRef)
     val configName  = configOpt.map(_.name).getOrElse(item.buildConfigRef)
     val totalSteps  = configOpt.map(c => BuildScreen.stepsForConfig(c.config).size).getOrElse(0)
@@ -266,10 +282,29 @@ object BuildsGalleryScreen extends Screen {
             )()
           )
         ),
-        button(
-          style := "margin-top: 0.5rem; padding: 4px 10px; cursor: pointer; flex-shrink: 0;",
-          onClick(BuildsGalleryMsg.ResumeBuild(item))
-        )(text("Resume"))
+        if (confirmingDelete)
+          div(style := "margin-top: 0.5rem; padding: 6px 0;")(
+            span(style := "font-size: 0.875rem; color: #b71c1c; margin-right: 8px;")(text(s"Delete \"${item.name}\"?")),
+            button(
+              style := "padding: 4px 10px; margin-right: 6px; cursor: pointer; background: #b71c1c; color: #fff; border: none; border-radius: 4px; font-size: 0.875rem;",
+              onClick(BuildsGalleryMsg.ConfirmDelete(item.id))
+            )(text("Yes")),
+            button(
+              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #999; border-radius: 4px; font-size: 0.875rem; background: #fff;",
+              onClick(BuildsGalleryMsg.CancelDelete)
+            )(text("Cancel"))
+          )
+        else
+          div(style := "margin-top: 0.5rem; display: flex; gap: 6px;")(
+            button(
+              style := "padding: 4px 10px; cursor: pointer; flex-shrink: 0;",
+              onClick(BuildsGalleryMsg.ResumeBuild(item))
+            )(text("Resume")),
+            button(
+              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #b71c1c; color: #b71c1c; border-radius: 4px; font-size: 0.875rem; background: #fff; flex-shrink: 0;",
+              onClick(BuildsGalleryMsg.Delete(item))
+            )(text("Delete"))
+          )
       )
     )
   }
@@ -281,7 +316,8 @@ final case class BuildsGalleryModel(
     images: Option[List[StoredImage]],
     palettes: Option[List[StoredPalette]],
     selectedBuildConfigId: Option[String],
-    showNewBuildDropdown: Boolean
+    showNewBuildDropdown: Boolean,
+    pendingDeleteId: Option[String]
 ) {
   def canDrawPreviews: Boolean =
     builds.isDefined && buildConfigs.isDefined && images.isDefined && palettes.isDefined
@@ -298,4 +334,7 @@ enum BuildsGalleryMsg:
   case StartNewBuild
   case CancelNewBuild
   case ResumeBuild(stored: StoredBuild)
+  case Delete(stored: StoredBuild)
+  case ConfirmDelete(id: String)
+  case CancelDelete
   case Back

@@ -16,7 +16,6 @@ import org.scalajs.dom.File
 import org.scalajs.dom.html.{Canvas, Image}
 
 import scala.collection.mutable
-import scala.scalajs.js
 
 /** Pixel image: width, height, palette (lookup + counts), flat pixel indices. Storable in LocalStorage. */
 final case class PixelPic private (
@@ -133,10 +132,10 @@ object PixelPic {
     val h    = imgData.height
     val data = imgData.data
 
-    val paletteLookup = js.Array[Pixel]()
-    val indexMap      = js.Dictionary[Int]()
-    val colorCounts   = js.Dictionary[Int]()
-    val pixels        = new js.Array[Int](w * h)
+    val paletteBuf   = mutable.ArrayBuffer.empty[Pixel]
+    val indexMap     = mutable.Map.empty[String, Int]
+    val colorCounts  = mutable.Map.empty[Int, Int]
+    val pixels       = new Array[Int](w * h)
 
     for (i <- 0 until data.length by 4) {
       val r = data(i).toInt & 0xff
@@ -145,37 +144,36 @@ object PixelPic {
       val a = data(i + 3).toInt & 0xff
       val px         = Pixel(r, g, b, a)
       val colorValue = s"$r,$g,$b,$a"
-      val index = indexMap.get(colorValue).getOrElse {
-        val newIndex = paletteLookup.length
-        val _       = paletteLookup.push(px)
-        indexMap(colorValue) = newIndex
+      val index = indexMap.getOrElseUpdate(colorValue, {
+        val newIndex = paletteBuf.size
+        paletteBuf += px
         newIndex
-      }
-      colorCounts(index.toString) = colorCounts.get(index.toString).map(_ + 1).getOrElse(1)
+      })
+      colorCounts(index) = colorCounts.getOrElse(index, 0) + 1
       pixels(i / 4) = index
     }
 
-    val finalCounts = colorCounts.map((k, v) => k.toInt -> v).toMap
     PixelPic(
       width = w,
       height = h,
-      paletteLookup = paletteLookup.toVector,
+      paletteLookup = paletteBuf.toVector,
       pixels = pixels.toVector,
-      pixelCounts = finalCounts,
+      pixelCounts = colorCounts.toMap,
       name = "extracted"
     ).map(pp => sortPixelVector(pp))
   }
 
   private def sortPixelVector(pp: PixelPic): PixelPic = {
-    val sortedPixels    = pp.paletteLookup.sortBy(_.brightness)
-    val getIndexChanges = sortedPixels.zipWithIndex.map { case (pixel, idx) =>
-      pp.paletteLookup.indexOf(pixel) -> idx
-    }.toMap
-    if (getIndexChanges.isEmpty) pp
+    val sortedPixels   = pp.paletteLookup.sortBy(_.brightness)
+    val pixelToNewIdx  = sortedPixels.zipWithIndex.toMap
+    val oldIndexToNew  = (0 until pp.paletteLookup.size).iterator
+      .map(i => i -> pixelToNewIdx(pp.paletteLookup(i)))
+      .toMap
+    if (oldIndexToNew.isEmpty) pp
     else
       pp.copy(
         paletteLookup = sortedPixels,
-        pixels = pp.pixels.map(idx => getIndexChanges.getOrElse(idx, idx))
+        pixels = pp.pixels.map(idx => oldIndexToNew.getOrElse(idx, idx))
       )
   }
 }

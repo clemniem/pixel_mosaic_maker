@@ -5,6 +5,8 @@ final case class ScreenRegistry(
     screens: List[Screen],
     initialScreenId: ScreenId
 ) {
+  private val screenMap: Map[ScreenId, Screen] = screens.map(s => s.screenId -> s).toMap
+
   def screenFor(id: ScreenId): Option[Screen] =
-    screens.find(_.screenId == id)
+    screenMap.get(id)
 }

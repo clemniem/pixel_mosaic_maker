@@ -4,7 +4,6 @@ import cats.effect.IO
 import clemniem.{
   BuildConfig,
   NavigateNext,
-  Pixel,
   PixelPic,
   Screen,
   ScreenId,
@@ -253,9 +252,6 @@ object BuildScreen extends Screen {
   private def colorsByCountAsc(patch: PixelPic): Vector[(Int, Int)] =
     patch.palette.toVector.sortBy(_._2)
 
-  private def cssRgba(p: Pixel): String =
-    s"rgba(${p.r},${p.g},${p.b},${p.a / 255.0})"
-
   /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. Up to 16 colors in a 4-column grid. */
   private val previewCols = 4
 
@@ -280,23 +276,31 @@ object BuildScreen extends Screen {
               canvas.width = totalW.max(1)
               canvas.height = totalH.max(1)
               ctx.clearRect(0, 0, canvas.width, canvas.height)
+              val bgR = 238
+              val bgG = 238
+              val bgB = 238
               sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), i) =>
                 val px  = patch.paletteLookup(paletteIndex)
                 val col = i % cols
                 val row = i / cols
                 val ox  = col * (cellW + gap)
                 val oy  = row * (cellH + gap)
+                val imgData = ctx.createImageData(cellW, cellH)
+                val data    = imgData.data
                 for (y <- 0 until patchSize; x <- 0 until patchSize) {
                   val idx = y * patchSize + x
-                  val isThisColor = patch.pixels(idx) == paletteIndex
-                  if (isThisColor) {
-                    ctx.fillStyle = cssRgba(px)
-                    ctx.fillRect(ox + x * cellPx, oy + y * cellPx, cellPx, cellPx)
-                  } else {
-                    ctx.fillStyle = "#eee"
-                    ctx.fillRect(ox + x * cellPx, oy + y * cellPx, cellPx, cellPx)
+                  val (r, g, b) =
+                    if (patch.pixels(idx) == paletteIndex) (px.r, px.g, px.b)
+                    else (bgR, bgG, bgB)
+                  for (py <- 0 until cellPx; pxOff <- 0 until cellPx) {
+                    val off = ((y * cellPx + py) * cellW + (x * cellPx + pxOff)) * 4
+                    data(off) = r
+                    data(off + 1) = g
+                    data(off + 2) = b
+                    data(off + 3) = 255
                   }
                 }
+                ctx.putImageData(imgData, ox, oy)
                 ctx.strokeStyle = "rgba(0,0,0,0.45)"
                 ctx.lineWidth = 1
                 for (g <- 1 until 4) {
