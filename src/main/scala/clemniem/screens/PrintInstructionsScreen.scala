@@ -19,6 +19,15 @@ import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
 import tyrian.*
 
+/** Fixed step size options (px). Only those that divide every plate width/height are shown. Default 16 if available else smallest. */
+private val stepSizeCandidates = List(12, 16, 20, 24, 28, 32)
+
+private def availableStepSizesForGrid(grid: GridConfig): List[Int] =
+  stepSizeCandidates.filter(s => grid.parts.forall(p => p.width % s == 0 && p.height % s == 0))
+
+private def defaultStepSizeForAvailable(available: List[Int]): Int =
+  if (available.contains(16)) 16 else available.minOption.getOrElse(16)
+
 /** Screen to generate the PDF print instructions: choose a BuildConfig and set options (e.g. title). */
 object PrintInstructionsScreen extends Screen {
   type Model = PrintInstructionsModel
@@ -59,7 +68,10 @@ object PrintInstructionsScreen extends Screen {
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case PrintInstructionsMsg.LoadedBuildConfigs(list) =>
       val selectedId = model.selectedBuildConfigId.orElse(list.headOption.map(_.id))
-      val next       = model.copy(buildConfigs = Some(list), selectedBuildConfigId = selectedId)
+      val nextBase   = model.copy(buildConfigs = Some(list), selectedBuildConfigId = selectedId)
+      val available  = nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
+      val stepSize   = if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
+      val next       = nextBase.copy(stepSizePx = stepSize)
       (next, Cmd.SideEffect(drawOverview(next)))
     case PrintInstructionsMsg.LoadedImages(list) =>
       val next = model.copy(images = Some(list))
@@ -68,7 +80,10 @@ object PrintInstructionsScreen extends Screen {
       val next = model.copy(palettes = Some(list))
       (next, Cmd.SideEffect(drawOverview(next)))
     case PrintInstructionsMsg.SetBuildConfig(id) =>
-      val next = model.copy(selectedBuildConfigId = Some(id))
+      val nextBase  = model.copy(selectedBuildConfigId = Some(id))
+      val available = nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
+      val stepSize  = if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
+      val next      = nextBase.copy(stepSizePx = stepSize)
       (next, Cmd.SideEffect(drawOverview(next)))
     case PrintInstructionsMsg.DrawOverview =>
       (model, Cmd.SideEffect(drawOverview(model)))
@@ -160,18 +175,7 @@ object PrintInstructionsScreen extends Screen {
           style := "padding: 6px 10px; width: 100%; max-width: 20rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
         )
       ),
-      div(style := "margin-bottom: 1.5rem;")(
-        label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(text("Step size (px)")),
-        input(
-          `type` := "number",
-          value := model.stepSizePx.toString,
-          min := "4",
-          max := "64",
-          onInput(s => PrintInstructionsMsg.SetStepSize(parseStepSize(s))),
-          style := "padding: 6px 10px; width: 5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
-        ),
-        span(style := "margin-left: 0.5rem; color: #555; font-size: 0.9rem;")(text("Each step = step×step px. Plate width/height must be divisible by this (default 16)."))
-      ),
+      stepSizeSliderBlock(model),
       div(style := "margin-bottom: 1.5rem;")(
         label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(text("Page background color")),
         div(style := "display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;")(
@@ -211,6 +215,74 @@ object PrintInstructionsScreen extends Screen {
           "padding: 8px 16px; cursor: pointer; background: #1565c0; color: #fff; border: none; border-radius: 4px; font-weight: 500;"),
         onClick(PrintInstructionsMsg.PrintPdf)
       )(text("Print PDF"))
+    )
+  }
+
+  /** Step size: fixed values 12–32. Only options valid for selected build config are clickable; when only one is possible, hide slider. */
+  private def stepSizeSliderBlock(model: Model): Html[Msg] = {
+    val available = model.selectedStored
+      .map(s => availableStepSizesForGrid(s.config.grid))
+      .getOrElse(stepSizeCandidates)
+    val currentIdx = available.indexOf(model.stepSizePx).max(0).min(available.length - 1)
+    val currentVal = available.lift(currentIdx).getOrElse(16)
+    val singleOnly = available.length <= 1
+
+    def pillStyle(possible: Boolean, selected: Boolean): String = {
+      val base = "padding: 4px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; font-size: 0.9rem;"
+      if (!possible)
+        base + " background: #e8e8e8; color: #999; cursor: default; border: 1px solid #ddd;"
+      else if (selected)
+        base + " background: #1565c0; color: #fff; border: 1px solid #1565c0; cursor: pointer; font-weight: 600;"
+      else
+        base + " background: #f0f0f0; color: #333; border: 1px solid #ccc; cursor: pointer;"
+    }
+
+    div(style := "margin-bottom: 1.5rem;")(
+      label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(
+        text("Step size (px)")
+      ),
+      if (singleOnly) {
+        div(style := "display: flex; align-items: center; gap: 0.5rem;")(
+          span(
+            style := "padding: 6px 12px; border-radius: 6px; background: #e3f2fd; color: #1565c0; font-weight: 600; font-variant-numeric: tabular-nums; border: 1px solid #90caf9;"
+          )(text(currentVal.toString)),
+          span(style := "color: #555; font-size: 0.9rem;")(text("(only option for this grid)"))
+        )
+      } else {
+        div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
+          div(style := "display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;")(
+            stepSizeCandidates.map { v =>
+              val possible = available.contains(v)
+              val selected = model.stepSizePx == v
+              if (possible)
+                button(
+                  style := pillStyle(possible = true, selected = selected),
+                  onClick(PrintInstructionsMsg.SetStepSize(v))
+                )(text(v.toString))
+              else
+                span(style := pillStyle(possible = false, selected = false))(text(v.toString))
+            }*
+          ),
+          div(style := "display: flex; align-items: center; gap: 0.75rem;")(
+            input(
+              `type` := "range",
+              min := "0",
+              max := (available.length - 1).toString,
+              value := currentIdx.toString,
+              onInput(s =>
+                PrintInstructionsMsg.SetStepSize(
+                  available.lift(s.trim.toIntOption.getOrElse(0).max(0).min(available.length - 1)).getOrElse(16)
+                )
+              ),
+              style := "flex: 1; min-width: 8rem; max-width: 20rem; accent-color: #1565c0;"
+            ),
+            span(style := "font-variant-numeric: tabular-nums; min-width: 2rem; font-weight: 500;")(text(currentVal.toString))
+          )
+        )
+      },
+      span(style := "display: block; margin-top: 0.35rem; color: #555; font-size: 0.9rem;")(
+        text(if (singleOnly) "Step divides every plate width and height." else "Click a value or use the slider. Only values that divide every plate are enabled.")
+      )
     )
   }
 
@@ -295,11 +367,6 @@ object PrintInstructionsScreen extends Screen {
       gh      = stored.config.grid.height
       cropped <- pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh)
     } yield (cropped, stored.config.grid)
-}
-
-private def parseStepSize(s: String): Int = {
-  val n = s.trim.toIntOption.getOrElse(16)
-  n.max(4).min(64)
 }
 
 private def parsePrinterMargin(s: String): Double = {
