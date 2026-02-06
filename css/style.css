@@ -528,3 +528,88 @@ body {
   border-radius: 4px;
   transition: width 0.2s;
 }
+
+/* ========== Mobile / small screen ========== */
+/* Prevent fixed-width inputs from overflowing viewport */
+.input-w-5,
+.input-w-7,
+.input-w-12,
+.input-w-24,
+.input-min-w-16,
+.input-w-full {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  #myapp {
+    padding: 0.75rem;
+  }
+
+  .screen-container,
+  .screen-container--narrow {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+
+  .screen-header {
+    gap: 6px;
+    margin-bottom: 1rem;
+  }
+
+  /* Touch-friendly minimum size for main buttons (≈44px) */
+  .nes-btn {
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .palette-edit-arrows .nes-btn,
+  .palette-edit-remove {
+    min-height: 1.35rem;
+    padding: 2px 6px;
+  }
+
+  .link-card {
+    padding: 1rem;
+    min-height: 2.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .gallery-actions .nes-btn {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .gallery-card {
+    flex-wrap: wrap;
+  }
+
+  .gallery-card-preview {
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+
+  #myapp {
+    padding: 0.5rem;
+  }
+
+  .nes-container.is-rounded {
+    padding: 0.75rem 1rem;
+  }
+
+  .screen-title {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .flex-row {
+    gap: 6px;
+  }
+}
