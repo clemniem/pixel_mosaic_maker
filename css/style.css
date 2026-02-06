@@ -129,6 +129,18 @@ body {
   font-weight: 500;
 }
 
+.upload-preview-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.upload-preview-meta {
+  font-size: 0.875rem;
+  opacity: 0.85;
+  margin-bottom: 0.5rem;
+}
+
 .subsection {
   margin-top: 0.5rem;
 }
@@ -146,6 +158,11 @@ body {
 
 .input-w-12 {
   width: 12rem;
+  box-sizing: border-box;
+}
+
+.input-w-24 {
+  width: 24rem;
   box-sizing: border-box;
 }
 
@@ -383,6 +400,12 @@ body {
   border-radius: 4px;
   width: fit-content;
   cursor: pointer;
+}
+
+/* Use with .nes-btn.palette-button-inline for same look but not clickable (upload preview) */
+.palette-preview-inline {
+  cursor: default;
+  pointer-events: none;
 }
 
 .palette-swatch-small {

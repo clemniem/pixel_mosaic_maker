@@ -83,7 +83,7 @@ object PalettesGalleryScreen extends Screen {
       ),
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),
-        span(`class` := "gallery-card-meta nes-text")(text(s"${item.colors.length} color(s)")),
+        span(`class` := "gallery-card-meta nes-text")(text(s"${item.colors.length} colors")),
         if (confirmingDelete)
           div(`class` := "gallery-delete-confirm")(
             span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),

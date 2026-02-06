@@ -89,18 +89,16 @@ object ImagesGalleryScreen extends Screen {
 
   private def entryCard(item: StoredImage, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
-      div(onLoad(ImagesGalleryMsg.DrawPreview(item)))(
-        canvas(
-          id := s"image-preview-${item.id}",
-          width := previewWidth,
-          height := previewHeight,
-          `class` := "gallery-preview-canvas"
-        )()
+      PixelPreviewBox(
+        s"image-preview-${item.id}",
+        previewWidth,
+        previewHeight,
+        Some(ImagesGalleryMsg.DrawPreview(item))
       ),
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),
         span(`class` := "gallery-card-meta nes-text")(
-          text(s"${item.pixelPic.width}×${item.pixelPic.height} px · ${item.pixelPic.paletteLookup.size} color(s)")
+          text(s"${item.pixelPic.width}×${item.pixelPic.height} px · ${item.pixelPic.paletteLookup.size} colors")
         ),
         paletteRow(item),
         if (confirmingDelete)
@@ -123,7 +121,6 @@ object ImagesGalleryScreen extends Screen {
       colors = item.pixelPic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
     )
     div(style := "margin-top: 0.35rem;", title := "Click to save as palette")(
-      span(`class` := "nes-text", style := "font-size: 0.75rem; margin-right: 4px;")(text("Palette:")),
       button(`class` := s"${NesCss.btn} palette-button-inline", onClick(NavigateNext(ScreenId.PaletteId, Some(output))))(
         colors.map(c =>
           div(`class` := "palette-swatch-small", style := s"background: ${c.toHex};")()

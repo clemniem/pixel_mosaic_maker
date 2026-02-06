@@ -49,9 +49,11 @@ object ImageUploadScreen extends Screen {
           val file = Option(input.files(0))
           input.value = ""
           file.foreach { f =>
+            val fileName = Option(f.name).filter(_.nonEmpty)
             PixelPic.loadPixelImageFromFile(f).unsafeRunAsync {
               case Right(opt) =>
-                val msg = opt.fold[ImageUploadMsg](ImageUploadMsg.ImageDecodedError("Could not decode image"))(ImageUploadMsg.ImageDecoded.apply)
+                val msg = opt.fold[ImageUploadMsg](ImageUploadMsg.ImageDecodedError("Could not decode image"))(pic =>
+                  ImageUploadMsg.ImageDecoded(pic, fileName))
                 cb(Right(msg))
               case Left(err) =>
                 cb(Right(ImageUploadMsg.ImageDecodedError(err.getMessage)))
@@ -63,13 +65,19 @@ object ImageUploadScreen extends Screen {
     IO.sleep(150.millis).flatMap(_ => findInput).flatMap(addListener)
   }
 
+  private def baseNameFromFileName(fileName: String): String = {
+    val i = fileName.lastIndexOf('.')
+    if (i <= 0) fileName else fileName.substring(0, i)
+  }
+
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
-    case ImageUploadMsg.ImageDecoded(pic) =>
+    case ImageUploadMsg.ImageDecoded(pic, fileName) =>
       val err = if (pic.width > maxWidth || pic.height > maxHeight)
         Some(s"Image must be at most ${maxWidth}×${maxHeight} px (got ${pic.width}×${pic.height})")
       else
         None
-      val nextModel = model.copy(pixelPic = Some(pic), error = err, loading = false)
+      val name = fileName.map(baseNameFromFileName).filter(_.nonEmpty).getOrElse("Unnamed image")
+      val nextModel = model.copy(pixelPic = Some(pic), name = name, error = err, loading = false)
       val drawCmd   = Cmd.Run(
         CanvasUtils.runAfterFrames(3)(drawPreview(pic)).as(ImageUploadMsg.NoOp),
         (m: ImageUploadMsg) => m
@@ -157,18 +165,21 @@ object ImageUploadScreen extends Screen {
             `type` := "file",
             `class` := "hidden"
           ),
-          input(
-            `type` := "text",
-            `class` := s"${NesCss.input} input-w-12",
-            placeholder := "Name",
-            value := model.name,
-            onInput(ImageUploadMsg.SetName.apply)
-          ),
           button(
             `class` := (if (model.pixelPic.nonEmpty && model.pixelPic.forall(p => p.width <= maxWidth && p.height <= maxHeight) && !model.loading)
               NesCss.btnSuccess else s"${NesCss.btn} btn-disabled"),
             onClick(ImageUploadMsg.Save)
-          )(text(if (model.loading) "Saving…" else "Save"))
+          )(text(if (model.loading) "Saving…" else "Save")),
+          if (model.pixelPic.isDefined)
+            input(
+              `type` := "text",
+              `class` := s"${NesCss.input} input-w-24",
+              placeholder := "Name",
+              value := model.name,
+              onInput(ImageUploadMsg.SetName.apply)
+            )
+          else
+            div(`class` := "hidden")(text(""))
         )
       ),
       p(`class` := s"${NesCss.text} screen-intro screen-intro--short")(
@@ -179,21 +190,17 @@ object ImageUploadScreen extends Screen {
       ).getOrElse(div(`class` := "hidden")(text(""))),
       model.pixelPic match {
         case Some(pic) =>
-          div(`class` := s"${NesCss.field} field-block")(
-            div(`class` := "section-title")(text(s"Preview · ${pic.width}×${pic.height} px")),
-            div()(
-              canvas(
-                id := "image-upload-preview",
-                width := pic.width,
-                height := pic.height,
-                `class` := "pixel-canvas"
-              )()
-            ),
-            div(`class` := "subsection")(text("Palette in image")),
-            div(`class` := "palette-swatches")(
-              pic.paletteLookup.toList.map(c =>
-                div(`class` := "palette-swatch", style := s"background: rgb(${c.r},${c.g},${c.b});")()
-              )*
+          val colorCount = pic.paletteLookup.size
+          div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card field-block")(
+            PixelPreviewBox("image-upload-preview", pic.width, pic.height, None),
+            div(`class` := "gallery-card-body")(
+              div(`class` := "upload-preview-title")(text("Preview")),
+              div(`class` := "upload-preview-meta")(text(s"${pic.width}×${pic.height} px · $colorCount colors")),
+              div(`class` := s"${NesCss.btn} palette-button-inline palette-preview-inline", style := "margin-top: 0.35rem;")(
+                pic.paletteLookup.toList.map(p =>
+                  div(`class` := "palette-swatch-small", style := s"background: ${Color(p.r, p.g, p.b).toHex};")()
+                )*
+              )
             )
           )
         case None =>
@@ -215,7 +222,7 @@ final case class ImageUploadModel(
 )
 
 enum ImageUploadMsg:
-  case ImageDecoded(pic: PixelPic)
+  case ImageDecoded(pic: PixelPic, fileName: Option[String] = None)
   case ImageDecodedError(message: String)
   case SetName(name: String)
   case Save
