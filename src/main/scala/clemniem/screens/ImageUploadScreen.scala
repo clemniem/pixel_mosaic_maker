@@ -196,10 +196,8 @@ object ImageUploadScreen extends Screen {
             div(`class` := "gallery-card-body")(
               div(`class` := "upload-preview-title")(text("Preview")),
               div(`class` := "upload-preview-meta")(text(s"${pic.width}×${pic.height} px · $colorCount colors")),
-              div(`class` := s"${NesCss.btn} palette-button-inline palette-preview-inline", style := "margin-top: 0.35rem;")(
-                pic.paletteLookup.toList.map(p =>
-                  div(`class` := "palette-swatch-small", style := s"background: ${Color(p.r, p.g, p.b).toHex};")()
-                )*
+              div(style := "margin-top: 0.35rem;")(
+                PaletteStripView.previewInline(pic.paletteLookup.toList.map(p => Color(p.r, p.g, p.b)))
               )
             )
           )

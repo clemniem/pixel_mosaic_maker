@@ -89,12 +89,6 @@ object ImagesGalleryScreen extends Screen {
 
   private def entryCard(item: StoredImage, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
-      PixelPreviewBox(
-        s"image-preview-${item.id}",
-        previewWidth,
-        previewHeight,
-        Some(ImagesGalleryMsg.DrawPreview(item))
-      ),
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),
         span(`class` := "gallery-card-meta nes-text")(
@@ -111,6 +105,14 @@ object ImagesGalleryScreen extends Screen {
           div(`class` := "gallery-actions")(
             button(`class` := NesCss.btnError, onClick(ImagesGalleryMsg.Delete(item)))(text("Delete"))
           )
+      ),
+      div(`class` := "gallery-card-preview")(
+        PixelPreviewBox(
+          s"image-preview-${item.id}",
+          previewWidth,
+          previewHeight,
+          Some(ImagesGalleryMsg.DrawPreview(item))
+        )
       )
     )
 
@@ -122,9 +124,7 @@ object ImagesGalleryScreen extends Screen {
     )
     div(style := "margin-top: 0.35rem;", title := "Click to save as palette")(
       button(`class` := s"${NesCss.btn} palette-button-inline", onClick(NavigateNext(ScreenId.PaletteId, Some(output))))(
-        colors.map(c =>
-          div(`class` := "palette-swatch-small", style := s"background: ${c.toHex};")()
-        )*
+        PaletteStripView.swatches(colors)*
       )
     )
   }

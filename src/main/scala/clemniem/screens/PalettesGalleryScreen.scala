@@ -1,31 +1,72 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{NavigateNext, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
+import cats.effect.unsafe.implicits.global
+import clemniem.{Color, NavigateNext, PixelPic, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
+import org.scalajs.dom
+import org.scalajs.dom.html.Input
 import tyrian.Html.*
 import tyrian.*
 
-/** Gallery of saved palettes. Empty state: "+ Create Palette". Edit opens palette editor. */
+import scala.scalajs.js
+import scala.concurrent.duration.DurationInt
+
+/** Gallery of saved palettes. Empty state: "+ Create Palette". "From image" creates a palette from an image file. */
 object PalettesGalleryScreen extends Screen {
   type Model = PalettesGalleryModel
   type Msg   = PalettesGalleryMsg | NavigateNext
 
   val screenId: ScreenId = ScreenId.PalettesId
 
+  private val paletteFromImageFileId = "palette-from-image-file"
+
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
-    val cmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
+    val loadCmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
       PalettesGalleryMsg.Loaded.apply,
       _ => PalettesGalleryMsg.Loaded(Nil),
       (_, _) => PalettesGalleryMsg.Loaded(Nil)
     )
-    (PalettesGalleryModel(None, None), cmd)
+    (PalettesGalleryModel(None, None), loadCmd)
+  }
+
+  private def baseNameFromFileName(fileName: String): String = {
+    val i = fileName.lastIndexOf('.')
+    if (i <= 0) fileName else fileName.substring(0, i)
+  }
+
+  private def waitForFileSelectionForPalette(): IO[PalettesGalleryMsg] = {
+    def findInput: IO[Input] =
+      IO(Option(dom.document.getElementById(paletteFromImageFileId)).map(_.asInstanceOf[Input]))
+        .flatMap(IO.fromOption(_)(new NoSuchElementException("File input not found")))
+
+    def addListener(input: Input): IO[PalettesGalleryMsg] =
+      IO.async_[PalettesGalleryMsg] { cb =>
+        input.addEventListener("change", (_: dom.Event) => {
+          val file = Option(input.files(0))
+          input.value = ""
+          file.foreach { f =>
+            val fileName = Option(f.name).filter(_.nonEmpty)
+            PixelPic.loadPixelImageFromFile(f).unsafeRunAsync {
+              case Right(opt) =>
+                val msg = opt.fold[PalettesGalleryMsg](PalettesGalleryMsg.PaletteFromImageError("Could not decode image"))(pic =>
+                  PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName))
+                cb(Right(msg))
+              case Left(err) =>
+                cb(Right(PalettesGalleryMsg.PaletteFromImageError(err.getMessage)))
+            }
+          }
+        })
+      }
+
+    IO.sleep(200.millis).flatMap(_ => findInput).flatMap(addListener)
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case PalettesGalleryMsg.Loaded(list) =>
-      (model.copy(list = Some(list)), Cmd.None)
+      val rearmCmd = Cmd.Run(waitForFileSelectionForPalette(), (m: PalettesGalleryMsg) => m)
+      (model.copy(list = Some(list)), rearmCmd)
     case PalettesGalleryMsg.CreateNew =>
       (model, Cmd.Emit(NavigateNext(ScreenId.PaletteId, None)))
     case PalettesGalleryMsg.Edit(stored) =>
@@ -48,6 +89,27 @@ object PalettesGalleryScreen extends Screen {
       (model.copy(pendingDeleteId = None), Cmd.None)
     case PalettesGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
+    case PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName) =>
+      val name = fileName.map(baseNameFromFileName).filter(_.nonEmpty).getOrElse("Unnamed palette")
+      val colors = pic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
+      val id    = "palette-" + js.Date.now().toLong
+      val stored = StoredPalette(id = id, name = name, colors = colors)
+      model.list match {
+        case Some(list) =>
+          val newList = list :+ stored
+          val saveCmd = LocalStorageUtils.saveList(StorageKeys.palettes, newList)(
+            _ => PalettesGalleryMsg.PaletteFromImageSaved,
+            (_, _) => PalettesGalleryMsg.PaletteFromImageError("Failed to save palette")
+          )
+          val rearmCmd = Cmd.Run(waitForFileSelectionForPalette(), (m: PalettesGalleryMsg) => m)
+          (model.copy(list = Some(newList)), Cmd.Batch(saveCmd, rearmCmd))
+        case None =>
+          (model, Cmd.None)
+      }
+    case PalettesGalleryMsg.PaletteFromImageError(_) =>
+      (model, Cmd.Run(waitForFileSelectionForPalette(), (m: PalettesGalleryMsg) => m))
+    case PalettesGalleryMsg.PaletteFromImageSaved =>
+      (model, Cmd.Run(waitForFileSelectionForPalette(), (m: PalettesGalleryMsg) => m))
     case _: NavigateNext =>
       (model, Cmd.None)
   }
@@ -64,11 +126,21 @@ object PalettesGalleryScreen extends Screen {
             button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Back))(text("← Overview"))
           ),
           if (list.isEmpty)
-            GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew)
+            div(`class` := "flex-col")(
+              GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew),
+              div(`class` := "flex-row", style := "margin-top: 0.5rem;")(
+                label(`for` := paletteFromImageFileId, `class` := s"${NesCss.btn} label-as-button")(text("From image")),
+                input(id := paletteFromImageFileId, `type` := "file", `class` := "hidden")
+              )
+            )
           else
             div(`class` := "flex-col")(
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
-                button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")))*
+                div(`class` := "flex-row", style := "margin-top: 0.5rem;")(
+                  button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
+                  label(`for` := paletteFromImageFileId, `class` := s"${NesCss.btn} label-as-button")(text("From image")),
+                  input(id := paletteFromImageFileId, `type` := "file", `class` := "hidden")
+                ))*
             )
         )
     }
@@ -76,11 +148,6 @@ object PalettesGalleryScreen extends Screen {
 
   private def entryCard(item: StoredPalette, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
-      div(`class` := "palette-strip")(
-        item.colors.take(16).toList.map(c =>
-          div(`class` := "palette-strip-swatch", style := s"background: ${c.toHex};")()
-        )*
-      ),
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),
         span(`class` := "gallery-card-meta nes-text")(text(s"${item.colors.length} colors")),
@@ -95,6 +162,9 @@ object PalettesGalleryScreen extends Screen {
             button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Edit(item)))(text("Edit")),
             button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.Delete(item)))(text("Delete"))
           )
+      ),
+      div(`class` := "gallery-card-preview")(
+        PaletteStripView.previewInline(item.colors.toList)
       )
     )
 }
@@ -107,6 +177,9 @@ final case class PalettesGalleryModel(
 enum PalettesGalleryMsg:
   case Loaded(list: List[StoredPalette])
   case CreateNew
+  case PaletteFromImageDecoded(pic: PixelPic, fileName: Option[String])
+  case PaletteFromImageError(message: String)
+  case PaletteFromImageSaved
   case Edit(stored: StoredPalette)
   case Delete(stored: StoredPalette)
   case ConfirmDelete(id: String)

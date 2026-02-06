@@ -357,6 +357,10 @@ body {
   flex: 1;
 }
 
+.gallery-card-preview {
+  flex-shrink: 0;
+}
+
 .gallery-card-title {
   font-weight: 500;
 }
