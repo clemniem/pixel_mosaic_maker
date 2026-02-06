@@ -1,6 +1,11 @@
 /* ========== NES.css integration – body and app root ========== */
+html {
+  font-size: 12px; /* smaller base = more compact layout (default 16px) */
+}
+
 body {
   font-family: "Press Start 2P", cursive;
+  font-size: 1rem;
   background-color: #6b5b7b; /* Game Boy purple */
   color: #212529;
   margin: 0;
