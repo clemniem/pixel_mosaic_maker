@@ -10,17 +10,24 @@ import scala.scalajs.js.timers.setTimeout
  */
 object JsPDF {
 
-  /** Execute instructions after a short delay (so jsPDF global is ready). Returns false if jsPDF was not found. */
-  def run(instructions: List[Instruction]): Unit = {
-    val _ = setTimeout(0)(runNow(instructions))
+  private def fillPageBackground(doc: js.Dynamic, w: Double, h: Double, r: Int, g: Int, b: Int): Unit = {
+    val _ = doc.setFillColor(r, g, b)
+    val _ = doc.rect(0, 0, w, h, "F")
   }
 
-  def runNow(instructions: List[Instruction]): Unit =
+  /** Execute instructions after a short delay (so jsPDF global is ready). Page background RGB 0–255. */
+  def run(instructions: List[Instruction], bgR: Int, bgG: Int, bgB: Int): Unit = {
+    val _ = setTimeout(0)(runNow(instructions, bgR, bgG, bgB))
+  }
+
+  def runNow(instructions: List[Instruction], bgR: Int, bgG: Int, bgB: Int): Unit =
     getJsPDFConstructor match {
       case None =>
         console.warn("JsPDF: jsPDF not found on window. Add script tag for jspdf.umd.min.js.")
       case Some(ctor) =>
-        val _ = instructions.foldLeft(Option.empty[js.Dynamic]) { (docOpt, inst) =>
+        type State = (Option[js.Dynamic], (Double, Double))
+        val _ = instructions.foldLeft[State]((Option.empty[js.Dynamic], (0.0, 0.0))) { (state, inst) =>
+          val (docOpt, (pageW, pageH)) = state
           inst match {
             case Instruction.PageSize(w, h) =>
               val _ = docOpt
@@ -29,25 +36,21 @@ object JsPDF {
                 unit = "mm",
                 format = js.Array(w, h)
               )
-              Some(js.Dynamic.newInstance(ctor)(opts))
+              val doc = js.Dynamic.newInstance(ctor)(opts)
+              fillPageBackground(doc, w, h, bgR, bgG, bgB)
+              (Some(doc), (w, h))
             case Instruction.FontSize(pt) =>
               docOpt.foreach { doc => val _ = doc.setFontSize(pt) }
-              docOpt
+              (docOpt, (pageW, pageH))
             case Instruction.Text(x, y, value) =>
               docOpt.foreach { doc => val _ = doc.text(value, x, y) }
-              docOpt
+              (docOpt, (pageW, pageH))
             case Instruction.AddPage =>
-              docOpt.foreach { doc => val _ = doc.addPage() }
-              docOpt
-            case Instruction.AddPageWithSize(w, h) =>
-              docOpt.foreach { doc => val _ = doc.addPage(js.Array(w, h), "p") }
-              docOpt
-            case Instruction.AddImage(dataUrl, x, y, w, h) =>
               docOpt.foreach { doc =>
-                val format = if (dataUrl.contains("image/svg+xml")) "SVG" else "PNG"
-                val _      = doc.addImage(dataUrl, format, x, y, w, h)
+                val _ = doc.addPage()
+                fillPageBackground(doc, pageW, pageH, bgR, bgG, bgB)
               }
-              docOpt
+              (docOpt, (pageW, pageH))
             case Instruction.DrawPixelGrid(x0, y0, wMm, hMm, cols, rows, rgbFlat) =>
               docOpt.foreach { doc =>
                 if (cols > 0 && rows > 0 && rgbFlat.length >= cols * rows * 3) {
@@ -65,23 +68,23 @@ object JsPDF {
                   }
                 }
               }
-              docOpt
+              (docOpt, (pageW, pageH))
             case Instruction.DrawStrokeRects(rects, r, g, b, lineWidthMm) =>
               docOpt.foreach { doc =>
                 val _ = doc.setDrawColor(r, g, b)
                 val _ = doc.setLineWidth(lineWidthMm)
                 rects.foreach { case (x, y, w, h) => val _ = doc.rect(x, y, w, h, "S") }
               }
-              docOpt
+              (docOpt, (pageW, pageH))
             case Instruction.FillRect(x, y, w, h, r, g, b) =>
               docOpt.foreach { doc =>
                 val _ = doc.setFillColor(r, g, b)
                 val _ = doc.rect(x, y, w, h, "F")
               }
-              docOpt
+              (docOpt, (pageW, pageH))
             case Instruction.Save(filename) =>
               docOpt.foreach { doc => val _ = doc.save(filename) }
-              docOpt
+              (docOpt, (pageW, pageH))
           }
         }
     }

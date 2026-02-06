@@ -105,11 +105,6 @@ final case class GridConfig(cols: Int, rows: Int, parts: Array[GridPart]) {
   val height: Int =
     if (parts.isEmpty) 0
     else parts.iterator.map(p => p.y + p.height).max
-
-  def partAt(col: Int, row: Int): Option[GridPart] =
-    if (row >= 0 && row < rows && col >= 0 && col < cols && row * cols + col < parts.length)
-      Some(parts(row * cols + col))
-    else None
 }
 
 object GridConfig {

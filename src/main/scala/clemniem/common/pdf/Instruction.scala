@@ -16,12 +16,6 @@ object Instruction {
   /** Add a new page (same size as document). Must be used after at least one PageSize. */
   case object AddPage extends Instruction
 
-  /** Add a new page with the given size in mm (e.g. 200×200 for 20×20 cm). */
-  case class AddPageWithSize(widthMm: Double, heightMm: Double) extends Instruction
-
-  /** Embed an image (data URL, e.g. PNG or SVG). Position and size in mm. */
-  case class AddImage(dataUrl: String, xMm: Double, yMm: Double, widthMm: Double, heightMm: Double) extends Instruction
-
   /** Draw a pixel grid as small rects (gbcamutil-style). rgbFlat: row-major, 3 ints per pixel (r,g,b). */
   case class DrawPixelGrid(
       xMm: Double,

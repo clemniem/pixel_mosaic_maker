@@ -39,10 +39,6 @@ object Color {
         Color(0, 0, 0)
     } catch { case _: NumberFormatException => Color(0, 0, 0) }
 
-  /** Try to parse hex; returns None if invalid or blank. */
-  def fromHexOption(hex: String): Option[Color] =
-    Option(hex).filter(s => !s.isBlank).map(fromHex)
-
   given Encoder[Color] = deriveEncoder
   given Decoder[Color] = deriveDecoder
 }

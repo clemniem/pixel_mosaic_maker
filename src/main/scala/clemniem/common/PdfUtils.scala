@@ -1,71 +1,55 @@
 package clemniem.common
 
 import cats.effect.IO
-import clemniem.{GridConfig, GridPart, Pixel, PixelPic}
+import clemniem.{Color, GridConfig, GridPart, Pixel, PixelPic}
 import clemniem.common.pdf.{Instruction, JsPDF, PdfLayout}
 
-/** Request for the book PDF: title, optional mosaic (pic + grid), and step size in px (default 16). */
+/** Request for the book PDF: title, optional mosaic (pic + grid), step size in px, and page background color. */
 final case class PrintBookRequest(
     title: String,
     mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)],
-    stepSizePx: Int = 16
+    stepSizePx: Int = 16,
+    pageBackgroundColor: Color = PdfUtils.defaultPageBackgroundColor
 )
 
 /** High-level PDF helpers. Build [[Instruction]]s and run them via [[JsPDF]]. */
 object PdfUtils {
 
+  /** Default page background: light pastel yellow (old LEGO-catalog style). */
+  val defaultPageBackgroundColor: Color = Color(253, 251, 230)
+
   /** Background RGB for layer patches (pixels not in the current cumulative set). Later configurable. */
   private val layerPatchBackgroundGrey = 220
 
-  /** Generate a single test page: 20×20 cm, centered text "TEST", then trigger save. */
-  def printTestPdf(): IO[Unit] = IO {
-    val instructions: List[Instruction] = List(
-      Instruction.PageSize(200, 200),
-      Instruction.FontSize(40),
-      Instruction.Text(85, 100, "TEST"),
-      Instruction.Save("test.pdf")
-    )
-    JsPDF.run(instructions)
-  }
-
-  /** Two-page test for checkpoint: Cover + "Page 2" (A4). Use Print button to confirm multi-page works. */
-  def printTwoPageTestPdf(): IO[Unit] = IO {
-    val a4W = 210.0
-    val a4H = 297.0
-    val instructions: List[Instruction] = List(
-      Instruction.PageSize(a4W, a4H),
-      Instruction.FontSize(24),
-      Instruction.Text(80, 140, "Cover"),
-      Instruction.AddPage,
-      Instruction.FontSize(16),
-      Instruction.Text(20, 30, "Page 2"),
-      Instruction.Save("mosaic-two-page-test.pdf")
-    )
-    JsPDF.run(instructions)
-  }
-
   /** Generate the book PDF. Single entry point for both Print PDF buttons; pass a [[PrintBookRequest]]. */
   def printBookPdf(request: PrintBookRequest): IO[Unit] = IO {
-    runPrintBookPdf(request.title, request.mosaicPicAndGridOpt, request.stepSizePx)
+    runPrintBookPdf(request.title, request.mosaicPicAndGridOpt, request.stepSizePx, request.pageBackgroundColor)
   }
 
-  private def runPrintBookPdf(title: String, mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)], stepSizePx: Int): Unit = {
+  private def runPrintBookPdf(
+      title: String,
+      mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)],
+      stepSizePx: Int,
+      pageBackgroundColor: Color
+  ): Unit = {
     val (pageW, pageH) = (PdfLayout.pageSizeMm, PdfLayout.pageSizeMm) // 20×20 cm
     val marginLR       = 15.0
     val marginTB       = 15.0
     val availableW     = pageW - 2 * marginLR
     val availableH     = pageH - 2 * marginTB
 
-    val (coverInstrs, chapterInstrs) = mosaicPicAndGridOpt match {
+    val (coverInstrs, afterCoverInstrs, chapterInstrs) = mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
-        val cover     = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW)
-        val chapters  = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx)
-        (cover, chapters)
+        val cover      = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW)
+        val emptyPage  = List(Instruction.AddPage)
+        val fullOverview = fullOverviewPageInstructions(pic, marginLR, marginTB, availableW, availableH)
+        val chapters   = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx)
+        (cover, emptyPage ++ fullOverview, chapters)
       case None =>
-        (PdfLayout.coverInstructions(title), Nil)
+        (PdfLayout.coverInstructions(title), List(Instruction.AddPage), Nil)
     }
-    val instructions = coverInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
-    JsPDF.run(instructions)
+    val instructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
+    JsPDF.run(instructions, pageBackgroundColor.r, pageBackgroundColor.g, pageBackgroundColor.b)
   }
 
   /** Cover page: title above full mosaic, no grids. */
@@ -93,6 +77,47 @@ object PdfUtils {
       Instruction.Text(marginLR, titleY, title),
       Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat)
     )
+  }
+
+  /** One page after the empty page: full-size mosaic overview and all colors for the whole mosaic. */
+  private def fullOverviewPageInstructions(
+      fullPic: PixelPic,
+      marginLR: Double,
+      marginTB: Double,
+      availableW: Double,
+      availableH: Double
+  ): List[Instruction] = {
+    val (pw, ph, rgbFlat) = pixelPicToRgbFlat(fullPic)
+    val titleBlockH       = 8.0
+    val colorListReservedH = 55.0
+    val mosaicAvailableH   = availableH - titleBlockH - colorListReservedH
+    val scale              = (availableW / pw).min(mosaicAvailableH / ph)
+    val imageW             = pw * scale
+    val imageH             = ph * scale
+    val x0                 = marginLR + (availableW - imageW) / 2
+    val y0                 = marginTB + titleBlockH + (mosaicAvailableH - imageH) / 2
+    val countYStart        = y0 + imageH + 6
+    val swatchSize         = 4.0
+    val swatchGap          = 1.0
+    val lineHeight         = 5.0
+    val colorCountInstrs   = fullPic.palette.toVector.sortBy(-_._2).zipWithIndex.flatMap { case ((idx, count), i) =>
+      val px = fullPic.paletteLookup(idx)
+      val y  = countYStart + 5 + i * lineHeight
+      val x  = marginLR
+      List(
+        Instruction.FillRect(x, y, swatchSize, swatchSize, px.r, px.g, px.b),
+        Instruction.FontSize(10),
+        Instruction.Text(x + swatchSize + swatchGap, y + swatchSize * 0.75, s"× $count")
+      )
+    }.toList
+    List(
+      Instruction.AddPage,
+      Instruction.FontSize(12),
+      Instruction.Text(marginLR, marginTB + 4, "Full mosaic – all colors"),
+      Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat),
+      Instruction.FontSize(10),
+      Instruction.Text(marginLR, countYStart, "Colors for whole mosaic:")
+    ) ++ colorCountInstrs
   }
 
   /** All chapters: one chapter per plate (overview page + sections per step). */

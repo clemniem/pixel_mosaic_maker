@@ -27,8 +27,6 @@ final case class PixelPic private (
     name: String
 ) {
 
-  def dataUrl: DataUrlBase64 = toImageData("image/png")
-
   lazy val pixelPalette: Map[Pixel, Int] = palette.map((k, v) => paletteLookup(k) -> v)
 
   lazy val size: ImgSize = ImgSize(width, height)

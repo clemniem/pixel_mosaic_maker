@@ -2,6 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{
+  Color,
   GridConfig,
   NavigateNext,
   PixelPic,
@@ -33,7 +34,8 @@ object PrintInstructionsScreen extends Screen {
       palettes = None,
       selectedBuildConfigId = None,
       title = "Mosaic",
-      stepSizePx = 16
+      stepSizePx = 16,
+      pageBackgroundColorHex = PdfUtils.defaultPageBackgroundColor.toHex
     )
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       PrintInstructionsMsg.LoadedBuildConfigs.apply,
@@ -73,13 +75,18 @@ object PrintInstructionsScreen extends Screen {
       (model.copy(title = title), Cmd.None)
     case PrintInstructionsMsg.SetStepSize(px) =>
       (model.copy(stepSizePx = px), Cmd.None)
+    case PrintInstructionsMsg.SetPageBackgroundColor(hex) =>
+      (model.copy(pageBackgroundColorHex = hex), Cmd.None)
     case PrintInstructionsMsg.PrintPdf =>
+      val pageBg = if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
+                   else Color.fromHex(model.pageBackgroundColorHex)
       val request = PrintBookRequest(
         title = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
         mosaicPicAndGridOpt = model.selectedStored.flatMap(stored =>
           mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
         ),
-        stepSizePx = model.stepSizePx
+        stepSizePx = model.stepSizePx,
+        pageBackgroundColor = pageBg
       )
       (model, Cmd.SideEffect(PdfUtils.printBookPdf(request)))
     case PrintInstructionsMsg.Back =>
@@ -161,6 +168,25 @@ object PrintInstructionsScreen extends Screen {
         ),
         span(style := "margin-left: 0.5rem; color: #555; font-size: 0.9rem;")(text("Each step = step×step px. Plate width/height must be divisible by this (default 16)."))
       ),
+      div(style := "margin-bottom: 1.5rem;")(
+        label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(text("Page background color")),
+        div(style := "display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;")(
+          input(
+            `type` := "color",
+            value := normalizedHexForPicker(model.pageBackgroundColorHex),
+            onInput(hex => PrintInstructionsMsg.SetPageBackgroundColor(hex)),
+            style := "width: 3rem; height: 2rem; padding: 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;"
+          ),
+          input(
+            `type` := "text",
+            value := model.pageBackgroundColorHex,
+            placeholder := PdfUtils.defaultPageBackgroundColor.toHex,
+            onInput(PrintInstructionsMsg.SetPageBackgroundColor.apply),
+            style := "padding: 6px 10px; width: 7rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+          )
+        ),
+        span(style := "display: block; margin-top: 0.25rem; color: #555; font-size: 0.9rem;")(text("Hex (e.g. #fdfbe6). Used for all PDF pages."))
+      ),
       button(
         style := (if (!canPrint)
           "padding: 8px 16px; cursor: not-allowed; opacity: 0.6; background: #999; color: #fff; border: none; border-radius: 4px; font-weight: 500;"
@@ -169,6 +195,13 @@ object PrintInstructionsScreen extends Screen {
         onClick(PrintInstructionsMsg.PrintPdf)
       )(text("Print PDF"))
     )
+  }
+
+  /** Hex string for the color picker (must be #rrggbb). */
+  private def normalizedHexForPicker(hex: String): String = {
+    val s = hex.trim
+    val withHash = if (s.startsWith("#")) s else "#" + s
+    if (withHash.length == 7) withHash else PdfUtils.defaultPageBackgroundColor.toHex
   }
 
   /** Full image with palette applied (for overview canvas). */
@@ -258,7 +291,8 @@ final case class PrintInstructionsModel(
     palettes: Option[List[StoredPalette]],
     selectedBuildConfigId: Option[String],
     title: String,
-    stepSizePx: Int
+    stepSizePx: Int,
+    pageBackgroundColorHex: String
 ) {
   def selectedStored: Option[StoredBuildConfig] =
     buildConfigs.flatMap(list =>
@@ -273,6 +307,7 @@ enum PrintInstructionsMsg:
   case SetBuildConfig(id: String)
   case SetTitle(title: String)
   case SetStepSize(px: Int)
+  case SetPageBackgroundColor(hex: String)
   case DrawOverview
   case PrintPdf
   case Back
