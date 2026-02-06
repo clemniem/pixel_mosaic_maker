@@ -4,6 +4,7 @@ import cats.effect.IO
 import clemniem.{GridConfig, NavigateNext, Screen, ScreenId, ScreenOutput, StoredGridConfig, StorageKeys}
 import clemniem.common.CanvasUtils
 import clemniem.common.LocalStorageUtils
+import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -64,75 +65,53 @@ object GridConfigGalleryScreen extends Screen {
       (model, Cmd.None)
   }
 
-  def view(model: Model): Html[Msg] = {
-    val container =
-      "font-family: system-ui, sans-serif; max-width: 40rem; margin: 0 auto; padding: 1.5rem;"
+  def view(model: Model): Html[Msg] =
     model.list match {
       case None =>
-        div(style := container)(p(text("Loading…")))
+        div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container")(
+          p(`class` := NesCss.text)(text("Loading…"))
+        )
       case Some(list) =>
-        div(style := container)(
-          div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-            h1(style := "margin: 0;")(text("Grid configs")),
-            button(
-              style := "padding: 6px 12px; cursor: pointer;",
-              onClick(GridConfigGalleryMsg.Back)
-            )(text("← Overview"))
+        div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container")(
+          div(`class` := "screen-header screen-header--short")(
+            h1(`class` := "screen-title")(text("Grid configs")),
+            button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.Back))(text("← Overview"))
           ),
           if (list.isEmpty)
             GalleryEmptyState("No grid configs yet.", "+ Create GridConfig", GridConfigGalleryMsg.CreateNew)
           else
-            div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
-              (list.map { item =>
-                entryCard(item, model.pendingDeleteId.contains(item.id))
-              } :+ button(
-                style := "margin-top: 0.5rem; padding: 8px 16px; cursor: pointer;",
-                onClick(GridConfigGalleryMsg.CreateNew)
-              )(text("+ Create GridConfig")))*
+            div(`class` := "flex-col flex-col--gap-tight")(
+              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
+                button(`class` := NesCss.btnPrimary, style := "margin-top: 0.5rem;", onClick(GridConfigGalleryMsg.CreateNew))(text("+ Create GridConfig")))*
             )
         )
     }
-  }
 
   private def entryCard(item: StoredGridConfig, confirmingDelete: Boolean): Html[Msg] =
-    div(
-      style := "display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;"
-    )(
+    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
       div(onLoad(GridConfigGalleryMsg.DrawPreview(item)))(
         canvas(
           id := s"grid-preview-${item.id}",
           width := previewWidth,
           height := previewHeight,
-          style := "border: 1px solid #999; border-radius: 2px; flex-shrink: 0;"
+          `class` := "gallery-preview-canvas"
         )()
       ),
-      div(style := "min-width: 0; flex: 1;")(
-        span(style := "font-weight: 500;")(text(item.name)),
-        span(style := "display: block; color: #666; font-size: 0.875rem; margin-top: 0.25rem;")(
+      div(`class` := "gallery-card-body")(
+        span(`class` := "gallery-card-title")(text(item.name)),
+        span(`class` := "gallery-card-meta nes-text")(
           text(s"${item.config.width}×${item.config.height} · ${item.config.parts.length} plate(s)")
         ),
         if (confirmingDelete)
-          div(style := "margin-top: 0.5rem; padding: 6px 0;")(
-            span(style := "font-size: 0.875rem; color: #b71c1c; margin-right: 8px;")(text(s"Delete \"${item.name}\"?")),
-            button(
-              style := "padding: 4px 10px; margin-right: 6px; cursor: pointer; background: #b71c1c; color: #fff; border: none; border-radius: 4px; font-size: 0.875rem;",
-              onClick(GridConfigGalleryMsg.ConfirmDelete(item.id))
-            )(text("Yes")),
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #999; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(GridConfigGalleryMsg.CancelDelete)
-            )(text("Cancel"))
+          div(`class` := "gallery-delete-confirm")(
+            span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
+            button(`class` := NesCss.btnError, style := "margin-right: 6px;", onClick(GridConfigGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
+            button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.CancelDelete))(text("Cancel"))
           )
         else
-          div(style := "margin-top: 0.5rem; display: flex; gap: 6px;")(
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #555; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(GridConfigGalleryMsg.Edit(item))
-            )(text("Edit")),
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #b71c1c; color: #b71c1c; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(GridConfigGalleryMsg.Delete(item))
-            )(text("Delete"))
+          div(`class` := "gallery-actions")(
+            button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.Edit(item)))(text("Edit")),
+            button(`class` := NesCss.btnError, onClick(GridConfigGalleryMsg.Delete(item)))(text("Delete"))
           )
       )
     )

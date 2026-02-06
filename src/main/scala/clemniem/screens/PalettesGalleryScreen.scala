@@ -3,6 +3,7 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{NavigateNext, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
 import clemniem.common.LocalStorageUtils
+import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
 
@@ -52,76 +53,50 @@ object PalettesGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val container =
-      "font-family: system-ui, sans-serif; max-width: 40rem; margin: 0 auto; padding: 1.5rem;"
+    val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
     model.list match {
       case None =>
-        div(style := container)(p(text("Loading…")))
+        div(`class` := root)(p(`class` := NesCss.text)(text("Loading…")))
       case Some(list) =>
-        div(style := container)(
-          div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-            h1(style := "margin: 0;")(text("Palettes")),
-            button(style := "padding: 6px 12px; cursor: pointer;", onClick(PalettesGalleryMsg.Back))(
-              text("← Overview")
-            )
+        div(`class` := root)(
+          div(`class` := "screen-header")(
+            h1(`class` := "screen-title")(text("Palettes")),
+            button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Back))(text("← Overview"))
           ),
           if (list.isEmpty)
             GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew)
           else
-            div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
-              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+ button(
-                style := "margin-top: 0.5rem; padding: 8px 16px; cursor: pointer;",
-                onClick(PalettesGalleryMsg.CreateNew)
-              )(text("+ Create Palette")))*
+            div(`class` := "flex-col")(
+              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
+                button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")))*
             )
         )
     }
   }
 
   private def entryCard(item: StoredPalette, confirmingDelete: Boolean): Html[Msg] =
-    div(
-      style := "display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;"
-    )(
-      div(
-        style := "display: flex; flex-wrap: wrap; gap: 2px; flex-shrink: 0;"
-      )(
+    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
+      div(`class` := "palette-strip")(
         item.colors.take(16).toList.map(c =>
-          div(
-            style := s"width: 20px; height: 20px; border-radius: 2px; border: 1px solid #999; background: ${c.toHex};"
-          )()
+          div(`class` := "palette-strip-swatch", style := s"background: ${c.toHex};")()
         )*
       ),
-      div(style := "min-width: 0; flex: 1;")(
-        span(style := "font-weight: 500;")(text(item.name)),
-        span(style := "display: block; color: #666; font-size: 0.875rem; margin-top: 0.25rem;")(
-          text(s"${item.colors.length} color(s)")
-        ),
+      div(`class` := "gallery-card-body")(
+        span(`class` := "gallery-card-title")(text(item.name)),
+        span(`class` := "gallery-card-meta nes-text")(text(s"${item.colors.length} color(s)")),
         if (confirmingDelete)
-          div(style := "margin-top: 0.5rem; padding: 6px 0;")(
-            span(style := "font-size: 0.875rem; color: #b71c1c; margin-right: 8px;")(text(s"Delete \"${item.name}\"?")),
-            button(
-              style := "padding: 4px 10px; margin-right: 6px; cursor: pointer; background: #b71c1c; color: #fff; border: none; border-radius: 4px; font-size: 0.875rem;",
-              onClick(PalettesGalleryMsg.ConfirmDelete(item.id))
-            )(text("Yes")),
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #999; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(PalettesGalleryMsg.CancelDelete)
-            )(text("Cancel"))
+          div(`class` := "gallery-delete-confirm")(
+            span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
+            button(`class` := NesCss.btnError, style := "margin-right: 6px;", onClick(PalettesGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
+            button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.CancelDelete))(text("Cancel"))
           )
         else
-          div(style := "margin-top: 0.5rem; display: flex; gap: 6px;")(
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #555; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(PalettesGalleryMsg.Edit(item))
-            )(text("Edit")),
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #b71c1c; color: #b71c1c; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(PalettesGalleryMsg.Delete(item))
-            )(text("Delete"))
+          div(`class` := "gallery-actions")(
+            button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Edit(item)))(text("Edit")),
+            button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.Delete(item)))(text("Delete"))
           )
       )
     )
-
 }
 
 final case class PalettesGalleryModel(

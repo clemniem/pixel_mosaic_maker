@@ -13,6 +13,7 @@ import clemniem.{
   StoredPalette
 }
 import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
+import clemniem.common.nescss.NesCss
 import clemniem.StorageKeys
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
@@ -115,32 +116,30 @@ object PrintInstructionsScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val container = "font-family: system-ui, sans-serif; max-width: 36rem; margin: 0 auto; padding: 1.5rem;"
     val buildConfigs = model.buildConfigs.getOrElse(Nil)
     val selectedId   = model.selectedBuildConfigId.orElse(buildConfigs.headOption.map(_.id))
     val canPrint     = model.selectedStored.isDefined
 
-    div(style := container)(
-      div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 8px;")(
-        h2(style := "margin: 0;")(text("Print Instructions")),
-        button(
-          style := "padding: 6px 12px; cursor: pointer; border: 1px solid #555; border-radius: 4px; background: #fff;",
-          onClick(PrintInstructionsMsg.Back)
-        )(text("← Overview"))
+    div(
+      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--narrow"
+    )(
+      div(`class` := "screen-header")(
+        h2(`class` := "screen-title")(text("Print Instructions")),
+        button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.Back))(text("← Overview"))
       ),
-      p(style := "color: #555; margin-bottom: 1.5rem;")(
+      p(`class` := s"${NesCss.text} screen-intro")(
         text("Choose a build config and set the booklet title, then generate the PDF.")
       ),
-      div(style := "margin-bottom: 1rem;")(
-        label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(text("Build config")),
+      div(`class` := s"${NesCss.field} field-block")(
+        label(`class` := "label-block")(text("Build config")),
         model.buildConfigs match {
           case None =>
-            span(style := "color: #666;")(text("Loading…"))
+            span(`class` := NesCss.text)(text("Loading…"))
           case Some(list) if list.isEmpty =>
-            span(style := "color: #666;")(text("No build configs saved. Create one from the BuildConfigs gallery."))
+            span(`class` := NesCss.text)(text("No build configs saved. Create one from the BuildConfigs gallery."))
           case Some(list) =>
             select(
-              style := "padding: 6px 10px; min-width: 16rem; border: 1px solid #ccc; border-radius: 4px;",
+              `class` := s"${NesCss.input} input-min-w-16",
               value := selectedId.getOrElse(""),
               onInput(s => PrintInstructionsMsg.SetBuildConfig(if (s.isEmpty) list.headOption.map(_.id).getOrElse("") else s))
             )(
@@ -152,136 +151,101 @@ object PrintInstructionsScreen extends Screen {
       ),
       model.buildConfigs match {
         case Some(_) =>
-          div(style := "margin-bottom: 1.5rem;")(
-            div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Grid overview")),
+          div(`class` := "field-block--lg")(
+            div(`class` := "section-title")(text("Grid overview")),
             div(onLoad(PrintInstructionsMsg.DrawOverview))(
               canvas(
                 id := overviewCanvasId,
                 width := 400,
                 height := 200,
-                style := "border: 1px solid #333; display: block; max-width: 100%; image-rendering: pixelated; image-rendering: crisp-edges;"
+                `class` := "pixel-canvas"
               )()
             )
           )
         case None =>
           div()()
       },
-      div(style := "margin-bottom: 1.5rem;")(
-        label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(text("Title")),
+      div(`class` := s"${NesCss.field} field-block--lg")(
+        label(`class` := "label-block")(text("Title")),
         input(
           `type` := "text",
+          `class` := s"${NesCss.input} input-w-full",
           value := model.title,
-          onInput(PrintInstructionsMsg.SetTitle.apply),
-          style := "padding: 6px 10px; width: 100%; max-width: 20rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
+          onInput(PrintInstructionsMsg.SetTitle.apply)
         )
       ),
       stepSizeSliderBlock(model),
-      div(style := "margin-bottom: 1.5rem;")(
-        label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(text("Page background color")),
-        div(style := "display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;")(
+      div(`class` := s"${NesCss.field} field-block--lg")(
+        label(`class` := "label-block")(text("Page background color")),
+        div(`class` := "flex-row flex-row--tight")(
           input(
             `type` := "color",
+            `class` := "input-color",
             value := normalizedHexForPicker(model.pageBackgroundColorHex),
-            onInput(hex => PrintInstructionsMsg.SetPageBackgroundColor(hex)),
-            style := "width: 3rem; height: 2rem; padding: 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;"
+            onInput(hex => PrintInstructionsMsg.SetPageBackgroundColor(hex))
           ),
           input(
             `type` := "text",
+            `class` := s"${NesCss.input} input-w-7 input-monospace",
             value := model.pageBackgroundColorHex,
             placeholder := PdfUtils.defaultPageBackgroundColor.toHex,
-            onInput(PrintInstructionsMsg.SetPageBackgroundColor.apply),
-            style := "padding: 6px 10px; width: 7rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+            onInput(PrintInstructionsMsg.SetPageBackgroundColor.apply)
           )
         ),
-        span(style := "display: block; margin-top: 0.25rem; color: #555; font-size: 0.9rem;")(text("Hex (e.g. #fdfbe6). Used for all PDF pages."))
+        span(`class` := s"${NesCss.text} helper-text")(text("Hex (e.g. #fdfbe6). Used for all PDF pages."))
       ),
-      div(style := "margin-bottom: 1.5rem;")(
-        label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(text("Printer margin (mm)")),
+      div(`class` := s"${NesCss.field} field-block--lg")(
+        label(`class` := "label-block")(text("Printer margin (mm)")),
         input(
           `type` := "number",
+          `class` := s"${NesCss.input} input-w-5",
           value := model.printerMarginMm.toString,
           min := "0",
           max := "20",
           step := "1",
-          onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s))),
-          style := "padding: 6px 10px; width: 5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
+          onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s)))
         ),
-        span(style := "margin-left: 0.5rem; color: #555; font-size: 0.9rem;")(text("White border on each side (for booklet printing). Default 3 mm."))
+        span(`class` := s"${NesCss.text} helper-text--inline")(text("White border on each side (for booklet printing). Default 3 mm."))
       ),
       button(
-        style := (if (!canPrint)
-          "padding: 8px 16px; cursor: not-allowed; opacity: 0.6; background: #999; color: #fff; border: none; border-radius: 4px; font-weight: 500;"
-        else
-          "padding: 8px 16px; cursor: pointer; background: #1565c0; color: #fff; border: none; border-radius: 4px; font-weight: 500;"),
+        `class` := (if (canPrint) NesCss.btnPrimary else s"${NesCss.btn} btn-disabled"),
         onClick(PrintInstructionsMsg.PrintPdf)
       )(text("Print PDF"))
     )
   }
 
-  /** Step size: fixed values 12–32. Only options valid for selected build config are clickable; when only one is possible, hide slider. */
+  /** Step size: fixed values 12–32. Only options valid for selected build config are clickable; invalid ones shown greyed out. */
   private def stepSizeSliderBlock(model: Model): Html[Msg] = {
     val available = model.selectedStored
       .map(s => availableStepSizesForGrid(s.config.grid))
       .getOrElse(stepSizeCandidates)
-    val currentIdx = available.indexOf(model.stepSizePx).max(0).min(available.length - 1)
-    val currentVal = available.lift(currentIdx).getOrElse(16)
-    val singleOnly = available.length <= 1
 
-    def pillStyle(possible: Boolean, selected: Boolean): String = {
-      val base = "padding: 4px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; font-size: 0.9rem;"
-      if (!possible)
-        base + " background: #e8e8e8; color: #999; cursor: default; border: 1px solid #ddd;"
-      else if (selected)
-        base + " background: #1565c0; color: #fff; border: 1px solid #1565c0; cursor: pointer; font-weight: 600;"
-      else
-        base + " background: #f0f0f0; color: #333; border: 1px solid #ccc; cursor: pointer;"
+    def pillClass(possible: Boolean, selected: Boolean): String = {
+      val base = "step-size-pill"
+      if (!possible) s"$base step-size-pill--disabled"
+      else if (selected) s"$base step-size-pill--selected"
+      else s"$base step-size-pill--unselected"
     }
 
-    div(style := "margin-bottom: 1.5rem;")(
-      label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(
+    div(`class` := "step-size-block")(
+      label(`class` := "label-block")(
         text("Step size (px)")
       ),
-      if (singleOnly) {
-        div(style := "display: flex; align-items: center; gap: 0.5rem;")(
-          span(
-            style := "padding: 6px 12px; border-radius: 6px; background: #e3f2fd; color: #1565c0; font-weight: 600; font-variant-numeric: tabular-nums; border: 1px solid #90caf9;"
-          )(text(currentVal.toString)),
-          span(style := "color: #555; font-size: 0.9rem;")(text("(only option for this grid)"))
-        )
-      } else {
-        div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
-          div(style := "display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;")(
-            stepSizeCandidates.map { v =>
-              val possible = available.contains(v)
-              val selected = model.stepSizePx == v
-              if (possible)
-                button(
-                  style := pillStyle(possible = true, selected = selected),
-                  onClick(PrintInstructionsMsg.SetStepSize(v))
-                )(text(v.toString))
-              else
-                span(style := pillStyle(possible = false, selected = false))(text(v.toString))
-            }*
-          ),
-          div(style := "display: flex; align-items: center; gap: 0.75rem;")(
-            input(
-              `type` := "range",
-              min := "0",
-              max := (available.length - 1).toString,
-              value := currentIdx.toString,
-              onInput(s =>
-                PrintInstructionsMsg.SetStepSize(
-                  available.lift(s.trim.toIntOption.getOrElse(0).max(0).min(available.length - 1)).getOrElse(16)
-                )
-              ),
-              style := "flex: 1; min-width: 8rem; max-width: 20rem; accent-color: #1565c0;"
-            ),
-            span(style := "font-variant-numeric: tabular-nums; min-width: 2rem; font-weight: 500;")(text(currentVal.toString))
-          )
-        )
-      },
-      span(style := "display: block; margin-top: 0.35rem; color: #555; font-size: 0.9rem;")(
-        text(if (singleOnly) "Step divides every plate width and height." else "Click a value or use the slider. Only values that divide every plate are enabled.")
+      div(`class` := "step-size-row step-size-row--wrap")(
+        stepSizeCandidates.map { v =>
+          val possible = available.contains(v)
+          val selected = model.stepSizePx == v
+          if (possible)
+            button(
+              `class` := pillClass(possible = true, selected = selected),
+              onClick(PrintInstructionsMsg.SetStepSize(v))
+            )(text(v.toString))
+          else
+            span(`class` := pillClass(possible = false, selected = false))(text(v.toString))
+        }*
+      ),
+      span(`class` := "helper-text helper-text--top step-size-helper")(
+        text("Only values that divide every plate width and height are enabled.")
       )
     )
   }

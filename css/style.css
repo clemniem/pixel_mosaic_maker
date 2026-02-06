@@ -1,0 +1,428 @@
+/* ========== NES.css integration – body and app root ========== */
+body {
+  font-family: "Press Start 2P", cursive;
+  background-color: #6b5b7b; /* Game Boy purple */
+  color: #212529;
+  margin: 0;
+  padding: 0;
+}
+
+#myapp {
+  min-height: 100vh;
+  padding: 1rem;
+  box-sizing: border-box;
+  background-color: #6b5b7b;
+}
+
+.nes-container {
+  margin-bottom: 1rem;
+}
+
+.nes-container.is-rounded {
+  padding: 1rem 1.5rem;
+}
+
+/* ========== Screen layout ========== */
+.screen-container {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.screen-container--narrow {
+  max-width: 36rem;
+  margin: 0 auto;
+}
+
+.screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.screen-header--short {
+  margin-bottom: 1rem;
+}
+
+.screen-title {
+  margin: 0 0 1rem 0;
+}
+
+.screen-intro {
+  margin-bottom: 1.5rem;
+}
+
+.screen-intro--short {
+  margin-bottom: 1rem;
+}
+
+/* ========== Flex ========== */
+.flex-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.flex-row--tight {
+  gap: 0.5rem;
+}
+
+.flex-row--wide {
+  gap: 0.75rem;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-col--gap-1 {
+  gap: 0.75rem;
+}
+
+.flex-col--gap-tight {
+  gap: 0.5rem;
+}
+
+/* ========== Link cards (Overview) ========== */
+.link-card {
+  display: block;
+  padding: 1rem 1.25rem;
+  text-align: left;
+}
+
+.link-card-title {
+  font-weight: 600;
+}
+
+.link-card-desc {
+  display: block;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  opacity: 0.9;
+}
+
+/* ========== Fields and labels ========== */
+.field-block {
+  margin-bottom: 1rem;
+}
+
+.field-block--lg {
+  margin-bottom: 1.5rem;
+}
+
+.label-block {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.section-title {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.subsection {
+  margin-top: 0.5rem;
+}
+
+/* ========== Input widths (use with nes-input) ========== */
+.input-w-5 {
+  width: 5rem;
+  box-sizing: border-box;
+}
+
+.input-w-7 {
+  width: 7rem;
+  box-sizing: border-box;
+}
+
+.input-w-12 {
+  width: 12rem;
+  box-sizing: border-box;
+}
+
+.input-w-full {
+  width: 100%;
+  max-width: 20rem;
+  box-sizing: border-box;
+}
+
+.input-min-w-16 {
+  min-width: 16rem;
+}
+
+.input-color {
+  width: 3rem;
+  height: 2rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+.input-monospace {
+  font-family: monospace;
+}
+
+/* ========== Helper text ========== */
+.helper-text {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.helper-text--inline {
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.helper-text--top {
+  margin-top: 0.35rem;
+}
+
+/* ========== Buttons ========== */
+.btn-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.label-as-button {
+  cursor: pointer;
+  margin: 0;
+}
+
+/* ========== Canvas ========== */
+.pixel-canvas {
+  border: 1px solid #333;
+  display: block;
+  max-width: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ========== Error and empty states ========== */
+.error-box {
+  margin-bottom: 1rem;
+  background: #ffebee;
+  border-color: #c62828;
+  color: #b71c1c;
+}
+
+.empty-state {
+  padding: 2rem;
+  border: 2px dashed #999;
+  text-align: center;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ========== Palette swatches ========== */
+.palette-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 24px);
+  gap: 4px;
+  margin-top: 4px;
+  width: fit-content;
+}
+
+.palette-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+  border: 1px solid #666;
+}
+
+/* ========== Step size block (Print Instructions) ========== */
+.step-size-block {
+  margin-bottom: 1.5rem;
+}
+
+.step-size-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.step-size-row--wrap {
+  flex-wrap: wrap;
+}
+
+.step-size-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.step-size-single-badge {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #e3f2fd;
+  color: #1565c0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid #90caf9;
+}
+
+.step-size-helper {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.step-size-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+.step-size-pill--disabled {
+  background: #e8e8e8;
+  color: #999;
+  cursor: default;
+  border: 1px solid #ddd;
+}
+
+.step-size-pill--selected {
+  background: #1565c0;
+  color: #fff;
+  border: 1px solid #1565c0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.step-size-pill--unselected {
+  background: #f0f0f0;
+  color: #333;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+.step-size-range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.step-size-range {
+  flex: 1;
+  min-width: 8rem;
+  max-width: 20rem;
+  accent-color: #1565c0;
+}
+
+.step-size-value {
+  font-variant-numeric: tabular-nums;
+  min-width: 2rem;
+  font-weight: 500;
+}
+
+/* ========== Gallery screens ========== */
+.gallery-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gallery-card--start {
+  align-items: flex-start;
+}
+
+.gallery-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.gallery-card-title {
+  font-weight: 500;
+}
+
+.gallery-card-meta {
+  display: block;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.gallery-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gallery-delete-confirm {
+  margin-top: 0.5rem;
+  padding: 6px 0;
+}
+
+.delete-confirm-text {
+  font-size: 0.875rem;
+  margin-right: 8px;
+}
+
+.gallery-preview-canvas {
+  border: 1px solid #999;
+  border-radius: 2px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.palette-button-inline {
+  display: inline-grid;
+  grid-template-columns: repeat(8, 14px);
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.palette-swatch-small {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid #666;
+}
+
+.palette-strip {
+  display: grid;
+  grid-template-columns: repeat(8, 20px);
+  gap: 2px;
+  flex-shrink: 0;
+  width: fit-content;
+}
+
+.palette-strip-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+  border: 1px solid #999;
+}
+
+.dropdown-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.dropdown-panel-title {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+  margin-top: 4px;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.2s;
+}

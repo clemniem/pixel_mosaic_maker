@@ -1,5 +1,6 @@
 package clemniem.screens
 
+import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
 
@@ -11,13 +12,8 @@ object GalleryEmptyState {
     * @param createMsg   Message to emit when the button is clicked
     */
   def apply[Msg](emptyText: String, buttonLabel: String, createMsg: Msg): Html[Msg] =
-    div(
-      style := "border: 2px dashed #ccc; border-radius: 8px; padding: 2rem; text-align: center; background: #fafafa;"
-    )(
-      p(style := "color: #666; margin-bottom: 1rem;")(text(emptyText)),
-      button(
-        style := "padding: 10px 20px; font-size: 1rem; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 6px;",
-        onClick(createMsg)
-      )(text(buttonLabel))
+    div(`class` := s"${NesCss.container} empty-state")(
+      p(`class` := NesCss.text, style := "margin-bottom: 1rem;")(text(emptyText)),
+      button(`class` := NesCss.btnPrimary, onClick(createMsg))(text(buttonLabel))
     )
 }

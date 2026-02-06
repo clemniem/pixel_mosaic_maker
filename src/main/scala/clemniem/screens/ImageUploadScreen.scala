@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import clemniem._
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.nescss.NesCss
 import org.scalajs.dom
 import org.scalajs.dom.html.Input
 import tyrian.Html.*
@@ -141,73 +142,63 @@ object ImageUploadScreen extends Screen {
 
   def view(model: Model): Html[Msg] =
     div(
-      style := "font-family: system-ui, sans-serif; max-width: 40rem; margin: 0 auto; padding: 1rem;"
+      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container"
     )(
-      div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-        h2(style := "margin: 0;")(text("Upload image")),
-        div(style := "display: flex; align-items: center; gap: 8px;")(
-          button(style := "padding: 6px 12px; cursor: pointer;", onClick(ImageUploadMsg.Back))(
-            text("← Images")
-          ),
+      div(`class` := "screen-header screen-header--short")(
+        h2(`class` := "screen-title")(text("Upload image")),
+        div(`class` := "flex-row")(
+          button(`class` := NesCss.btn, onClick(ImageUploadMsg.Back))(text("← Images")),
           label(
             `for` := fileInputId,
-            style := "padding: 6px 14px; cursor: pointer; background: #1565c0; color: #fff; border: none; border-radius: 4px; font-weight: 500; display: inline-block;"
+            `class` := s"${NesCss.btnPrimary} label-as-button"
           )(text("Upload")),
           input(
             id := fileInputId,
             `type` := "file",
-            style := "display: none;"
+            `class` := "hidden"
           ),
           input(
             `type` := "text",
+            `class` := s"${NesCss.input} input-w-12",
             placeholder := "Name",
             value := model.name,
-            onInput(ImageUploadMsg.SetName.apply),
-            style := "padding: 6px 10px; width: 12rem; border: 1px solid #ccc; border-radius: 4px;"
+            onInput(ImageUploadMsg.SetName.apply)
           ),
           button(
-            style := (if (model.pixelPic.isEmpty || model.pixelPic.exists(p => p.width > maxWidth || p.height > maxHeight) || model.loading)
-              "padding: 6px 14px; cursor: not-allowed; background: #9e9e9e; color: #fff; border: none; border-radius: 4px; font-weight: 500;"
-            else
-              "padding: 6px 14px; cursor: pointer; background: #2e7d32; color: #fff; border: none; border-radius: 4px; font-weight: 500;"),
+            `class` := (if (model.pixelPic.nonEmpty && model.pixelPic.forall(p => p.width <= maxWidth && p.height <= maxHeight) && !model.loading)
+              NesCss.btnSuccess else s"${NesCss.btn} btn-disabled"),
             onClick(ImageUploadMsg.Save)
           )(text(if (model.loading) "Saving…" else "Save"))
         )
       ),
-      p(style := "color: #444; margin-bottom: 1rem;")(
+      p(`class` := s"${NesCss.text} screen-intro screen-intro--short")(
         text(s"Upload an image from your computer. Max size ${maxWidth}×${maxHeight} px. Scaled-up pixel art is auto-detected and resized.")
       ),
       model.error.map(err =>
-        div(style := "margin-bottom: 1rem; padding: 10px; background: #ffebee; border: 1px solid #c62828; border-radius: 6px; color: #b71c1c;")(
-          text(err)
-        )
-      ).getOrElse(div(style := "display: none;")(text(""))),
+        div(`class` := s"${NesCss.container} ${NesCss.containerRounded} error-box")(text(err))
+      ).getOrElse(div(`class` := "hidden")(text(""))),
       model.pixelPic match {
         case Some(pic) =>
-          div(style := "margin-bottom: 1rem;")(
-            div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text(s"Preview · ${pic.width}×${pic.height} px")),
+          div(`class` := s"${NesCss.field} field-block")(
+            div(`class` := "section-title")(text(s"Preview · ${pic.width}×${pic.height} px")),
             div()(
               canvas(
                 id := "image-upload-preview",
                 width := pic.width,
                 height := pic.height,
-                style := "border: 1px solid #333; display: block; max-width: 100%; image-rendering: pixelated; image-rendering: crisp-edges;"
+                `class` := "pixel-canvas"
               )()
             ),
-            div(style := "margin-top: 0.5rem; font-weight: 500;")(text("Palette in image")),
-            div(
-              style := "display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;"
-            )(
+            div(`class` := "subsection")(text("Palette in image")),
+            div(`class` := "palette-swatches")(
               pic.paletteLookup.toList.map(c =>
-                div(
-                  style := s"width: 24px; height: 24px; border-radius: 2px; border: 1px solid #666; background: rgb(${c.r},${c.g},${c.b});"
-                )()
+                div(`class` := "palette-swatch", style := s"background: rgb(${c.r},${c.g},${c.b});")()
               )*
             )
           )
         case None =>
-          div(style := "padding: 2rem; border: 2px dashed #ccc; border-radius: 8px; background: #fafafa; text-align: center; color: #666;")(
-            text("Click Upload and choose an image.")
+          div(`class` := s"${NesCss.container} empty-state")(
+            tyrian.Html.span(`class` := NesCss.text)(text("Click Upload and choose an image."))
           )
       }
     )

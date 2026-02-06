@@ -3,6 +3,7 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{Color, NavigateNext, PixelPic, Screen, ScreenId, ScreenOutput, StorageKeys, StoredImage}
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -64,69 +65,53 @@ object ImagesGalleryScreen extends Screen {
       (model, Cmd.None)
   }
 
-  def view(model: Model): Html[Msg] = {
-    val container =
-      "font-family: system-ui, sans-serif; max-width: 40rem; margin: 0 auto; padding: 1.5rem;"
+  def view(model: Model): Html[Msg] =
     model.list match {
       case None =>
-        div(style := container)(p(text("Loading…")))
+        div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container")(
+          p(`class` := NesCss.text)(text("Loading…"))
+        )
       case Some(list) =>
-        div(style := container)(
-          div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-            h1(style := "margin: 0;")(text("Images")),
-            button(style := "padding: 6px 12px; cursor: pointer;", onClick(ImagesGalleryMsg.Back))(
-              text("← Overview")
-            )
+        div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container")(
+          div(`class` := "screen-header screen-header--short")(
+            h1(`class` := "screen-title")(text("Images")),
+            button(`class` := NesCss.btn, onClick(ImagesGalleryMsg.Back))(text("← Overview"))
           ),
           if (list.isEmpty)
             GalleryEmptyState("No images yet.", "Upload", ImagesGalleryMsg.CreateNew)
           else
-            div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
-              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+ button(
-                style := "margin-top: 0.5rem; padding: 8px 16px; cursor: pointer;",
-                onClick(ImagesGalleryMsg.CreateNew)
-              )(text("Upload")))*
+            div(`class` := "flex-col flex-col--gap-tight")(
+              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
+                button(`class` := NesCss.btnPrimary, style := "margin-top: 0.5rem;", onClick(ImagesGalleryMsg.CreateNew))(text("Upload")))*
             )
         )
     }
-  }
 
   private def entryCard(item: StoredImage, confirmingDelete: Boolean): Html[Msg] =
-    div(
-      style := "display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;"
-    )(
+    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
       div(onLoad(ImagesGalleryMsg.DrawPreview(item)))(
         canvas(
           id := s"image-preview-${item.id}",
           width := previewWidth,
           height := previewHeight,
-          style := "border: 1px solid #999; border-radius: 2px; flex-shrink: 0; image-rendering: pixelated; image-rendering: crisp-edges;"
+          `class` := "gallery-preview-canvas"
         )()
       ),
-      div(style := "min-width: 0; flex: 1;")(
-        span(style := "font-weight: 500;")(text(item.name)),
-        span(style := "display: block; color: #666; font-size: 0.875rem; margin-top: 0.25rem;")(
+      div(`class` := "gallery-card-body")(
+        span(`class` := "gallery-card-title")(text(item.name)),
+        span(`class` := "gallery-card-meta nes-text")(
           text(s"${item.pixelPic.width}×${item.pixelPic.height} px · ${item.pixelPic.paletteLookup.size} color(s)")
         ),
         paletteRow(item),
         if (confirmingDelete)
-          div(style := "margin-top: 0.5rem; padding: 6px 0;")(
-            span(style := "font-size: 0.875rem; color: #b71c1c; margin-right: 8px;")(text(s"Delete \"${item.name}\"?")),
-            button(
-              style := "padding: 4px 10px; margin-right: 6px; cursor: pointer; background: #b71c1c; color: #fff; border: none; border-radius: 4px; font-size: 0.875rem;",
-              onClick(ImagesGalleryMsg.ConfirmDelete(item.id))
-            )(text("Yes")),
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #999; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(ImagesGalleryMsg.CancelDelete)
-            )(text("Cancel"))
+          div(`class` := "gallery-delete-confirm")(
+            span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
+            button(`class` := NesCss.btnError, style := "margin-right: 6px;", onClick(ImagesGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
+            button(`class` := NesCss.btn, onClick(ImagesGalleryMsg.CancelDelete))(text("Cancel"))
           )
         else
-          div(style := "margin-top: 0.5rem; display: flex; gap: 6px;")(
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #b71c1c; color: #b71c1c; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(ImagesGalleryMsg.Delete(item))
-            )(text("Delete"))
+          div(`class` := "gallery-actions")(
+            button(`class` := NesCss.btnError, onClick(ImagesGalleryMsg.Delete(item)))(text("Delete"))
           )
       )
     )
@@ -137,19 +122,11 @@ object ImagesGalleryScreen extends Screen {
       name = item.name + " palette",
       colors = item.pixelPic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
     )
-    div(
-      style := "margin-top: 0.35rem;",
-      title := "Click to save as palette"
-    )(
-      span(style := "font-size: 0.75rem; color: #888; margin-right: 4px;")(text("Palette:")),
-        button(
-        style := "display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; align-items: center;",
-        onClick(NavigateNext(ScreenId.PaletteId, Some(output)))
-      )(
+    div(style := "margin-top: 0.35rem;", title := "Click to save as palette")(
+      span(`class` := "nes-text", style := "font-size: 0.75rem; margin-right: 4px;")(text("Palette:")),
+      button(`class` := s"${NesCss.btn} palette-button-inline", onClick(NavigateNext(ScreenId.PaletteId, Some(output))))(
         colors.map(c =>
-          div(
-            style := s"width: 14px; height: 14px; border-radius: 2px; border: 1px solid #666; background: ${c.toHex};"
-          )()
+          div(`class` := "palette-swatch-small", style := s"background: ${c.toHex};")()
         )*
       )
     )

@@ -73,16 +73,24 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 8. Tyrian / UI quirks
+## 8. NES.css and gallery styling
+
+- **NES.css:** The app uses **NES.css** for a consistent retro look. Central class-name strings live in **`clemniem.common.nescss.NesCss`** (e.g. `NesCss.container`, `NesCss.containerRounded`, `NesCss.btn`, `NesCss.btnPrimary`, `NesCss.btnError`, `NesCss.text`, `NesCss.input`). Shared layout and gallery-specific classes are in **`css/style.css`** (e.g. `screen-container`, `screen-header`, `screen-title`, `flex-row`, `flex-col`, `gallery-card`, `gallery-card-body`, `gallery-card-title`, `gallery-card-meta`, `gallery-preview-canvas`, `gallery-actions`, `gallery-delete-confirm`, `palette-strip`, `palette-strip-swatch`, `progress-bar`, `progress-bar-fill`, `dropdown-panel`, `dropdown-panel-title`).
+- **Gallery pattern (all galleries):** Root = `NesCss.container` + `NesCss.containerRounded` + `screen-container`. Header = `screen-header`, `screen-title`, back button = `NesCss.btn`. Primary action (Create/Upload) = `NesCss.btnPrimary`. Entry cards = `nes-container` + `gallery-card` (use `gallery-card--start` for Builds); body = `gallery-card-body`, title = `gallery-card-title`, meta = `gallery-card-meta nes-text`. Delete confirm block = `gallery-delete-confirm`, text = `delete-confirm-text nes-text`, Yes = `NesCss.btnError`, Cancel = `NesCss.btn`. Actions row = `gallery-actions`; Edit = `NesCss.btn`, Delete = `NesCss.btnError`; Resume (Builds) = `NesCss.btnPrimary`. Only **dynamic** values stay inline (e.g. palette/color `background`, progress bar `width` %).
+- **Empty state:** `GalleryEmptyState` uses NES + `empty-state`; its main button uses `NesCss.btnPrimary`.
+
+---
+
+## 9. Tyrian / UI quirks
 
 - **Disabled attribute:** Tyrian’s HTML helpers may not support `disabled := true` on buttons in the same way; use conditional **style** (e.g. `cursor: not-allowed; opacity: 0.6`) instead of disabled when needed.
 - **Number inputs:** Use `min := "0"`, `max := value.toString` for range; `value := model.value.toString` and `onInput` that parses and dispatches.
-- **Reserved names:** Use backticks for HTML attributes that are Scala keywords, e.g. `` `type` := "number" ``.
+- **Reserved names:** Use backticks for HTML attributes that are Scala keywords: `` `class` := "..." ``, `` `type` := "number" ``. NES + gallery views use `` `class` := s"${NesCss.container} ..." ``.
 - **onLoad:** `onLoad` is an **attribute** that takes a single message (e.g. to trigger a draw). It does **not** take a child; put it on the parent: `div(onLoad(DrawMsg))(canvas()())`, not `onLoad(DrawMsg)(canvas()())` (the latter fails with “onLoad does not take more parameters”).
 
 ---
 
-## 9. PDF (jsPDF)
+## 10. PDF (jsPDF)
 
 - **Providing jsPDF to the app:** **Local dev:** Use the **npm** package and an **export wrapper**. In `export-wrapper.js`: `import { jsPDF } from "jspdf"; window.jspdf = { jsPDF };` then import and launch the Scala.js app. `index.html` loads `export-wrapper.js` as the module entry so the bundler includes jsPDF. **Production (GitHub Pages):** The deploy workflow builds its own `index.html` that loads jsPDF from a CDN (e.g. unpkg `jspdf.umd.min.js`) and sets `window.jspdf = { jsPDF: window.jsPDF }` before loading the app; see **Deployment (GitHub Pages)** below.
 - **Never reference the global `jsPDF` from Scala:** Using `js.Dynamic.global.selectDynamic("jsPDF")` can make the Scala.js compiler emit a direct reference to a global variable named `jsPDF`. That causes `ReferenceError: jsPDF is not defined` because we only set `window.jspdf` (lowercase). Only ever use `selectDynamic("jspdf")` on the global; then get the constructor from that object using a **dynamic key** (e.g. `val ctorKey = "js" + "PDF"` and `jspdfObj.selectDynamic(ctorKey)`) so the compiler does not emit a global `jsPDF` access.
@@ -94,7 +102,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 10. Linting (Scalafix)
+## 11. Linting (Scalafix)
 
 
 - **No `return`:** Use if/else or pattern match instead of early return.
@@ -105,7 +113,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 11. Where things live
+## 12. Where things live
 
 | Concern | Location |
 |--------|----------|
@@ -114,6 +122,8 @@ This document captures what was learned during development of the Pixel Mosaic M
 | Canvas helpers, drawPixelPic | `common/CanvasUtils.scala` |
 | Image load, scale detection, downscale | `common/ImageUtils.scala` |
 | LocalStorage load/save list | `common/LocalStorageUtils.scala` |
+| NES.css class names (container, btn, btnPrimary, …) | `common/nescss/NesCss.scala` |
+| Screen layout, flex, gallery cards, progress bar, dropdown | `css/style.css` |
 | Apply StoredPalette to PixelPic | `PaletteUtils.scala` |
 | PDF instructions (PageSize, AddPageWithSize, DrawPixelGrid, …) | `common/pdf/Instruction.scala` |
 | PDF runner (jsPDF behind the scenes) | `common/pdf/JsPDF.scala` |
@@ -128,7 +138,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 12. Deployment (GitHub Pages)
+## 13. Deployment (GitHub Pages)
 
 - **Publishing source:** In the repo **Settings → Pages**, set **Source** to **GitHub Actions** (not “Deploy from a branch”). No need to create or maintain a `gh-pages` branch manually.
 - **Official deployment flow:** When Source is “GitHub Actions”, GitHub serves from the **artifact** deployed by the workflow. Use **`actions/upload-pages-artifact`** then **`actions/deploy-pages`**. Do **not** use `peaceiris/actions-gh-pages` (which pushes to the `gh-pages` branch); with “GitHub Actions” as source, that branch is not what Pages serves, so you get 404.
@@ -140,20 +150,21 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 13. Testing
+## 14. Testing
 
 - Unit tests in `src/test/scala/clemniem/`: e.g. `ResizeSpec` (scale detection, downscale), `PixelPicTests`, `GridConfigSpec`, `LocalStorageUtilsSpec`. Run with `sbt test`.
 - No browser/E2E tests in this repo; manual check in browser after `yarn start` and `fastLinkJS`.
 
 ---
 
-## 14. Quick checklist for new features
+## 15. Quick checklist for new features
 
 1. **New screen:** Add `ScreenId`, implement `Screen` (init, update, view), register in `PixelMosaicMaker`’s `ScreenRegistry`.
 2. **New stored entity:** Add case class in `StoredEntities.scala`, Circe encoder + backward-compatible decoder if needed, add `StorageKeys` key if it’s a new list.
 3. **New navigation payload:** Add a `ScreenOutput` case class; pass it in `NavigateNext(screenId, Some(output))` and handle it in the target screen’s `init`.
 4. **Canvas:** Use `CanvasUtils.drawAfterViewReady` or `drawAfterViewReadyDelayed`; use `drawPixelPic` for PixelPic; set canvas size in draw code when it depends on content (e.g. smaller image → smaller canvas).
 5. **Gallery empty state:** Use `GalleryEmptyState(emptyText, buttonLabel, msg)`.
-6. After changes: `sbt compile` and `sbt test`; fix Scalafix and test failures.
+6. **Gallery / NES styling:** Use `NesCss` + classes from `css/style.css` as in **§8** (screen-container, gallery-card, gallery-actions, etc.); keep only dynamic values (e.g. color, progress %) as inline styles.
+7. After changes: `sbt compile` and `sbt test`; fix Scalafix and test failures.
 
 Using this file together with **FLOW.md** and **README.md** should give enough context to work on the project efficiently.

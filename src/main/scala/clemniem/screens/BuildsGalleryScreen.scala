@@ -13,6 +13,7 @@ import clemniem.{
   StoredPalette
 }
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -198,30 +199,26 @@ object BuildsGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val container =
-      "font-family: system-ui, sans-serif; max-width: 40rem; margin: 0 auto; padding: 1.5rem;"
+    val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
     (model.builds, model.buildConfigs) match {
       case (None, _) | (_, None) =>
-        div(style := container)(p(text("Loading…")))
+        div(`class` := root)(p(`class` := NesCss.text)(text("Loading…")))
       case (Some(builds), Some(configs)) =>
-        div(style := container)(
-          div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-            h1(style := "margin: 0;")(text("Builds")),
-            button(style := "padding: 6px 12px; cursor: pointer;", onClick(BuildsGalleryMsg.Back))(
-              text("← Overview")
-            )
+        div(`class` := root)(
+          div(`class` := "screen-header")(
+            h1(`class` := "screen-title")(text("Builds")),
+            button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.Back))(text("← Overview"))
           ),
-          div(style := "display: flex; flex-direction: column; gap: 0.5rem;")(
+          div(`class` := "flex-col")(
             builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))*
           ),
           if (model.showNewBuildDropdown)
-            div(
-              style := "margin-top: 1rem; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; background: #fafafa;"
-            )(
-              div(style := "font-weight: 500; margin-bottom: 0.5rem;")(text("New build from config:")),
-              div(style := "display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;")(
+            div(`class` := s"${NesCss.container} ${NesCss.containerRounded} dropdown-panel")(
+              div(`class` := "dropdown-panel-title")(text("New build from config:")),
+              div(`class` := "flex-row flex-row--tight")(
                 select(
-                  style := "padding: 6px 10px; min-width: 14rem;",
+                  `class` := NesCss.input,
+                  style := "min-width: 14rem;",
                   value := model.selectedBuildConfigId.orElse(configs.headOption.map(_.id)).getOrElse(""),
                   onInput(id => BuildsGalleryMsg.SetSelectedBuildConfigId(if (id.isEmpty) configs.headOption.map(_.id).getOrElse("") else id))
                 )(
@@ -229,21 +226,12 @@ object BuildsGalleryScreen extends Screen {
                     option(value := c.id)(text(c.name))
                   }*
                 ),
-                button(
-                  style := "padding: 6px 14px; cursor: pointer; background: #1565c0; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
-                  onClick(BuildsGalleryMsg.StartNewBuild)
-                )(text("Start")),
-                button(
-                  style := "padding: 6px 12px; cursor: pointer; border: 1px solid #999; border-radius: 4px; background: #fff;",
-                  onClick(BuildsGalleryMsg.CancelNewBuild)
-                )(text("Cancel"))
+                button(`class` := NesCss.btnPrimary, onClick(BuildsGalleryMsg.StartNewBuild))(text("Start")),
+                button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.CancelNewBuild))(text("Cancel"))
               )
             )
           else
-            button(
-              style := "margin-top: 0.5rem; padding: 8px 16px; cursor: pointer;",
-              onClick(BuildsGalleryMsg.ShowNewBuildDropdown)
-            )(text("+ Start new build"))
+            button(`class` := NesCss.btnPrimary, onClick(BuildsGalleryMsg.ShowNewBuildDropdown))(text("+ Start new build"))
         )
     }
   }
@@ -256,54 +244,34 @@ object BuildsGalleryScreen extends Screen {
     val stepLabel   = if (totalSteps <= 0) "Step 0 of 0" else s"Step ${currentStep + 1} of $totalSteps"
     val progressPct = if (totalSteps <= 0) 0.0 else ((currentStep + 1).toDouble / totalSteps * 100).min(100.0)
 
-    div(
-      style := "display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa;"
-    )(
+    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card gallery-card--start")(
       div(onLoad(BuildsGalleryMsg.DrawBuildPreview(item)))(
         canvas(
           id := s"builds-preview-${item.id}",
           width := buildPreviewWidth,
           height := buildPreviewHeight,
-          style := "border: 1px solid #999; border-radius: 4px; flex-shrink: 0; image-rendering: pixelated; image-rendering: crisp-edges;"
+          `class` := "gallery-preview-canvas"
         )()
       ),
-      div(style := "min-width: 0; flex: 1;")(
-        span(style := "font-weight: 500;")(text(item.name)),
-        span(style := "display: block; color: #666; font-size: 0.875rem; margin-top: 0.25rem;")(
-          text(configName)
-        ),
+      div(`class` := "gallery-card-body")(
+        span(`class` := "gallery-card-title")(text(item.name)),
+        span(`class` := "gallery-card-meta nes-text")(text(configName)),
         div(style := "margin-top: 0.5rem;")(
-          span(style := "font-size: 0.8125rem; color: #555;")(text(stepLabel)),
-          div(
-            style := "margin-top: 4px; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;"
-          )(
-            div(
-              style := s"height: 100%; width: ${progressPct}%; background: #2e7d32; border-radius: 4px; transition: width 0.2s;"
-            )()
+          span(`class` := "nes-text")(text(stepLabel)),
+          div(`class` := "progress-bar")(
+            div(`class` := "progress-bar-fill", style := s"width: ${progressPct}%; background: #2e7d32;")()
           )
         ),
         if (confirmingDelete)
-          div(style := "margin-top: 0.5rem; padding: 6px 0;")(
-            span(style := "font-size: 0.875rem; color: #b71c1c; margin-right: 8px;")(text(s"Delete \"${item.name}\"?")),
-            button(
-              style := "padding: 4px 10px; margin-right: 6px; cursor: pointer; background: #b71c1c; color: #fff; border: none; border-radius: 4px; font-size: 0.875rem;",
-              onClick(BuildsGalleryMsg.ConfirmDelete(item.id))
-            )(text("Yes")),
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #999; border-radius: 4px; font-size: 0.875rem; background: #fff;",
-              onClick(BuildsGalleryMsg.CancelDelete)
-            )(text("Cancel"))
+          div(`class` := "gallery-delete-confirm")(
+            span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
+            button(`class` := NesCss.btnError, style := "margin-right: 6px;", onClick(BuildsGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
+            button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.CancelDelete))(text("Cancel"))
           )
         else
-          div(style := "margin-top: 0.5rem; display: flex; gap: 6px;")(
-            button(
-              style := "padding: 4px 10px; cursor: pointer; flex-shrink: 0;",
-              onClick(BuildsGalleryMsg.ResumeBuild(item))
-            )(text("Resume")),
-            button(
-              style := "padding: 4px 10px; cursor: pointer; border: 1px solid #b71c1c; color: #b71c1c; border-radius: 4px; font-size: 0.875rem; background: #fff; flex-shrink: 0;",
-              onClick(BuildsGalleryMsg.Delete(item))
-            )(text("Delete"))
+          div(`class` := "gallery-actions")(
+            button(`class` := NesCss.btnPrimary, onClick(BuildsGalleryMsg.ResumeBuild(item)))(text("Resume")),
+            button(`class` := NesCss.btnError, onClick(BuildsGalleryMsg.Delete(item)))(text("Delete"))
           )
       )
     )
