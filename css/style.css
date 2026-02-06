@@ -257,6 +257,71 @@ body {
   border: 1px solid #666;
 }
 
+/* ========== Palette edit screen ========== */
+.palette-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 1rem;
+}
+
+.palette-edit-row {
+  display: flex;
+  align-items: center;
+  padding: 0.15rem 0.25rem;
+  gap: 0.35rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+}
+
+.palette-edit-row:last-child {
+  border-bottom: none;
+}
+
+.palette-edit-arrows {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.palette-edit-arrows .nes-btn {
+  padding: 2px 6px;
+  min-width: 1.5rem;
+  line-height: 1.1;
+  font-size: 0.7rem;
+}
+
+.palette-edit-swatch {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 2px;
+  border: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.palette-edit-hex {
+  width: 5rem;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  font-family: monospace;
+  min-height: 0;
+}
+
+.palette-edit-picker {
+  width: 1.5rem;
+  height: 1.25rem;
+  padding: 1px;
+  cursor: pointer;
+  border-radius: 2px;
+  border: 1px solid #999;
+}
+
+.palette-edit-remove {
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  line-height: 1.1;
+}
+
 /* ========== Step size block (Print Instructions) ========== */
 .step-size-block {
   margin-bottom: 1.5rem;

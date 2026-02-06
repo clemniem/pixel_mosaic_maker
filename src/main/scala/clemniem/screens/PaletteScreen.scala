@@ -3,12 +3,13 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{Color, NavigateNext, Screen, ScreenId, ScreenOutput, StoredPalette, StorageKeys}
 import clemniem.common.LocalStorageUtils
+import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
 
 import scala.scalajs.js
 
-/** Palette editor: list of colors (default 4, max 16), editable by hex or color picker. */
+/** Palette editor: list of colors (default 4, max 16), editable by hex or color picker; reorder with arrows. */
 object PaletteScreen extends Screen {
   type Model = PaletteModel
   type Msg   = PaletteMsg | NavigateNext
@@ -73,6 +74,22 @@ object PaletteScreen extends Screen {
         (next, Cmd.None)
       } else (model, Cmd.None)
 
+    case PaletteMsg.MoveColorUp(idx) =>
+      if (idx <= 0 || idx >= model.colors.length) (model, Cmd.None)
+      else {
+        val c = model.colors
+        val next = c.updated(idx, c(idx - 1)).updated(idx - 1, c(idx))
+        (model.copy(colors = next), Cmd.None)
+      }
+
+    case PaletteMsg.MoveColorDown(idx) =>
+      if (idx < 0 || idx >= model.colors.length - 1) (model, Cmd.None)
+      else {
+        val c = model.colors
+        val next = c.updated(idx, c(idx + 1)).updated(idx + 1, c(idx))
+        (model.copy(colors = next), Cmd.None)
+      }
+
     case PaletteMsg.Save =>
       val cmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
         PaletteMsg.LoadedForSave.apply,
@@ -107,77 +124,74 @@ object PaletteScreen extends Screen {
       (model, Cmd.None)
   }
 
-  def view(model: Model): Html[Msg] =
-    div(
-      style := "font-family: system-ui, sans-serif; max-width: 40rem; margin: 0 auto; padding: 1rem;"
-    )(
-      div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-        h2(style := "margin: 0;")(text("Palette")),
-        div(style := "display: flex; align-items: center; gap: 8px;")(
-          button(style := "padding: 6px 12px; cursor: pointer;", onClick(PaletteMsg.Back))(
-            text("← Palettes")
-          ),
+  def view(model: Model): Html[Msg] = {
+    val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
+    div(`class` := root)(
+      div(`class` := "screen-header")(
+        h2(`class` := "screen-title")(text("Palette")),
+        div(`class` := "flex-row")(
+          button(`class` := NesCss.btn, onClick(PaletteMsg.Back))(text("← Palettes")),
           input(
+            id := "palette-name",
             `type` := "text",
             placeholder := "Name",
             value := model.name,
             onInput(PaletteMsg.SetName.apply),
-            style := "padding: 6px 10px; width: 12rem; border: 1px solid #ccc; border-radius: 4px;"
+            `class` := NesCss.input,
+            style := "width: 12rem;"
           ),
-          button(
-            style := "padding: 6px 14px; cursor: pointer; background: #2e7d32; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
-            onClick(PaletteMsg.Save)
-          )(text("Save"))
+          button(`class` := NesCss.btnPrimary, onClick(PaletteMsg.Save))(text("Save"))
         )
       ),
-      p(style := "color: #444; margin-bottom: 1rem;")(
-        text(s"Colors (${model.colors.length}/$maxColors). Edit by hex or use the color picker. Add or remove colors.")
+      p(`class` := NesCss.text, style := "margin-bottom: 1rem;")(
+        text(s"Colors (${model.colors.length}/$maxColors). Edit hex or use picker. Use arrows to reorder.")
       ),
-      div(style := "display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem;")(
+      div(`class` := "palette-edit-list")(
         model.colors.zipWithIndex.toList.map { case (color, idx) =>
-          colorRow(idx, color)
+          colorRow(idx, color, model.colors.length)
         }*
       ),
-      addColorButton(model.colors.length >= maxColors)
+      if (model.colors.length >= maxColors) div()()
+      else
+        button(`class` := NesCss.btn, onClick(PaletteMsg.AddColor))(text("+ Add color"))
     )
+  }
 
-  private def colorRow(idx: Int, color: Color): Html[Msg] =
-    div(
-      style := "display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px;"
-    )(
+  private def colorRow(idx: Int, color: Color, total: Int): Html[Msg] =
+    div(`class` := "palette-edit-row")(
+      div(`class` := "palette-edit-arrows")(
+        button(
+          `class` := (if (idx <= 0) s"${NesCss.btn} btn-disabled" else NesCss.btn),
+          onClick(PaletteMsg.MoveColorUp(idx))
+        )(text("↑")),
+        button(
+          `class` := (if (idx >= total - 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
+          onClick(PaletteMsg.MoveColorDown(idx))
+        )(text("↓"))
+      ),
       div(
-        style := s"width: 36px; height: 36px; border-radius: 4px; border: 1px solid #333; background: ${color.toHex}; flex-shrink: 0;"
+        `class` := "palette-edit-swatch",
+        style := s"background: ${color.toHex};"
       )(),
-      span(style := "font-size: 0.85rem; min-width: 2.5rem;")(text(s"${idx + 1}")),
+      span(`class` := NesCss.text, style := "min-width: 1.25rem;")(text(s"${idx + 1}.")),
       input(
+        id := s"palette-hex-$idx",
         `type` := "text",
         value := color.toHex,
         onInput(s => PaletteMsg.SetColorHex(idx, s)),
-        style := "width: 6rem; padding: 4px; font-family: monospace; font-size: 0.9rem;"
+        `class` := s"${NesCss.input} palette-edit-hex",
       ),
       input(
+        id := s"palette-picker-$idx",
         `type` := "color",
         value := color.toHex,
         onInput(s => PaletteMsg.SetColorFromPicker(idx, s)),
-        style := "width: 40px; height: 36px; padding: 0; border: 1px solid #999; cursor: pointer; border-radius: 4px;"
+        `class` := "palette-edit-picker",
       ),
-      button(
-        onClick(PaletteMsg.RemoveColor(idx)),
-        style := "padding: 4px 8px; cursor: pointer;"
-      )(text("− Remove"))
+      button(`class` := s"${NesCss.btnError} palette-edit-remove", onClick(PaletteMsg.RemoveColor(idx)))(
+        text("−")
+      )
     )
-
-  private def addColorButton(isDisabled: Boolean): Html[Msg] =
-    button(
-      style := styleAddColor(isDisabled),
-      onClick(PaletteMsg.AddColor)
-    )(text("+ Add color"))
-
-  private def styleAddColor(disabled: Boolean): String =
-    if (disabled)
-      "padding: 8px 16px; cursor: not-allowed; background: #ccc; color: #666; border: none; border-radius: 4px;"
-    else
-      "padding: 8px 16px; cursor: pointer; background: #fff; border: 1px solid #555; border-radius: 4px;"
 }
 
 final case class PaletteModel(
@@ -192,6 +206,8 @@ enum PaletteMsg:
   case SetColorFromPicker(idx: Int, hex: String)
   case AddColor
   case RemoveColor(idx: Int)
+  case MoveColorUp(idx: Int)
+  case MoveColorDown(idx: Int)
   case Save
   case LoadedForSave(list: List[StoredPalette])
   case SaveFailed

@@ -11,7 +11,6 @@ import tyrian.Html.*
 import tyrian.*
 
 import scala.scalajs.js
-import scala.concurrent.duration.DurationInt
 
 /** Gallery of saved palettes. Empty state: "+ Create Palette". "From image" creates a palette from an image file. */
 object PalettesGalleryScreen extends Screen {
@@ -19,8 +18,6 @@ object PalettesGalleryScreen extends Screen {
   type Msg   = PalettesGalleryMsg | NavigateNext
 
   val screenId: ScreenId = ScreenId.PalettesId
-
-  private val paletteFromImageFileId = "palette-from-image-file"
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val loadCmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
@@ -36,37 +33,37 @@ object PalettesGalleryScreen extends Screen {
     if (i <= 0) fileName else fileName.substring(0, i)
   }
 
-  private def waitForFileSelectionForPalette(): IO[PalettesGalleryMsg] = {
-    def findInput: IO[Input] =
-      IO(Option(dom.document.getElementById(paletteFromImageFileId)).map(_.asInstanceOf[Input]))
-        .flatMap(IO.fromOption(_)(new NoSuchElementException("File input not found")))
-
-    def addListener(input: Input): IO[PalettesGalleryMsg] =
-      IO.async_[PalettesGalleryMsg] { cb =>
-        input.addEventListener("change", (_: dom.Event) => {
-          val file = Option(input.files(0))
-          input.value = ""
-          file.foreach { f =>
-            val fileName = Option(f.name).filter(_.nonEmpty)
-            PixelPic.loadPixelImageFromFile(f).unsafeRunAsync {
-              case Right(opt) =>
-                val msg = opt.fold[PalettesGalleryMsg](PalettesGalleryMsg.PaletteFromImageError("Could not decode image"))(pic =>
-                  PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName))
-                cb(Right(msg))
-              case Left(err) =>
-                cb(Right(PalettesGalleryMsg.PaletteFromImageError(err.getMessage)))
-            }
+  /** Creates a temporary file input, opens the picker, and completes with the result. Input is never in the VDom. */
+  private def openFilePickerForPalette(): IO[PalettesGalleryMsg] =
+    IO.async_[PalettesGalleryMsg] { cb =>
+      val input = dom.document.createElement("input").asInstanceOf[Input]
+      input.`type` = "file"
+      input.accept = "image/*"
+      input.style.display = "none"
+      val _ = dom.document.body.appendChild(input)
+      def cleanup(): Unit = Option(input.parentNode).foreach(_.removeChild(input))
+      input.addEventListener("change", (_: dom.Event) => {
+        val file = Option(input.files(0))
+        input.value = "" // only allowed value for file input
+        cleanup()
+        file.foreach { f =>
+          val fileName = Option(f.name).filter(_.nonEmpty)
+          PixelPic.loadPixelImageFromFile(f).unsafeRunAsync {
+            case Right(opt) =>
+              val msg = opt.fold[PalettesGalleryMsg](PalettesGalleryMsg.PaletteFromImageError("Could not decode image"))(pic =>
+                PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName))
+              cb(Right(msg))
+            case Left(err) =>
+              cb(Right(PalettesGalleryMsg.PaletteFromImageError(err.getMessage)))
           }
-        })
-      }
-
-    IO.sleep(200.millis).flatMap(_ => findInput).flatMap(addListener)
-  }
+        }
+      })
+      input.click()
+    }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case PalettesGalleryMsg.Loaded(list) =>
-      val rearmCmd = Cmd.Run(waitForFileSelectionForPalette(), (m: PalettesGalleryMsg) => m)
-      (model.copy(list = Some(list)), rearmCmd)
+      (model.copy(list = Some(list)), Cmd.None)
     case PalettesGalleryMsg.CreateNew =>
       (model, Cmd.Emit(NavigateNext(ScreenId.PaletteId, None)))
     case PalettesGalleryMsg.Edit(stored) =>
@@ -101,15 +98,16 @@ object PalettesGalleryScreen extends Screen {
             _ => PalettesGalleryMsg.PaletteFromImageSaved,
             (_, _) => PalettesGalleryMsg.PaletteFromImageError("Failed to save palette")
           )
-          val rearmCmd = Cmd.Run(waitForFileSelectionForPalette(), (m: PalettesGalleryMsg) => m)
-          (model.copy(list = Some(newList)), Cmd.Batch(saveCmd, rearmCmd))
+          (model.copy(list = Some(newList)), saveCmd)
         case None =>
           (model, Cmd.None)
       }
     case PalettesGalleryMsg.PaletteFromImageError(_) =>
-      (model, Cmd.Run(waitForFileSelectionForPalette(), (m: PalettesGalleryMsg) => m))
+      (model, Cmd.None)
     case PalettesGalleryMsg.PaletteFromImageSaved =>
-      (model, Cmd.Run(waitForFileSelectionForPalette(), (m: PalettesGalleryMsg) => m))
+      (model, Cmd.None)
+    case PalettesGalleryMsg.RequestPaletteFromImage =>
+      (model, Cmd.Run(openFilePickerForPalette(), (m: PalettesGalleryMsg) => m))
     case _: NavigateNext =>
       (model, Cmd.None)
   }
@@ -129,8 +127,7 @@ object PalettesGalleryScreen extends Screen {
             div(`class` := "flex-col")(
               GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew),
               div(`class` := "flex-row", style := "margin-top: 0.5rem;")(
-                label(`for` := paletteFromImageFileId, `class` := s"${NesCss.btn} label-as-button")(text("From image")),
-                input(id := paletteFromImageFileId, `type` := "file", `class` := "hidden")
+                button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
               )
             )
           else
@@ -138,8 +135,7 @@ object PalettesGalleryScreen extends Screen {
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
                 div(`class` := "flex-row", style := "margin-top: 0.5rem;")(
                   button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
-                  label(`for` := paletteFromImageFileId, `class` := s"${NesCss.btn} label-as-button")(text("From image")),
-                  input(id := paletteFromImageFileId, `type` := "file", `class` := "hidden")
+                  button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
                 ))*
             )
         )
@@ -177,6 +173,7 @@ final case class PalettesGalleryModel(
 enum PalettesGalleryMsg:
   case Loaded(list: List[StoredPalette])
   case CreateNew
+  case RequestPaletteFromImage
   case PaletteFromImageDecoded(pic: PixelPic, fileName: Option[String])
   case PaletteFromImageError(message: String)
   case PaletteFromImageSaved
