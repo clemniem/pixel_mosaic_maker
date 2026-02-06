@@ -292,9 +292,9 @@ body {
 }
 
 .palette-edit-swatch {
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 2px;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 4px;
   border: 1px solid #333;
   flex-shrink: 0;
 }
@@ -308,18 +308,23 @@ body {
 }
 
 .palette-edit-picker {
-  width: 1.5rem;
-  height: 1.25rem;
-  padding: 1px;
+  width: 2.25rem;
+  height: 1.75rem;
+  padding: 2px;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 4px;
   border: 1px solid #999;
 }
 
 .palette-edit-remove {
   padding: 2px 6px;
-  font-size: 0.7rem;
-  line-height: 1.1;
+  min-width: 1.5rem;
+  min-height: 1.35rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ========== Step size block (Print Instructions) ========== */

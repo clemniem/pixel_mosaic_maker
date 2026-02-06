@@ -189,7 +189,7 @@ object PaletteScreen extends Screen {
         `class` := "palette-edit-picker",
       ),
       button(`class` := s"${NesCss.btnError} palette-edit-remove", onClick(PaletteMsg.RemoveColor(idx)))(
-        text("−")
+        text("×")
       )
     )
 }
