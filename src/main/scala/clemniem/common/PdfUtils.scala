@@ -4,10 +4,11 @@ import cats.effect.IO
 import clemniem.{GridConfig, Pixel, PixelPic}
 import clemniem.common.pdf.{Instruction, JsPDF, PdfLayout}
 
-/** Request for the book PDF: title and optional mosaic (pic + grid). Both Print buttons use this. */
+/** Request for the book PDF: title, optional mosaic (pic + grid), and step size in px (default 16). */
 final case class PrintBookRequest(
     title: String,
-    mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)]
+    mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)],
+    stepSizePx: Int = 16
 )
 
 /** High-level PDF helpers. Build [[Instruction]]s and run them via [[JsPDF]]. */
@@ -45,10 +46,10 @@ object PdfUtils {
 
   /** Generate the book PDF. Single entry point for both Print PDF buttons; pass a [[PrintBookRequest]]. */
   def printBookPdf(request: PrintBookRequest): IO[Unit] = IO {
-    runPrintBookPdf(request.title, request.mosaicPicAndGridOpt)
+    runPrintBookPdf(request.title, request.mosaicPicAndGridOpt, request.stepSizePx)
   }
 
-  private def runPrintBookPdf(title: String, mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)]): Unit = {
+  private def runPrintBookPdf(title: String, mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)], stepSizePx: Int): Unit = {
     val (pageW, pageH) = (PdfLayout.pageSizeMm, PdfLayout.pageSizeMm) // 20×20 cm
     val marginLR       = 15.0
     val marginTB       = 15.0
@@ -58,7 +59,7 @@ object PdfUtils {
     val (coverInstrs, chapterInstrs) = mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
         val cover  = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW)
-        val chapter1 = firstChapterInstructions(pic, grid, marginLR, marginTB, availableW, availableH)
+        val chapter1 = firstChapterInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx)
         (cover, chapter1)
       case None =>
         (PdfLayout.coverInstructions(title), Nil)
@@ -94,14 +95,15 @@ object PdfUtils {
     )
   }
 
-  /** First chapter (plate 0): plate overview page + single-color patch pages (up to 4 per page). */
+  /** First chapter (plate 0): plate overview page + sections (one per build step). Each section: overview showing step in plate, then layered canvases (least→most). */
   private def firstChapterInstructions(
       fullPic: PixelPic,
       grid: GridConfig,
       marginLR: Double,
       marginTB: Double,
       availableW: Double,
-      availableH: Double
+      availableH: Double,
+      stepSizePx: Int
   ): List[Instruction] = {
     val parts = grid.parts
     if (parts.isEmpty) Nil
@@ -115,12 +117,12 @@ object PdfUtils {
         val plateScale       = (availableW / platePic.width).min(availableH / (platePic.height + 30))
         val plateImageH      = platePic.height * plateScale
         val plateImageW      = platePic.width * plateScale
-        val plateX0     = marginLR + (availableW - plateImageW) / 2
-        val plateY0     = marginTB + 55
-        val countYStart = plateY0 + plateImageH + 6
-        val swatchSize  = 4.0
-        val swatchGap   = 1.0
-        val lineHeight  = 5.0
+        val plateX0          = marginLR + (availableW - plateImageW) / 2
+        val plateY0          = marginTB + 55
+        val countYStart      = plateY0 + plateImageH + 6
+        val swatchSize       = 4.0
+        val swatchGap        = 1.0
+        val lineHeight       = 5.0
         val colorCountInstrs = platePic.palette.toVector.sortBy(-_._2).zipWithIndex.flatMap { case ((idx, count), i) =>
           val px = fullPic.paletteLookup(idx)
           val y  = countYStart + 5 + i * lineHeight
@@ -138,6 +140,13 @@ object PdfUtils {
         val smallScale     = smallOverviewW / fullPic.width
         val smallGridRects = parts.toList.map(p => (smallX0 + p.x * smallScale, smallY0 + p.y * smallScale, p.width * smallScale, p.height * smallScale))
         val smallCurrent   = List((smallX0 + part.x * smallScale, smallY0 + part.y * smallScale, part.width * smallScale, part.height * smallScale))
+        val allPlatesDivisible = parts.forall(p => p.width % stepSizePx == 0 && p.height % stepSizePx == 0)
+        val divisibilityNote = if (allPlatesDivisible) Nil else {
+          List(
+            Instruction.FontSize(9),
+            Instruction.Text(marginLR, countYStart - 6, s"Note: not all plates divisible by step size $stepSizePx; only divisible plates have step sections.")
+          )
+        }
         val chapterOverviewPage = List(
           Instruction.AddPage,
           Instruction.FontSize(12),
@@ -148,52 +157,137 @@ object PdfUtils {
           Instruction.DrawPixelGrid(plateX0, plateY0, plateImageW, plateImageH, platePic.width, platePic.height, plateRgb._3),
           Instruction.FontSize(10),
           Instruction.Text(marginLR, countYStart, "Colors for this plate:")
-        ) ++ colorCountInstrs
+        ) ++ divisibilityNote ++ colorCountInstrs
 
-        // Layer patches: same drawing as BuildScreen preview — full pixel resolution, cumulative colors (least→most), one layer = one "panel".
-        val patchSizePx     = 16
-        val colorIndicesAsc = platePic.getIndexByCount
-        val layerRgbFlats   = (0 until colorIndicesAsc.length).map { k =>
-          buildCumulativeLayerRgb(platePic, colorIndicesAsc.take(k + 1).toSet, (i: Int) => fullPic.paletteLookup(i))
-        }.toList
-        val patchMargin     = 15.0
-        val patchGap        = 5.0
-        val patchCellMm     = (availableW + 2 * marginLR - 2 * patchMargin - patchGap) / 2  // 2×2 grid (same 20×20 cm page)
-        val patchPages = layerRgbFlats.grouped(4).toList.zipWithIndex.flatMap { case (layerBatch, batchIdx) =>
-          val startX = patchMargin
-          val startY = patchMargin + 10  // title line
-          val scale  = (patchCellMm / platePic.width).min(patchCellMm / platePic.height)
-          val imageW = platePic.width * scale
-          val imageH = platePic.height * scale
-          val perPage = layerBatch.zipWithIndex.map { case (rgbFlat, i) =>
-            val col = i % 2
-            val row = i / 2
-            val cellX = startX + col * (patchCellMm + patchGap)
-            val cellY = startY + row * (patchCellMm + patchGap)
-            val x0    = cellX + (patchCellMm - imageW) / 2
-            val y0    = cellY + (patchCellMm - imageH) / 2
-            val labelY = cellY + patchCellMm + 4
-            val layerNum = batchIdx * 4 + i + 1
-            (x0, y0, imageW, imageH, rgbFlat, labelY, layerNum)
-          }
-          List(
-            Instruction.AddPage,
-            Instruction.FontSize(10),
-            Instruction.Text(patchMargin, patchMargin + 6, "Plate 1 – color layers (least → most)")
-          ) ++ perPage.flatMap { case (x0, y0, w, h, rgb, labelY, layerNum) =>
-            val grid16Rects = grid16x16PatchStrokeRects(x0, y0, w, h, platePic.width, platePic.height, patchSizePx, lineWidthMm = 0.25)
-            val grid4x4Rects = grid4x4StrokeRects(x0, y0, w, h, lineWidthMm = 0.1)
-            val gridGrey = 120
-            List(
-              Instruction.DrawPixelGrid(x0, y0, w, h, platePic.width, platePic.height, rgb),
-              Instruction.DrawStrokeRects(grid16Rects, gridGrey, gridGrey, gridGrey, 0.25),
-              Instruction.DrawStrokeRects(grid4x4Rects, gridGrey, gridGrey, gridGrey, 0.1),
-              Instruction.FontSize(8),
-              Instruction.Text(x0, labelY, s"Layer $layerNum")
-            )
-          }
+        val thisPlateDivisible = platePic.width % stepSizePx == 0 && platePic.height % stepSizePx == 0
+        val sectionInstrs = if (!thisPlateDivisible) {
+          val msg = s"Plate 1 dimensions (${platePic.width}×${platePic.height}) are not divisible by step size $stepSizePx; step-by-step sections omitted."
+          List(Instruction.AddPage, Instruction.FontSize(10), Instruction.Text(marginLR, marginTB + 20, msg))
+        } else {
+          sectionInstructionsForPlate(platePic, fullPic, stepSizePx, marginLR, marginTB, plateX0, plateY0, plateImageW, plateImageH)
         }
-        chapterOverviewPage ++ patchPages
+        chapterOverviewPage ++ sectionInstrs
+      }
+    }
+  }
+
+  /** One section per step: section overview (plate with step highlighted) + layered canvases (4 per page). */
+  private def sectionInstructionsForPlate(
+      platePic: PixelPic,
+      fullPic: PixelPic,
+      stepSizePx: Int,
+      marginLR: Double,
+      marginTB: Double,
+      plateX0: Double,
+      plateY0: Double,
+      plateImageW: Double,
+      plateImageH: Double
+  ): List[Instruction] = {
+    val nCols       = platePic.width / stepSizePx
+    val nRows       = platePic.height / stepSizePx
+    val patchMargin = 15.0
+    val patchGap    = 5.0
+    val patchCellMm = (PdfLayout.pageSizeMm - 2 * patchMargin - patchGap) / 2
+    (0 until nRows).flatMap { cy =>
+      (0 until nCols).map { cx =>
+        val stepNum = cy * nCols + cx + 1
+        val stepX   = cx * stepSizePx
+        val stepY   = cy * stepSizePx
+        platePic.crop(stepX, stepY, stepSizePx, stepSizePx) match {
+          case Some(patch) =>
+            val sectionOverviewPage = sectionOverviewInstructions(
+              stepNum, platePic, marginLR, marginTB, plateX0, plateY0, plateImageW, plateImageH, cx, cy, stepSizePx
+            )
+            val layerInstrs = layerPagesForPatch(patch, fullPic, stepSizePx, stepNum, patchMargin, patchGap, patchCellMm)
+            sectionOverviewPage ++ layerInstrs
+          case None =>
+            Nil
+        }
+      }
+    }.toList.flatten
+  }
+
+  /** Section overview: full plate with step region highlighted. */
+  private def sectionOverviewInstructions(
+      stepNum: Int,
+      platePic: PixelPic,
+      marginLR: Double,
+      marginTB: Double,
+      plateX0: Double,
+      plateY0: Double,
+      plateImageW: Double,
+      plateImageH: Double,
+      cx: Int,
+      cy: Int,
+      stepSizePx: Int
+  ): List[Instruction] = {
+    val stepRectMm = {
+      val x = plateX0 + cx * stepSizePx * (plateImageW / platePic.width)
+      val y = plateY0 + cy * stepSizePx * (plateImageH / platePic.height)
+      val w = stepSizePx * (plateImageW / platePic.width)
+      val h = stepSizePx * (plateImageH / platePic.height)
+      (x, y, w, h)
+    }
+    val plateRgb = pixelPicToRgbFlat(platePic)
+    List(
+      Instruction.AddPage,
+      Instruction.FontSize(12),
+      Instruction.Text(marginLR, marginTB + 4, s"Plate 1 – Step $stepNum (section overview)"),
+      Instruction.FontSize(10),
+      Instruction.Text(marginLR, marginTB + 12, "All colors – step region highlighted"),
+      Instruction.DrawPixelGrid(plateX0, plateY0, plateImageW, plateImageH, platePic.width, platePic.height, plateRgb._3),
+      Instruction.DrawStrokeRects(List(stepRectMm), 0, 180, 0, 0.35)
+    )
+  }
+
+  /** Layered canvases for one step's patch: cumulative colors (least→most), 4 per page, 16×16 and 4×4 grids. */
+  private def layerPagesForPatch(
+      patch: PixelPic,
+      fullPic: PixelPic,
+      stepSizePx: Int,
+      stepNum: Int,
+      patchMargin: Double,
+      patchGap: Double,
+      patchCellMm: Double
+  ): List[Instruction] = {
+    val colorIndicesAsc = patch.getIndexByCount
+    val layerRgbFlats   = (0 until colorIndicesAsc.length).map { k =>
+      buildCumulativeLayerRgb(patch, colorIndicesAsc.take(k + 1).toSet, (i: Int) => fullPic.paletteLookup(i))
+    }.toList
+    val patchW = patch.width
+    val patchH = patch.height
+    layerRgbFlats.grouped(4).toList.zipWithIndex.flatMap { case (layerBatch, batchIdx) =>
+      val startX = patchMargin
+      val startY = patchMargin + 10
+      val scale  = (patchCellMm / patchW).min(patchCellMm / patchH)
+      val imageW = patchW * scale
+      val imageH = patchH * scale
+      val perPage = layerBatch.zipWithIndex.map { case (rgbFlat, i) =>
+        val col     = i % 2
+        val row     = i / 2
+        val cellX   = startX + col * (patchCellMm + patchGap)
+        val cellY   = startY + row * (patchCellMm + patchGap)
+        val x0      = cellX + (patchCellMm - imageW) / 2
+        val y0      = cellY + (patchCellMm - imageH) / 2
+        val labelY  = cellY + patchCellMm + 4
+        val layerNum = batchIdx * 4 + i + 1
+        (x0, y0, imageW, imageH, rgbFlat, labelY, layerNum)
+      }
+      List(
+        Instruction.AddPage,
+        Instruction.FontSize(10),
+        Instruction.Text(patchMargin, patchMargin + 6, s"Plate 1 – Step $stepNum – color layers (least → most)")
+      ) ++ perPage.flatMap { case (x0, y0, w, h, rgb, labelY, layerNum) =>
+        val grid16Rects = grid16x16PatchStrokeRects(x0, y0, w, h, patchW, patchH, stepSizePx, 0.25)
+        val grid4x4Rects = grid4x4StrokeRects(x0, y0, w, h, 0.1)
+        val gridGrey = 120
+        List(
+          Instruction.DrawPixelGrid(x0, y0, w, h, patchW, patchH, rgb),
+          Instruction.DrawStrokeRects(grid16Rects, gridGrey, gridGrey, gridGrey, 0.25),
+          Instruction.DrawStrokeRects(grid4x4Rects, gridGrey, gridGrey, gridGrey, 0.1),
+          Instruction.FontSize(8),
+          Instruction.Text(x0, labelY, s"Layer $layerNum")
+        )
       }
     }
   }
