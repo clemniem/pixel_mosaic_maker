@@ -10,11 +10,11 @@ object PdfLayout {
   private val coverTitleY   = 95.0   // used when no mosaic (title-only cover)
   val coverTitleFontSize    = 28
 
-  /** Instructions for the cover page (title only, no mosaic). Does not include Save. */
-  def coverInstructions(title: String): List[Instruction] =
+  /** Instructions for the cover page (title only, no mosaic). Does not include Save. printerMarginMm offsets content so margin stays white. */
+  def coverInstructions(title: String, printerMarginMm: Double): List[Instruction] =
     List(
       Instruction.PageSize(pageSizeMm, pageSizeMm),
       Instruction.FontSize(coverTitleFontSize),
-      Instruction.Text(coverTitleX, coverTitleY, title)
+      Instruction.Text(coverTitleX + printerMarginMm, coverTitleY + printerMarginMm, title)
     )
 }

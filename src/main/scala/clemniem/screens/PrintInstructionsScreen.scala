@@ -35,7 +35,8 @@ object PrintInstructionsScreen extends Screen {
       selectedBuildConfigId = None,
       title = "Mosaic",
       stepSizePx = 16,
-      pageBackgroundColorHex = PdfUtils.defaultPageBackgroundColor.toHex
+      pageBackgroundColorHex = PdfUtils.defaultPageBackgroundColor.toHex,
+      printerMarginMm = 3.0
     )
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       PrintInstructionsMsg.LoadedBuildConfigs.apply,
@@ -77,6 +78,8 @@ object PrintInstructionsScreen extends Screen {
       (model.copy(stepSizePx = px), Cmd.None)
     case PrintInstructionsMsg.SetPageBackgroundColor(hex) =>
       (model.copy(pageBackgroundColorHex = hex), Cmd.None)
+    case PrintInstructionsMsg.SetPrinterMarginMm(mm) =>
+      (model.copy(printerMarginMm = mm), Cmd.None)
     case PrintInstructionsMsg.PrintPdf =>
       val pageBg = if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
                    else Color.fromHex(model.pageBackgroundColorHex)
@@ -86,7 +89,8 @@ object PrintInstructionsScreen extends Screen {
           mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
         ),
         stepSizePx = model.stepSizePx,
-        pageBackgroundColor = pageBg
+        pageBackgroundColor = pageBg,
+        printerMarginMm = model.printerMarginMm
       )
       (model, Cmd.SideEffect(PdfUtils.printBookPdf(request)))
     case PrintInstructionsMsg.Back =>
@@ -187,6 +191,19 @@ object PrintInstructionsScreen extends Screen {
         ),
         span(style := "display: block; margin-top: 0.25rem; color: #555; font-size: 0.9rem;")(text("Hex (e.g. #fdfbe6). Used for all PDF pages."))
       ),
+      div(style := "margin-bottom: 1.5rem;")(
+        label(style := "display: block; font-weight: 500; margin-bottom: 0.35rem;")(text("Printer margin (mm)")),
+        input(
+          `type` := "number",
+          value := model.printerMarginMm.toString,
+          min := "0",
+          max := "20",
+          step := "1",
+          onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s))),
+          style := "padding: 6px 10px; width: 5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"
+        ),
+        span(style := "margin-left: 0.5rem; color: #555; font-size: 0.9rem;")(text("White border on each side (for booklet printing). Default 3 mm."))
+      ),
       button(
         style := (if (!canPrint)
           "padding: 8px 16px; cursor: not-allowed; opacity: 0.6; background: #999; color: #fff; border: none; border-radius: 4px; font-weight: 500;"
@@ -285,6 +302,11 @@ private def parseStepSize(s: String): Int = {
   n.max(4).min(64)
 }
 
+private def parsePrinterMargin(s: String): Double = {
+  val n = s.trim.toDoubleOption.getOrElse(3.0)
+  n.max(0).min(20)
+}
+
 final case class PrintInstructionsModel(
     buildConfigs: Option[List[StoredBuildConfig]],
     images: Option[List[StoredImage]],
@@ -292,7 +314,8 @@ final case class PrintInstructionsModel(
     selectedBuildConfigId: Option[String],
     title: String,
     stepSizePx: Int,
-    pageBackgroundColorHex: String
+    pageBackgroundColorHex: String,
+    printerMarginMm: Double
 ) {
   def selectedStored: Option[StoredBuildConfig] =
     buildConfigs.flatMap(list =>
@@ -308,6 +331,7 @@ enum PrintInstructionsMsg:
   case SetTitle(title: String)
   case SetStepSize(px: Int)
   case SetPageBackgroundColor(hex: String)
+  case SetPrinterMarginMm(mm: Double)
   case DrawOverview
   case PrintPdf
   case Back

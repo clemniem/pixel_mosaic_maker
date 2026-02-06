@@ -4,12 +4,13 @@ import cats.effect.IO
 import clemniem.{Color, GridConfig, GridPart, Pixel, PixelPic}
 import clemniem.common.pdf.{Instruction, JsPDF, PdfLayout}
 
-/** Request for the book PDF: title, optional mosaic (pic + grid), step size in px, and page background color. */
+/** Request for the book PDF: title, optional mosaic (pic + grid), step size, page background color, and printer margin (mm; stays white). */
 final case class PrintBookRequest(
     title: String,
     mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)],
     stepSizePx: Int = 16,
-    pageBackgroundColor: Color = PdfUtils.defaultPageBackgroundColor
+    pageBackgroundColor: Color = PdfUtils.defaultPageBackgroundColor,
+    printerMarginMm: Double = 3.0
 )
 
 /** High-level PDF helpers. Build [[Instruction]]s and run them via [[JsPDF]]. */
@@ -23,33 +24,42 @@ object PdfUtils {
 
   /** Generate the book PDF. Single entry point for both Print PDF buttons; pass a [[PrintBookRequest]]. */
   def printBookPdf(request: PrintBookRequest): IO[Unit] = IO {
-    runPrintBookPdf(request.title, request.mosaicPicAndGridOpt, request.stepSizePx, request.pageBackgroundColor)
+    runPrintBookPdf(
+      request.title,
+      request.mosaicPicAndGridOpt,
+      request.stepSizePx,
+      request.pageBackgroundColor,
+      request.printerMarginMm
+    )
   }
 
   private def runPrintBookPdf(
       title: String,
       mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)],
       stepSizePx: Int,
-      pageBackgroundColor: Color
+      pageBackgroundColor: Color,
+      printerMarginMm: Double
   ): Unit = {
     val (pageW, pageH) = (PdfLayout.pageSizeMm, PdfLayout.pageSizeMm) // 20×20 cm
-    val marginLR       = 15.0
-    val marginTB       = 15.0
+    val contentPadLR   = 15.0
+    val contentPadTB   = 15.0
+    val marginLR       = printerMarginMm + contentPadLR
+    val marginTB       = printerMarginMm + contentPadTB
     val availableW     = pageW - 2 * marginLR
     val availableH     = pageH - 2 * marginTB
 
     val (coverInstrs, afterCoverInstrs, chapterInstrs) = mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
-        val cover      = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW)
-        val emptyPage  = List(Instruction.AddPage)
+        val cover        = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW)
+        val emptyPage    = List(Instruction.AddPage)
         val fullOverview = fullOverviewPageInstructions(pic, marginLR, marginTB, availableW, availableH)
-        val chapters   = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx)
+        val chapters     = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx)
         (cover, emptyPage ++ fullOverview, chapters)
       case None =>
-        (PdfLayout.coverInstructions(title), List(Instruction.AddPage), Nil)
+        (PdfLayout.coverInstructions(title, printerMarginMm), List(Instruction.AddPage), Nil)
     }
     val instructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
-    JsPDF.run(instructions, pageBackgroundColor.r, pageBackgroundColor.g, pageBackgroundColor.b)
+    JsPDF.run(instructions, pageBackgroundColor.r, pageBackgroundColor.g, pageBackgroundColor.b, printerMarginMm)
   }
 
   /** Cover page: title above full mosaic, no grids. */
