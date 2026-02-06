@@ -143,24 +143,26 @@ object PalettesGalleryScreen extends Screen {
   }
 
   private def entryCard(item: StoredPalette, confirmingDelete: Boolean): Html[Msg] =
-    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
-      div(`class` := "gallery-card-body")(
+    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card gallery-card--palette")(
+      div(`class` := "gallery-card-header")(
         span(`class` := "gallery-card-title")(text(item.name)),
-        span(`class` := "gallery-card-meta nes-text")(text(s"${item.colors.length} colors")),
+        span(`class` := "gallery-card-meta nes-text")(text(s" · ${item.colors.length} colors"))
+      ),
+      div(`class` := "gallery-card-row2")(
         if (confirmingDelete)
           div(`class` := "gallery-delete-confirm")(
             span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
-            button(`class` := NesCss.btnError, style := "margin-right: 6px;", onClick(PalettesGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
+            button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
             button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.CancelDelete))(text("Cancel"))
           )
         else
           div(`class` := "gallery-actions")(
             button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Edit(item)))(text("Edit")),
             button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.Delete(item)))(text("Delete"))
-          )
-      ),
-      div(`class` := "gallery-card-preview")(
-        PaletteStripView.previewInline(item.colors.toList)
+          ),
+        div(`class` := "gallery-card-preview")(
+          PaletteStripView.previewInline(item.colors.toList)
+        )
       )
     )
 }

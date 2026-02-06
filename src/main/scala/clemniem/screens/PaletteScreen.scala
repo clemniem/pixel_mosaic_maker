@@ -131,16 +131,17 @@ object PaletteScreen extends Screen {
         h2(`class` := "screen-title")(text("Palette")),
         div(`class` := "flex-row")(
           button(`class` := NesCss.btn, onClick(PaletteMsg.Back))(text("← Palettes")),
-          input(
-            id := "palette-name",
-            `type` := "text",
-            placeholder := "Name",
-            value := model.name,
-            onInput(PaletteMsg.SetName.apply),
-            `class` := NesCss.input,
-            style := "width: 12rem;"
-          ),
           button(`class` := NesCss.btnPrimary, onClick(PaletteMsg.Save))(text("Save"))
+        )
+      ),
+      div(`class` := "palette-name-row")(
+        input(
+          id := "palette-name",
+          `type` := "text",
+          placeholder := "Name",
+          value := model.name,
+          onInput(PaletteMsg.SetName.apply),
+          `class` := s"${NesCss.input} palette-name-input",
         )
       ),
       p(`class` := NesCss.text, style := "margin-bottom: 1rem;")(

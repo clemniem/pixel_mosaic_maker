@@ -258,6 +258,15 @@ body {
 }
 
 /* ========== Palette edit screen ========== */
+.palette-name-row {
+  margin-bottom: 1rem;
+}
+
+.palette-name-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .palette-edit-list {
   display: flex;
   flex-direction: column;
@@ -420,6 +429,50 @@ body {
 
 .gallery-card--start {
   align-items: flex-start;
+}
+
+/* Palette gallery: row1 = name · x colors, row2 = buttons + preview */
+.gallery-card--palette {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.gallery-card--palette .gallery-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.gallery-card--palette .gallery-card-meta {
+  margin-top: 0;
+}
+
+.gallery-card--palette .gallery-card-row2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.gallery-card--palette .gallery-actions,
+.gallery-card--palette .gallery-delete-confirm {
+  margin-top: 0;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.gallery-card--palette .gallery-actions .nes-btn,
+.gallery-card--palette .gallery-delete-confirm .nes-btn {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.gallery-card--palette .gallery-card-preview {
+  margin-left: auto;
 }
 
 .gallery-card-body {
