@@ -32,7 +32,8 @@ object JsPDF {
   private def countPages(instructions: List[Instruction]): Int =
     1 + instructions.count { case Instruction.AddPage => true; case _ => false }
 
-  /** Draw page number in outer corner for booklet: first 3 and last 2 pages have no number; left/right alternate (even = left). */
+  /** Draw page number in outer corner for booklet: first 2 PDF pages (cover) and last 2 (cover back) have no number.
+    * Open the cover: first right-hand page = content page 1, back of it = 2, etc. Even content page = left, odd = right. */
   private def drawPageNumberIfNeeded(
       doc: js.Dynamic,
       pageW: Double,
@@ -41,18 +42,18 @@ object JsPDF {
       totalPages: Int,
       printerMarginMm: Double
   ): Unit = {
-    val pageNum = pageIndex0Based + 1
-    if (pageNum >= 4 && pageNum <= totalPages - 2) {
-      val leftSide = (pageNum % 2) == 0
-      val _       = doc.setFontSize(9)
-      val _       = doc.setTextColor(0, 0, 0)
-      val y       = pageH - printerMarginMm - 5
+    if (pageIndex0Based >= 2 && pageIndex0Based <= totalPages - 3) {
+      val contentPageNum = pageIndex0Based - 1 // first right-hand = 1, back of it = 2, ...
+      val leftSide      = (contentPageNum % 2) == 0
+      val _             = doc.setFontSize(9)
+      val _             = doc.setTextColor(0, 0, 0)
+      val y             = pageH - printerMarginMm - 5
       if (leftSide) {
         val x = printerMarginMm + 2
-        val _ = doc.text(pageNum.toString, x, y)
+        val _ = doc.text(contentPageNum.toString, x, y)
       } else {
         val x = pageW - printerMarginMm - 2
-        val _ = doc.text(pageNum.toString, x, y, js.Dynamic.literal(align = "right"))
+        val _ = doc.text(contentPageNum.toString, x, y, js.Dynamic.literal(align = "right"))
       }
     }
   }
