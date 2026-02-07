@@ -58,7 +58,6 @@ jobs:
           <body>
             <div id="myapp"></div>
             <script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-            <script>window.jspdf = { jsPDF: window.jsPDF };</script>
             <script type="module" src="./loader.js"></script>
           </body>
           </html>

@@ -199,19 +199,12 @@ object BuildsGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
+    val backBtn = button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.Back))(text("← Overview"))
     (model.builds, model.buildConfigs) match {
       case (None, _) | (_, None) =>
-        div(`class` := root)(p(`class` := NesCss.text)(text("Loading…")))
+        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false)
       case (Some(builds), Some(configs)) =>
-        div(`class` := root)(
-          div(`class` := "screen-header")(
-            h1(`class` := "screen-title")(text("Builds")),
-            button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.Back))(text("← Overview"))
-          ),
-          div(`class` := "flex-col")(
-            builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))*
-          ),
+        val bottomSection =
           if (model.showNewBuildDropdown)
             div(`class` := s"${NesCss.container} ${NesCss.containerRounded} dropdown-panel")(
               div(`class` := "dropdown-panel-title")(text("New build from config:")),
@@ -232,7 +225,13 @@ object BuildsGalleryScreen extends Screen {
             )
           else
             button(`class` := NesCss.btnPrimary, onClick(BuildsGalleryMsg.ShowNewBuildDropdown))(text("+ Start new build"))
+        val content = div(
+          div(`class` := "flex-col")(
+            builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))*
+          ),
+          bottomSection
         )
+        GalleryLayout(screenId.title, backBtn, content, shortHeader = false)
     }
   }
 

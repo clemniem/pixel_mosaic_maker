@@ -150,16 +150,12 @@ object BuildConfigGalleryScreen extends Screen {
     })
 
   def view(model: Model): Html[Msg] = {
-    val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
+    val backBtn = button(`class` := NesCss.btn, onClick(BuildConfigGalleryMsg.Back))(text("← Overview"))
     model.buildConfigs match {
       case None =>
-        div(`class` := root)(p(`class` := NesCss.text)(text("Loading…")))
+        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false)
       case Some(list) =>
-        div(`class` := root)(
-          div(`class` := "screen-header")(
-            h1(`class` := "screen-title")(text("Build configs")),
-            button(`class` := NesCss.btn, onClick(BuildConfigGalleryMsg.Back))(text("← Overview"))
-          ),
+        val content =
           if (list.isEmpty)
             GalleryEmptyState("No build configs yet.", "+ Create BuildConfig", BuildConfigGalleryMsg.CreateNew)
           else
@@ -167,7 +163,7 @@ object BuildConfigGalleryScreen extends Screen {
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
                 button(`class` := NesCss.btnPrimary, onClick(BuildConfigGalleryMsg.CreateNew))(text("+ Create BuildConfig")))*
             )
-        )
+        GalleryLayout(screenId.title, backBtn, content, shortHeader = false)
     }
   }
 

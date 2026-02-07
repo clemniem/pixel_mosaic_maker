@@ -113,16 +113,12 @@ object PalettesGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
+    val backBtn = button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Back))(text("← Overview"))
     model.list match {
       case None =>
-        div(`class` := root)(p(`class` := NesCss.text)(text("Loading…")))
+        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false)
       case Some(list) =>
-        div(`class` := root)(
-          div(`class` := "screen-header")(
-            h1(`class` := "screen-title")(text("Palettes")),
-            button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Back))(text("← Overview"))
-          ),
+        val content =
           if (list.isEmpty)
             div(`class` := "flex-col")(
               GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew),
@@ -138,7 +134,7 @@ object PalettesGalleryScreen extends Screen {
                   button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
                 ))*
             )
-        )
+        GalleryLayout(screenId.title, backBtn, content, shortHeader = false)
     }
   }
 

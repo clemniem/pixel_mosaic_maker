@@ -65,18 +65,13 @@ object ImagesGalleryScreen extends Screen {
       (model, Cmd.None)
   }
 
-  def view(model: Model): Html[Msg] =
+  def view(model: Model): Html[Msg] = {
+    val backBtn = button(`class` := NesCss.btn, onClick(ImagesGalleryMsg.Back))(text("← Overview"))
     model.list match {
       case None =>
-        div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container")(
-          p(`class` := NesCss.text)(text("Loading…"))
-        )
+        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = true)
       case Some(list) =>
-        div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container")(
-          div(`class` := "screen-header screen-header--short")(
-            h1(`class` := "screen-title")(text("Images")),
-            button(`class` := NesCss.btn, onClick(ImagesGalleryMsg.Back))(text("← Overview"))
-          ),
+        val content =
           if (list.isEmpty)
             GalleryEmptyState("No images yet.", "Upload", ImagesGalleryMsg.CreateNew)
           else
@@ -84,8 +79,9 @@ object ImagesGalleryScreen extends Screen {
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
                 button(`class` := NesCss.btnPrimary, style := "margin-top: 0.5rem;", onClick(ImagesGalleryMsg.CreateNew))(text("Upload")))*
             )
-        )
+        GalleryLayout(screenId.title, backBtn, content, shortHeader = true)
     }
+  }
 
   private def entryCard(item: StoredImage, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
