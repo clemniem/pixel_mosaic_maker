@@ -111,6 +111,7 @@ object BuildScreen extends Screen {
 
       case Some(ScreenOutput.ResumeBuild(storedBuild)) =>
         val stepIndex = storedBuild.savedStepIndex.getOrElse(0)
+        val patchBg   = storedBuild.patchBackgroundColorHex.getOrElse(defaultPatchBackground)
         val model = BuildScreenModel(
           buildConfig = None,
           currentBuild = Some(storedBuild),
@@ -118,7 +119,7 @@ object BuildScreen extends Screen {
           palettes = None,
           stepIndex = stepIndex,
           pendingSave = None,
-          patchBackgroundColorHex = defaultPatchBackground
+          patchBackgroundColorHex = patchBg
         )
         val loadConfigs  = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
           BuildScreenMsg.LoadedBuildConfigs.apply,
@@ -186,7 +187,7 @@ object BuildScreen extends Screen {
         case (Some(storedConfig), _) =>
           val buildId   = model.currentBuild.map(_.id).getOrElse("build-" + js.Date.now().toLong)
           val buildName = model.currentBuild.map(_.name).getOrElse(storedConfig.name)
-          val updated   = StoredBuild(buildId, buildName, storedConfig.id, Some(model.stepIndex))
+          val updated   = StoredBuild(buildId, buildName, storedConfig.id, Some(model.stepIndex), Some(model.patchBackgroundColorHex))
           val cmd = LocalStorageUtils.loadList(StorageKeys.builds)(
             list => BuildScreenMsg.LoadedForSave(list),
             _ => BuildScreenMsg.LoadedForSave(Nil),

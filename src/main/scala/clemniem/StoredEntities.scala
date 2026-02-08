@@ -57,14 +57,21 @@ object StoredBuildConfig {
   given Decoder[StoredBuildConfig] = storedBuildConfigDecoder
 }
 
-/** A build in progress: references a build config and stores saved step. */
-final case class StoredBuild(id: String, name: String, buildConfigRef: String, savedStepIndex: Option[Int] = None)
+/** A build in progress: references a build config and stores saved step and patch background color. */
+final case class StoredBuild(
+    id: String,
+    name: String,
+    buildConfigRef: String,
+    savedStepIndex: Option[Int] = None,
+    patchBackgroundColorHex: Option[String] = None
+)
 object StoredBuild {
   given Encoder[StoredBuild] = deriveEncoder
   private def storedBuildDecoder: Decoder[StoredBuild] = {
-    val withRef = io.circe.Decoder.forProduct4("id", "name", "buildConfigRef", "savedStepIndex")(StoredBuild.apply)
-    val withoutRef = io.circe.Decoder.forProduct2("id", "name")((id: String, name: String) => StoredBuild(id, name, "", None))
-    withRef.or(withoutRef)
+    val withBg = io.circe.Decoder.forProduct5("id", "name", "buildConfigRef", "savedStepIndex", "patchBackgroundColorHex")(StoredBuild.apply)
+    val withRef = io.circe.Decoder.forProduct4("id", "name", "buildConfigRef", "savedStepIndex")((id: String, name: String, buildConfigRef: String, savedStepIndex: Option[Int]) => StoredBuild(id, name, buildConfigRef, savedStepIndex, None))
+    val withoutRef = io.circe.Decoder.forProduct2("id", "name")((id: String, name: String) => StoredBuild(id, name, "", None, None))
+    withBg.or(withRef).or(withoutRef)
   }
   given Decoder[StoredBuild] = storedBuildDecoder
 }
