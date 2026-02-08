@@ -129,7 +129,7 @@ object PaletteScreen extends Screen {
     div(`class` := root)(
       div(`class` := "screen-header")(
         h2(`class` := "screen-title")(text(screenId.title)),
-        div(`class` := "flex-row")(
+        div(`class` := "flex-row", style := "gap: 0.5rem;")(
           button(`class` := NesCss.btn, onClick(PaletteMsg.Back))(text("← Palettes")),
           button(`class` := NesCss.btnPrimary, onClick(PaletteMsg.Save))(text("Save"))
         )

@@ -17,18 +17,24 @@ object GalleryLayout {
     * @param backButton  Back button HTML (e.g. ← Overview)
     * @param content     Main content: loading state, empty state, or list + actions (will be wrapped in gallery-content)
     * @param shortHeader If true, use smaller margin below header
+    * @param nextButton  Optional "Next →" button (navigates to next screen in overview order)
     */
   def apply[Msg](
       title: String,
       backButton: Html[Msg],
       content: Html[Msg],
-      shortHeader: Boolean
+      shortHeader: Boolean,
+      nextButton: Option[Html[Msg]]
   ): Html[Msg] = {
     val headerClass = if (shortHeader) "screen-header screen-header--short" else "screen-header"
+    val headerButtons = nextButton match {
+      case Some(next) => div(`class` := "flex-row", style := "gap: 0.5rem;")(backButton, next)
+      case None       => backButton
+    }
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container")(
       div(`class` := headerClass)(
         h1(`class` := "screen-title")(text(title)),
-        backButton
+        headerButtons
       ),
       div(`class` := galleryContentClass)(content)
     )

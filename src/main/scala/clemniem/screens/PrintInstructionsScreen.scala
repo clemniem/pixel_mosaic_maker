@@ -125,7 +125,13 @@ object PrintInstructionsScreen extends Screen {
     )(
       div(`class` := "screen-header")(
         h2(`class` := "screen-title")(text(screenId.title)),
-        button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.Back))(text("← Overview"))
+        div(`class` := "flex-row", style := "gap: 0.5rem;")(
+          button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.Back))(text("← Overview")),
+          button(
+            `class` := (if (canPrint) NesCss.btnPrimary else s"${NesCss.btn} btn-disabled"),
+            onClick(PrintInstructionsMsg.PrintPdf)
+          )(text("Print PDF"))
+        )
       ),
       p(`class` := s"${NesCss.text} screen-intro")(
         text("Choose a build config and set the booklet title, then generate the PDF.")
@@ -206,11 +212,7 @@ object PrintInstructionsScreen extends Screen {
           onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s)))
         ),
         span(`class` := s"${NesCss.text} helper-text--inline")(text("White border on each side (for booklet printing). Default 3 mm."))
-      ),
-      button(
-        `class` := (if (canPrint) NesCss.btnPrimary else s"${NesCss.btn} btn-disabled"),
-        onClick(PrintInstructionsMsg.PrintPdf)
-      )(text("Print PDF"))
+      )
     )
   }
 

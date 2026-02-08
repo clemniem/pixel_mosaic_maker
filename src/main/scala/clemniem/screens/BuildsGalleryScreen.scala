@@ -199,10 +199,11 @@ object BuildsGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn = button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.Back))(text("← Overview"))
+    val backBtn  = button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.Back))(text("← Overview"))
+    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(text("Next →"))
     (model.builds, model.buildConfigs) match {
       case (None, _) | (_, None) =>
-        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false)
+        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false, Some(nextBtn))
       case (Some(builds), Some(configs)) =>
         val bottomSection =
           if (model.showNewBuildDropdown)
@@ -231,7 +232,7 @@ object BuildsGalleryScreen extends Screen {
           ),
           bottomSection
         )
-        GalleryLayout(screenId.title, backBtn, content, shortHeader = false)
+        GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
     }
   }
 

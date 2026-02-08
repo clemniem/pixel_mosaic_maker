@@ -2,7 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import clemniem._
+import clemniem.{Color, NavigateNext, PixelPic, Screen, ScreenId, StorageKeys, StoredImage}
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
@@ -154,7 +154,7 @@ object ImageUploadScreen extends Screen {
     )(
       div(`class` := "screen-header screen-header--short")(
         h2(`class` := "screen-title")(text(screenId.title)),
-        div(`class` := "flex-row")(
+        div(`class` := "flex-row", style := "gap: 0.5rem;")(
           button(`class` := NesCss.btn, onClick(ImageUploadMsg.Back))(text("← Images")),
           label(
             `for` := fileInputId,

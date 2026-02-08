@@ -31,7 +31,26 @@ object ScreenId {
 
   /** Screen IDs shown on the overview page as link cards, in order. */
   val overviewScreenIds: List[ScreenId] =
-    List(ImagesId, GridConfigsId, PalettesId, BuildConfigsId, BuildsId, PrintInstructionsId)
+    List(ImagesId, PalettesId, GridConfigsId, BuildConfigsId, BuildsId, PrintInstructionsId)
+
+  /** Next screen in the overview flow (for the "Next →" button). Overview → first in list; last → Overview; editors → next after their gallery. */
+  def nextInOverviewOrder(current: ScreenId): ScreenId =
+    if (current == OverviewId) overviewScreenIds.head
+    else {
+      val idx = overviewScreenIds.indexOf(current)
+      if (idx >= 0) {
+        if (idx + 1 < overviewScreenIds.length) overviewScreenIds(idx + 1)
+        else OverviewId
+      } else
+        current match {
+          case GridConfigId   => PalettesId
+          case PaletteId      => GridConfigsId
+          case ImageUploadId  => BuildConfigsId
+          case BuildConfigId  => BuildsId
+          case BuildId        => PrintInstructionsId
+          case _              => OverviewId
+        }
+    }
 }
 
 /** Data passed from one screen to the next when navigating. See FLOW.md for the six-step flow. */

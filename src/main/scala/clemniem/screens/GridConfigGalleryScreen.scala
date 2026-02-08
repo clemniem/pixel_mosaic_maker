@@ -66,10 +66,11 @@ object GridConfigGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn = button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.Back))(text("← Overview"))
+    val backBtn  = button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.Back))(text("← Overview"))
+    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(text("Next →"))
     model.list match {
       case None =>
-        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = true)
+        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = true, Some(nextBtn))
       case Some(list) =>
         val content =
           if (list.isEmpty)
@@ -79,7 +80,7 @@ object GridConfigGalleryScreen extends Screen {
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
                 button(`class` := NesCss.btnPrimary, onClick(GridConfigGalleryMsg.CreateNew))(text("+ Create GridConfig")))*
             )
-        GalleryLayout(screenId.title, backBtn, content, shortHeader = true)
+        GalleryLayout(screenId.title, backBtn, content, shortHeader = true, Some(nextBtn))
     }
   }
 
