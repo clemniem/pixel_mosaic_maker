@@ -134,7 +134,7 @@ object BuildsGalleryScreen extends Screen {
           ctx.fillStyle = "#eee"
           ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
           ctx.fillStyle = "#999"
-          ctx.font = "12px system-ui"
+          ctx.font = "12px \"Press Start 2P\", cursive"
           ctx.fillText("Missing config", 8, buildPreviewHeight / 2)
         })
       case Some(stored) =>
@@ -182,7 +182,7 @@ object BuildsGalleryScreen extends Screen {
                   ctx.fillStyle = "#eee"
                   ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
                   ctx.fillStyle = "#999"
-                  ctx.font = "12px system-ui"
+                  ctx.font = "12px \"Press Start 2P\", cursive"
                   ctx.fillText("Grid out of bounds", 8, buildPreviewHeight / 2)
               }
             case _ =>
@@ -191,7 +191,7 @@ object BuildsGalleryScreen extends Screen {
               ctx.fillStyle = "#eee"
               ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
               ctx.fillStyle = "#999"
-              ctx.font = "12px system-ui"
+              ctx.font = "12px \"Press Start 2P\", cursive"
               ctx.fillText("Missing image/palette", 8, buildPreviewHeight / 2)
           }
         })

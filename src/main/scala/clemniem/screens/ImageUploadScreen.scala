@@ -153,7 +153,6 @@ object ImageUploadScreen extends Screen {
       `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container"
     )(
       div(`class` := "screen-header screen-header--short")(
-        h2(`class` := "screen-title")(text(screenId.title)),
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
           button(`class` := NesCss.btn, onClick(ImageUploadMsg.Back))(text("← Images")),
           label(
@@ -180,7 +179,8 @@ object ImageUploadScreen extends Screen {
             )
           else
             div(`class` := "hidden")(text(""))
-        )
+        ),
+        h2(`class` := "screen-title")(text(screenId.title))
       ),
       p(`class` := s"${NesCss.text} screen-intro screen-intro--short")(
         text(s"Upload an image from your computer. Max size ${maxWidth}×${maxHeight} px. Scaled-up pixel art is auto-detected and resized.")

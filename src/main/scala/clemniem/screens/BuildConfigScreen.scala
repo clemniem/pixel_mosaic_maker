@@ -16,6 +16,7 @@ import clemniem.{
   StoredPalette
 }
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
@@ -297,54 +298,41 @@ object BuildConfigScreen extends Screen {
     ctx.fillStyle = "#eee"
     ctx.fillRect(0, 0, w, h)
     ctx.fillStyle = "#999"
-    ctx.font = "14px system-ui"
+    ctx.font = "14px \"Press Start 2P\", cursive"
     ctx.fillText(text, 12, h / 2)
   }
 
   def view(model: Model): Html[Msg] = {
-    div(`class` := "screen-container screen-container--wide")(
-      div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-        h2(style := "margin: 0;")(text(screenId.title)),
-        div(style := "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;")(
-          button(style := "padding: 6px 12px; cursor: pointer;", onClick(BuildConfigMsg.Back))(text("← Build configs")),
+    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide")(
+      div(`class` := "screen-header")(
+        div(`class` := "flex-row")(
+          button(`class` := NesCss.btn, onClick(BuildConfigMsg.Back))(text("← Build configs")),
           input(
             `type` := "text",
             placeholder := "Name",
             value := model.name,
             onInput(BuildConfigMsg.SetName.apply),
-            style := "padding: 6px 10px; width: 12rem; border: 1px solid #ccc; border-radius: 4px;"
+            `class` := s"${NesCss.input} input-w-12"
           ),
-          button(
-            style := "padding: 6px 14px; cursor: pointer; background: #2e7d32; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
-            onClick(BuildConfigMsg.Save)
-          )(text("Save"))
-        )
+          button(`class` := NesCss.btnPrimary, onClick(BuildConfigMsg.Save))(text("Save"))
+        ),
+        h2(`class` := "screen-title")(text(screenId.title))
       ),
       selectRow("Grid", model.gridConfigs, model.selectedGridId, BuildConfigMsg.SetGrid.apply, (g: StoredGridConfig) => g.name, (g: StoredGridConfig) => g.id),
       selectRow("Image", model.images, model.selectedImageId, BuildConfigMsg.SetImage.apply, (i: StoredImage) => i.name, (i: StoredImage) => i.id),
       selectRow("Palette", model.palettes, model.selectedPaletteId, BuildConfigMsg.SetPalette.apply, (p: StoredPalette) => p.name, (p: StoredPalette) => p.id),
       offsetRow(model),
-      div(style := "margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start;")(
-        div(style := "flex: 1; min-width: 200px;")(
-          div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Overview")),
+      div(`class` := "build-config-canvases")(
+        div(`class` := "build-config-canvas-block")(
+          div(`class` := "section-title")(text("Overview")),
           div(onLoad(BuildConfigMsg.DrawPreview))(
-            canvas(
-              id := overviewCanvasId,
-              width := 400,
-              height := 200,
-              style := "border: 1px solid #333; display: block; max-width: 100%; image-rendering: pixelated; image-rendering: crisp-edges;"
-            )()
+            canvas(id := overviewCanvasId, width := 400, height := 200, `class` := "pixel-canvas")()
           )
         ),
-        div(style := "flex: 1; min-width: 200px;")(
-          div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Preview")),
+        div(`class` := "build-config-canvas-block")(
+          div(`class` := "section-title")(text("Preview")),
           div(onLoad(BuildConfigMsg.DrawPreview))(
-            canvas(
-              id := previewCanvasId,
-              width := 300,
-              height := 200,
-              style := "border: 1px solid #333; display: block; max-width: 100%; image-rendering: pixelated; image-rendering: crisp-edges;"
-            )()
+            canvas(id := previewCanvasId, width := 300, height := 200, `class` := "pixel-canvas")()
           )
         )
       )
@@ -353,27 +341,33 @@ object BuildConfigScreen extends Screen {
 
   private def offsetRow(model: Model): Html[Msg] = {
     val (maxX, maxY) = maxOffsets(model)
-    div(style := "display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;")(
-      label(style := "display: flex; align-items: center; gap: 0.5rem;")(
-        text("Offset X:"),
-        input(
-          `type` := "number",
-          min := "0",
-          max := maxX.toString,
-          value := model.offsetX.toString,
-          onInput(s => BuildConfigMsg.SetOffsetX(s.toIntOption.getOrElse(0))),
-          style := "width: 5rem; padding: 4px;"
-        )
-      ),
-      label(style := "display: flex; align-items: center; gap: 0.5rem;")(
-        text("Offset Y:"),
-        input(
-          `type` := "number",
-          min := "0",
-          max := maxY.toString,
-          value := model.offsetY.toString,
-          onInput(s => BuildConfigMsg.SetOffsetY(s.toIntOption.getOrElse(0))),
-          style := "width: 5rem; padding: 4px;"
+    div(`class` := s"${NesCss.field} field-block")(
+      div(`class` := "offset-sliders")(
+        div(`class` := "offset-slider-group")(
+          label(`class` := "label-block")(
+            span(`class` := NesCss.text)(text("Offset X:")),
+            span(`class` := "offset-value")(text(model.offsetX.toString))
+          ),
+          input(
+            `type` := "range",
+            min := "0",
+            max := maxX.max(1).toString,
+            value := model.offsetX.min(maxX).toString,
+            onInput(s => BuildConfigMsg.SetOffsetX(s.toIntOption.getOrElse(0)))
+          )
+        ),
+        div(`class` := "offset-slider-group")(
+          label(`class` := "label-block")(
+            span(`class` := NesCss.text)(text("Offset Y:")),
+            span(`class` := "offset-value")(text(model.offsetY.toString))
+          ),
+          input(
+            `type` := "range",
+            min := "0",
+            max := maxY.max(1).toString,
+            value := model.offsetY.min(maxY).toString,
+            onInput(s => BuildConfigMsg.SetOffsetY(s.toIntOption.getOrElse(0)))
+          )
         )
       )
     )
@@ -387,17 +381,17 @@ object BuildConfigScreen extends Screen {
       nameOf: A => String,
       idOf: A => String
   ): Html[Msg] =
-    div(style := "margin-bottom: 0.75rem;")(
-      span(style := "font-weight: 500; margin-right: 0.5rem;")(text(s"$labelText:")),
+    div(`class` := s"${NesCss.field} field-block")(
+      label(`class` := "label-block")(span(`class` := NesCss.text)(text(s"$labelText:"))),
       listOpt match {
         case None =>
-          text("Loading…")
+          span(`class` := NesCss.text)(text("Loading…"))
         case Some(list) if list.isEmpty =>
-          text(s"No ${labelText.toLowerCase}s saved.")
+          span(`class` := NesCss.text)(text(s"No ${labelText.toLowerCase}s saved."))
         case Some(list) =>
           val currentId = selectedId.orElse(list.headOption.map(idOf))
           select(
-            style := "padding: 4px 8px; min-width: 14rem;",
+            `class` := s"${NesCss.input} input-min-w-16",
             value := currentId.getOrElse(""),
             onInput(s => setMsg(if (s.isEmpty) list.headOption.map(idOf).getOrElse("") else s))
           )(

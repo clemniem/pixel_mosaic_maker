@@ -51,16 +51,14 @@ body {
   max-width: 42rem;
   margin: 0 auto;
   padding: 1rem;
-  font-family: system-ui, sans-serif;
   box-sizing: border-box;
 }
 
 .screen-header {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
   margin-bottom: 1.5rem;
-  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -211,7 +209,7 @@ body {
 }
 
 .input-monospace {
-  font-family: monospace;
+  font-family: "Press Start 2P", cursive;
 }
 
 /* ========== Helper text ========== */
@@ -332,6 +330,53 @@ body {
   font-size: 0.9rem;
 }
 
+/* Build config screen: two canvas blocks */
+.build-config-canvases {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.build-config-canvas-block {
+  flex: 1;
+  min-width: 200px;
+}
+
+.build-config-canvas-block .section-title {
+  margin-bottom: 0.5rem;
+}
+
+/* Build config: offset X/Y sliders (same width as dropdown selectors) */
+.offset-sliders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.offset-slider-group {
+  min-width: 16rem;
+  flex: 1;
+}
+
+.offset-slider-group .label-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.offset-slider-group .offset-value {
+  font-family: "Press Start 2P", cursive;
+  margin-left: 0.5rem;
+}
+
+.offset-slider-group input[type="range"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* ========== Error and empty states ========== */
 .error-box {
   margin-bottom: 1rem;
@@ -421,7 +466,7 @@ body {
   width: 5rem;
   padding: 2px 4px;
   font-size: 0.75rem;
-  font-family: monospace;
+  font-family: "Press Start 2P", cursive;
   min-height: 0;
 }
 

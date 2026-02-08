@@ -128,11 +128,11 @@ object PaletteScreen extends Screen {
     val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
     div(`class` := root)(
       div(`class` := "screen-header")(
-        h2(`class` := "screen-title")(text(screenId.title)),
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
           button(`class` := NesCss.btn, onClick(PaletteMsg.Back))(text("← Palettes")),
           button(`class` := NesCss.btnPrimary, onClick(PaletteMsg.Save))(text("Save"))
-        )
+        ),
+        h2(`class` := "screen-title")(text(screenId.title))
       ),
       div(`class` := "palette-name-row")(
         input(

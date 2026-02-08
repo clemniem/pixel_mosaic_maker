@@ -268,7 +268,6 @@ object GridConfigScreen extends Screen {
       `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide"
     )(
       div(`class` := "screen-header")(
-        h2(`class` := "screen-title")(text(screenId.title)),
         div(`class` := "flex-row")(
           button(`class` := NesCss.btn, onClick(GridConfigMsg.Back))(text("← GridConfigs")),
           input(
@@ -279,7 +278,8 @@ object GridConfigScreen extends Screen {
             `class` := s"${NesCss.input} input-w-12"
           ),
           button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.Save))(text("Save"))
-        )
+        ),
+        h2(`class` := "screen-title")(text(screenId.title))
       ),
       div(
         `class` := s"normalize-choice-box ${if (model.pendingNormalizeChoice) "" else "hidden"}"

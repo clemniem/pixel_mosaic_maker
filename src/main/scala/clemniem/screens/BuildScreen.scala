@@ -234,7 +234,7 @@ object BuildScreen extends Screen {
               ctx.fillStyle = "#eee"
               ctx.fillRect(0, 0, 400, 200)
               ctx.fillStyle = "#999"
-              ctx.font = "14px system-ui"
+              ctx.font = "14px \"Press Start 2P\", cursive"
               ctx.fillText("Grid region out of bounds", 12, 100)
           }
         case _ =>
@@ -243,7 +243,7 @@ object BuildScreen extends Screen {
           ctx.fillStyle = "#eee"
           ctx.fillRect(0, 0, 400, 200)
           ctx.fillStyle = "#999"
-          ctx.font = "14px system-ui"
+          ctx.font = "14px \"Press Start 2P\", cursive"
           ctx.fillText("Loading…", 12, 100)
       }
     })

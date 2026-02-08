@@ -124,14 +124,14 @@ object PrintInstructionsScreen extends Screen {
       `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--narrow"
     )(
       div(`class` := "screen-header")(
-        h2(`class` := "screen-title")(text(screenId.title)),
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
           button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.Back))(text("← Overview")),
           button(
             `class` := (if (canPrint) NesCss.btnPrimary else s"${NesCss.btn} btn-disabled"),
             onClick(PrintInstructionsMsg.PrintPdf)
           )(text("Print PDF"))
-        )
+        ),
+        h2(`class` := "screen-title")(text(screenId.title))
       ),
       p(`class` := s"${NesCss.text} screen-intro")(
         text("Choose a build config and set the booklet title, then generate the PDF.")
@@ -316,7 +316,7 @@ object PrintInstructionsScreen extends Screen {
     ctx.fillStyle = "#eee"
     ctx.fillRect(0, 0, w, h)
     ctx.fillStyle = "#999"
-    ctx.font = "14px system-ui"
+    ctx.font = "14px \"Press Start 2P\", cursive"
     ctx.fillText(text, 12, h / 2)
   }
 
