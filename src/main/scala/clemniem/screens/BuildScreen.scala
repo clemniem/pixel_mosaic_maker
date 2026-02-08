@@ -28,9 +28,10 @@ object BuildScreen extends Screen {
 
   val screenId: ScreenId = ScreenId.BuildId
 
-  private val overviewCanvasId = "build-overview"
-  private val previewCanvasId  = "build-preview"
-  private val patchSize        = 16
+  private val overviewCanvasId       = "build-overview"
+  private val previewCanvasId        = "build-preview"
+  private val patchSize              = 16
+  private val defaultPatchBackground = "#eeeeee"
 
   /** One step = one 16×16 patch in image coordinates (top-left). */
   def stepsForConfig(config: BuildConfig): Vector[(Int, Int)] = {
@@ -59,7 +60,9 @@ object BuildScreen extends Screen {
           currentBuild = None,
           images = None,
           palettes = None,
-          stepIndex = stepIndex
+          stepIndex = stepIndex,
+          pendingSave = None,
+          patchBackgroundColorHex = defaultPatchBackground
         )
         val loadImages   = LocalStorageUtils.loadList(StorageKeys.images)(
           BuildScreenMsg.LoadedImages.apply,
@@ -80,7 +83,9 @@ object BuildScreen extends Screen {
           currentBuild = Some(storedBuild),
           images = None,
           palettes = None,
-          stepIndex = stepIndex
+          stepIndex = stepIndex,
+          pendingSave = None,
+          patchBackgroundColorHex = defaultPatchBackground
         )
         val loadConfigs  = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
           BuildScreenMsg.LoadedBuildConfigs.apply,
@@ -100,7 +105,7 @@ object BuildScreen extends Screen {
         (model, Cmd.Batch(loadConfigs, loadImages, loadPalettes))
 
       case _ =>
-        (BuildScreenModel(None, None, None, None, 0, None), Cmd.Emit(NavigateNext(ScreenId.BuildsId, None)))
+        (BuildScreenModel(None, None, None, None, 0, None, defaultPatchBackground), Cmd.Emit(NavigateNext(ScreenId.BuildsId, None)))
     }
   }
 
@@ -183,6 +188,9 @@ object BuildScreen extends Screen {
     case BuildScreenMsg.Draw =>
       (model, drawCmd(model))
 
+    case BuildScreenMsg.SetPatchBackgroundColor(hex) =>
+      (model.copy(patchBackgroundColorHex = normalizedPatchBackgroundHex(hex)), drawCmd(model.copy(patchBackgroundColorHex = normalizedPatchBackgroundHex(hex))))
+
     case _: NavigateNext =>
       (model, Cmd.None)
   }
@@ -256,6 +264,24 @@ object BuildScreen extends Screen {
   /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. Up to 16 colors in a 4-column grid. */
   private val previewCols = 4
 
+  private def normalizedPatchBackgroundHex(hex: String): String = {
+    val s = hex.trim
+    val withHash = if (s.startsWith("#")) s else "#" + s
+    if (withHash.length == 7) withHash else defaultPatchBackground
+  }
+
+  private def patchBackgroundRgb(hex: String): (Int, Int, Int) = {
+    val h = normalizedPatchBackgroundHex(hex)
+    def parse(s: String): Int = {
+      val n = java.lang.Integer.parseInt(s, 16)
+      if (n >= 0 && n <= 255) n else 238
+    }
+    if (h.length != 7) (238, 238, 238)
+    else
+      try (parse(h.substring(1, 3)), parse(h.substring(3, 5)), parse(h.substring(5, 7)))
+      catch { case _: Exception => (238, 238, 238) }
+  }
+
   private def drawPreview(model: Model): IO[Unit] =
     CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
       val picOpt = picWithPalette(model)
@@ -277,9 +303,7 @@ object BuildScreen extends Screen {
               canvas.width = totalW.max(1)
               canvas.height = totalH.max(1)
               ctx.clearRect(0, 0, canvas.width, canvas.height)
-              val bgR = 238
-              val bgG = 238
-              val bgB = 238
+              val (bgR, bgG, bgB) = patchBackgroundRgb(model.patchBackgroundColorHex)
               sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), i) =>
                 val px  = patch.paletteLookup(paletteIndex)
                 val col = i % cols
@@ -319,13 +343,15 @@ object BuildScreen extends Screen {
             case None =>
               canvas.width = patchSize
               canvas.height = patchSize
-              ctx.fillStyle = "#eee"
+              val (r, g, b) = patchBackgroundRgb(model.patchBackgroundColorHex)
+              ctx.fillStyle = s"rgb($r,$g,$b)"
               ctx.fillRect(0, 0, patchSize, patchSize)
           }
         case None =>
           canvas.width = patchSize
           canvas.height = patchSize
-          ctx.fillStyle = "#eee"
+          val (r, g, b) = patchBackgroundRgb(model.patchBackgroundColorHex)
+          ctx.fillStyle = s"rgb($r,$g,$b)"
           ctx.fillRect(0, 0, patchSize, patchSize)
       }
     })
@@ -381,6 +407,24 @@ object BuildScreen extends Screen {
         ),
         div(`class` := "build-config-canvas-block build-config-canvas-block--no-grow")(
           div(`class` := "section-title")(text("Current patch by color (least → most)")),
+          div(`class` := s"${NesCss.field} field-block", style := "margin-bottom: 0.5rem;")(
+            label(`class` := "label-block")(text("Patch background")),
+            div(`class` := "flex-row flex-row--tight")(
+              input(
+                `type` := "color",
+                `class` := "input-color",
+                value := normalizedPatchBackgroundHex(model.patchBackgroundColorHex),
+                onInput(hex => BuildScreenMsg.SetPatchBackgroundColor(hex))
+              ),
+              input(
+                `type` := "text",
+                `class` := s"${NesCss.input} input-w-7 input-monospace",
+                value := model.patchBackgroundColorHex,
+                placeholder := defaultPatchBackground,
+                onInput(BuildScreenMsg.SetPatchBackgroundColor.apply)
+              )
+            )
+          ),
           div(`class` := "build-preview-inner", onLoad(BuildScreenMsg.Draw))(
             canvas(id := previewCanvasId, width := 32, height := 32, `class` := "pixel-canvas")()
           )
@@ -396,7 +440,8 @@ final case class BuildScreenModel(
     images: Option[List[StoredImage]],
     palettes: Option[List[StoredPalette]],
     stepIndex: Int,
-    pendingSave: Option[StoredBuild] = None
+    pendingSave: Option[StoredBuild] = None,
+    patchBackgroundColorHex: String = "#eeeeee"
 ) {
   def steps: Vector[(Int, Int)] =
     buildConfig match {
@@ -424,3 +469,4 @@ enum BuildScreenMsg:
   case SaveDone
   case SaveFailed
   case Draw
+  case SetPatchBackgroundColor(hex: String)

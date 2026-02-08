@@ -380,8 +380,9 @@ input[type="number"].nes-input {
   display: inline-block;
 }
 
+/* Build preview: display size is set in JS to fit container with square pixels */
 .build-preview-inner .pixel-canvas {
-  min-height: 128px;
+  min-height: 0;
 }
 
 /* Build config: offset X/Y sliders (same width as dropdown selectors) */
