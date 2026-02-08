@@ -385,6 +385,32 @@ input[type="number"].nes-input {
   min-height: 0;
 }
 
+.build-overview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.build-overview-row .build-config-canvas-block {
+  flex: 1;
+  min-width: 200px;
+}
+
+.build-patch-bg-block {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
+.build-preview-row {
+  margin-top: 0;
+}
+
+.build-preview-row .section-title {
+  margin-bottom: 0.5rem;
+}
+
 /* Build config: offset X/Y sliders (same width as dropdown selectors) */
 .offset-sliders {
   display: flex;

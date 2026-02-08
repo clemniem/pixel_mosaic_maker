@@ -357,77 +357,76 @@ object BuildScreen extends Screen {
     })
 
   def view(model: Model): Html[Msg] = {
-    val steps     = model.steps
-    val total     = steps.size
-    val current   = model.stepIndex
-    val stepLabel = if (total == 0) "Step 0 / 0" else s"Step ${current + 1} / $total"
-    val title     = model.currentBuild.map(_.name).orElse(model.buildConfig.map(_.name)).getOrElse("Build")
+    val steps   = model.steps
+    val total   = steps.size
+    val current = model.stepIndex
+    val title   = model.currentBuild.map(_.name).orElse(model.buildConfig.map(_.name)).getOrElse("Build")
 
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide")(
       ScreenHeader(
         title,
-        div(`class` := "flex-row")(
-          button(
-            `class` := (if (model.pendingSave.isDefined) s"${NesCss.btn} btn-disabled" else NesCss.btnSuccess),
-            onClick(BuildScreenMsg.Save)
-          )(text(if (model.pendingSave.isDefined) "Saving…" else "Save step")),
-          button(`class` := NesCss.btn, onClick(BuildScreenMsg.Back))(text("← Builds"))
+        div(
+          div(`class` := "flex-row")( /* row 0: Save + Back */
+            button(
+              `class` := (if (model.pendingSave.isDefined) s"${NesCss.btn} btn-disabled" else NesCss.btnSuccess),
+              onClick(BuildScreenMsg.Save)
+            )(text(if (model.pendingSave.isDefined) "Saving…" else "Save step")),
+            button(`class` := NesCss.btn, onClick(BuildScreenMsg.Back))(text("← Builds"))
+          ),
+          div(`class` := "flex-row flex-row--tight", style := "margin-top: 0.5rem;")(
+            button(
+              `class` := (if (total == 0 || current <= 0) s"${NesCss.btn} btn-disabled" else NesCss.btn),
+              onClick(BuildScreenMsg.PrevStep)
+            )(text("Previous")),
+            button(
+              `class` := (if (total == 0 || current >= total - 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
+              onClick(BuildScreenMsg.NextStep)
+            )(text("Next")),
+            input(
+              `type` := "number",
+              min := "1",
+              max := total.max(1).toString,
+              value := (if (total == 0) "0" else (current + 1).toString),
+              onInput(s => BuildScreenMsg.SetStep(s.toIntOption.getOrElse(1) - 1)),
+              `class` := s"${NesCss.input} input-w-4"
+            ),
+            text(" from "),
+            span(`class` := "section-title", style := "margin: 0; align-self: center;")(text(total.toString))
+          )
         ),
         None,
         false
       ),
-      div(`class` := "flex-row flex-row--wide", style := "margin-bottom: 1rem;")(
-        span(`class` := "section-title", style := "margin: 0;")(text(stepLabel)),
-        button(
-          `class` := (if (total == 0 || current <= 0) s"${NesCss.btn} btn-disabled" else NesCss.btn),
-          onClick(BuildScreenMsg.PrevStep)
-        )(text("Previous")),
-        button(
-          `class` := (if (total == 0 || current >= total - 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
-          onClick(BuildScreenMsg.NextStep)
-        )(text("Next")),
-        label(`class` := "flex-row", style := "gap: 0.5rem;")(
-          text("Go to:"),
-          input(
-            `type` := "number",
-            min := "1",
-            max := total.max(1).toString,
-            value := (if (total == 0) "0" else (current + 1).toString),
-            onInput(s => BuildScreenMsg.SetStep(s.toIntOption.getOrElse(1) - 1)),
-            `class` := s"${NesCss.input} input-w-4"
-          )
-        )
-      ),
-      div(`class` := "build-config-canvases")(
+      div(`class` := "build-overview-row")(
         div(`class` := "build-config-canvas-block")(
           div(`class` := "section-title")(text("Overview")),
           div(onLoad(BuildScreenMsg.Draw))(
             canvas(id := overviewCanvasId, width := 400, height := 200, `class` := "pixel-canvas")()
           )
         ),
-        div(`class` := "build-config-canvas-block build-config-canvas-block--no-grow")(
-          div(`class` := "section-title")(text("Current patch by color (least → most)")),
-          div(`class` := s"${NesCss.field} field-block", style := "margin-bottom: 0.5rem;")(
-            label(`class` := "label-block")(text("Patch background")),
-            div(`class` := "flex-row flex-row--tight")(
-              input(
-                `type` := "color",
-                `class` := "input-color",
-                value := normalizedPatchBackgroundHex(model.patchBackgroundColorHex),
-                onInput(hex => BuildScreenMsg.SetPatchBackgroundColor(hex))
-              ),
-              input(
-                `type` := "text",
-                `class` := s"${NesCss.input} input-w-7 input-monospace",
-                value := model.patchBackgroundColorHex,
-                placeholder := defaultPatchBackground,
-                onInput(BuildScreenMsg.SetPatchBackgroundColor.apply)
-              )
+        div(`class` := s"${NesCss.field} build-patch-bg-block")(
+          label(`class` := "label-block")(text("Patch background")),
+          div(`class` := "flex-row flex-row--tight")(
+            input(
+              `type` := "color",
+              `class` := "input-color",
+              value := normalizedPatchBackgroundHex(model.patchBackgroundColorHex),
+              onInput(hex => BuildScreenMsg.SetPatchBackgroundColor(hex))
+            ),
+            input(
+              `type` := "text",
+              `class` := s"${NesCss.input} input-w-7 input-monospace",
+              value := model.patchBackgroundColorHex,
+              placeholder := defaultPatchBackground,
+              onInput(BuildScreenMsg.SetPatchBackgroundColor.apply)
             )
-          ),
-          div(`class` := "build-preview-inner", onLoad(BuildScreenMsg.Draw))(
-            canvas(id := previewCanvasId, width := 32, height := 32, `class` := "pixel-canvas")()
           )
+        )
+      ),
+      div(`class` := "build-preview-row")(
+        div(`class` := "section-title")(text("Current patch by color (least → most)")),
+        div(`class` := "build-preview-inner", onLoad(BuildScreenMsg.Draw))(
+          canvas(id := previewCanvasId, width := 32, height := 32, `class` := "pixel-canvas")()
         )
       )
     )
