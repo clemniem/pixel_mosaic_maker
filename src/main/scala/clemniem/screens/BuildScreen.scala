@@ -15,6 +15,7 @@ import clemniem.{
   StoredPalette
 }
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
 
@@ -330,33 +331,36 @@ object BuildScreen extends Screen {
     })
 
   def view(model: Model): Html[Msg] = {
-    val steps = model.steps
-    val total    = steps.size
-    val current  = model.stepIndex
+    val steps     = model.steps
+    val total     = steps.size
+    val current   = model.stepIndex
     val stepLabel = if (total == 0) "Step 0 / 0" else s"Step ${current + 1} / $total"
+    val title     = model.currentBuild.map(_.name).orElse(model.buildConfig.map(_.name)).getOrElse("Build")
 
-    div(`class` := "screen-container screen-container--wide")(
-      div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;")(
-        h2(style := "margin: 0;")(text(model.currentBuild.map(_.name).orElse(model.buildConfig.map(_.name)).getOrElse("Build"))),
-        div(style := "display: flex; align-items: center; gap: 8px;")(
+    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide")(
+      ScreenHeader(
+        title,
+        div(`class` := "flex-row")(
           button(
-            style := "padding: 6px 14px; cursor: pointer; background: #2e7d32; color: #fff; border: none; border-radius: 4px; font-weight: 500;",
+            `class` := (if (model.pendingSave.isDefined) s"${NesCss.btn} btn-disabled" else NesCss.btnSuccess),
             onClick(BuildScreenMsg.Save)
           )(text(if (model.pendingSave.isDefined) "Saving…" else "Save step")),
-          button(style := "padding: 6px 12px; cursor: pointer;", onClick(BuildScreenMsg.Back))(text("← Builds"))
-        )
+          button(`class` := NesCss.btn, onClick(BuildScreenMsg.Back))(text("← Builds"))
+        ),
+        None,
+        false
       ),
-      div(style := "display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;")(
-        span(style := "font-weight: 500;")(text(stepLabel)),
+      div(`class` := "flex-row flex-row--wide", style := "margin-bottom: 1rem;")(
+        span(`class` := "section-title", style := "margin: 0;")(text(stepLabel)),
         button(
-          style := (if (total == 0 || current <= 0) "padding: 4px 10px; cursor: not-allowed; opacity: 0.6;" else "padding: 4px 10px; cursor: pointer;"),
+          `class` := (if (total == 0 || current <= 0) s"${NesCss.btn} btn-disabled" else NesCss.btn),
           onClick(BuildScreenMsg.PrevStep)
         )(text("Previous")),
         button(
-          style := (if (total == 0 || current >= total - 1) "padding: 4px 10px; cursor: not-allowed; opacity: 0.6;" else "padding: 4px 10px; cursor: pointer;"),
+          `class` := (if (total == 0 || current >= total - 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
           onClick(BuildScreenMsg.NextStep)
         )(text("Next")),
-        label(style := "display: flex; align-items: center; gap: 0.5rem;")(
+        label(`class` := "flex-row", style := "gap: 0.5rem;")(
           text("Go to:"),
           input(
             `type` := "number",
@@ -364,31 +368,21 @@ object BuildScreen extends Screen {
             max := total.max(1).toString,
             value := (if (total == 0) "0" else (current + 1).toString),
             onInput(s => BuildScreenMsg.SetStep(s.toIntOption.getOrElse(1) - 1)),
-            style := "width: 4rem; padding: 4px;"
+            `class` := s"${NesCss.input} input-w-4"
           )
         )
       ),
-      div(style := "margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start;")(
-        div(style := "flex: 1; min-width: 200px;")(
-          div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Overview")),
+      div(`class` := "build-config-canvases")(
+        div(`class` := "build-config-canvas-block")(
+          div(`class` := "section-title")(text("Overview")),
           div(onLoad(BuildScreenMsg.Draw))(
-            canvas(
-              id := overviewCanvasId,
-              width := 400,
-              height := 200,
-              style := "border: 1px solid #333; display: block; max-width: 100%; image-rendering: pixelated; image-rendering: crisp-edges;"
-            )()
+            canvas(id := overviewCanvasId, width := 400, height := 200, `class` := "pixel-canvas")()
           )
         ),
-        div(style := "flex: 0 0 auto; max-width: 100%;")(
-          div(style := "margin-bottom: 0.5rem; font-weight: 500;")(text("Current patch by color (least → most)")),
-          div(style := "overflow: auto; display: inline-block; max-height: 70vh;", onLoad(BuildScreenMsg.Draw))(
-            canvas(
-              id := previewCanvasId,
-              width := 32,
-              height := 32,
-              style := "display: block; image-rendering: pixelated; image-rendering: crisp-edges; min-height: 128px;"
-            )()
+        div(`class` := "build-config-canvas-block build-config-canvas-block--no-grow")(
+          div(`class` := "section-title")(text("Current patch by color (least → most)")),
+          div(`class` := "build-preview-inner", onLoad(BuildScreenMsg.Draw))(
+            canvas(id := previewCanvasId, width := 32, height := 32, `class` := "pixel-canvas")()
           )
         )
       )
