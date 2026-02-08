@@ -42,7 +42,8 @@ jobs:
           cp target/scala-*/pixel_mosaic_maker-opt/main.js dist/
           cp target/scala-*/pixel_mosaic_maker-opt/main.js.map dist/ 2>/dev/null || true
           cp css/style.css dist/css/
-          cp favicon.png favicon-32x32.png favicon-16x16.png dist/ 2>/dev/null || true
+          cp favicon.ico favicon-32x32.png favicon-16x16.png apple-touch-icon.png android-chrome-192x192.png android-chrome-512x512.png dist/ 2>/dev/null || true
+          cp site.webmanifest sw.js dist/ 2>/dev/null || true
           echo "import { TyrianApp } from './main.js';" > dist/loader.js
           echo "TyrianApp.launch(\"myapp\");" >> dist/loader.js
           cat > dist/index.html << 'INDEX'
@@ -52,15 +53,24 @@ jobs:
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>Pixel Mosaic Maker</title>
+            <link rel="icon" href="./favicon.ico" sizes="any">
             <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
             <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
-            <link rel="icon" href="./favicon-32x32.png" type="image/png">
+            <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+            <link rel="manifest" href="./site.webmanifest">
             <link href="https://unpkg.com/nes.css@2.3.0/css/nes.min.css" rel="stylesheet">
             <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
             <link rel="stylesheet" href="./css/style.css">
           </head>
           <body>
             <div id="myapp"></div>
+            <script>
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function () {
+                  navigator.serviceWorker.register('./sw.js').catch(function () {});
+                });
+              }
+            </script>
             <script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
             <script type="module" src="./loader.js"></script>
           </body>
