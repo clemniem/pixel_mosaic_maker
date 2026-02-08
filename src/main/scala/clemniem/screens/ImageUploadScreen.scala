@@ -152,7 +152,8 @@ object ImageUploadScreen extends Screen {
     div(
       `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container"
     )(
-      div(`class` := "screen-header screen-header--short")(
+      ScreenHeader(
+        screenId.title,
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
           button(`class` := NesCss.btn, onClick(ImageUploadMsg.Back))(text("← Images")),
           label(
@@ -168,19 +169,11 @@ object ImageUploadScreen extends Screen {
             `class` := (if (model.pixelPic.nonEmpty && model.pixelPic.forall(p => p.width <= maxWidth && p.height <= maxHeight) && !model.loading)
               NesCss.btnSuccess else s"${NesCss.btn} btn-disabled"),
             onClick(ImageUploadMsg.Save)
-          )(text(if (model.loading) "Saving…" else "Save")),
-          if (model.pixelPic.isDefined)
-            input(
-              `type` := "text",
-              `class` := s"${NesCss.input} input-w-24",
-              placeholder := "Name",
-              value := model.name,
-              onInput(ImageUploadMsg.SetName.apply)
-            )
-          else
-            div(`class` := "hidden")(text(""))
+          )(text(if (model.loading) "Saving…" else "Save"))
         ),
-        h2(`class` := "screen-title")(text(screenId.title))
+        if (model.pixelPic.isDefined) Some(ScreenHeader.nameRowInput(model.name, ImageUploadMsg.SetName.apply, None, ""))
+        else None,
+        true
       ),
       p(`class` := s"${NesCss.text} screen-intro screen-intro--short")(
         text(s"Upload an image from your computer. Max size ${maxWidth}×${maxHeight} px. Scaled-up pixel art is auto-detected and resized.")

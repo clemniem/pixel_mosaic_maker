@@ -123,7 +123,8 @@ object PrintInstructionsScreen extends Screen {
     div(
       `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--narrow"
     )(
-      div(`class` := "screen-header")(
+      ScreenHeader(
+        screenId.title,
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
           button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.Back))(text("← Overview")),
           button(
@@ -131,7 +132,8 @@ object PrintInstructionsScreen extends Screen {
             onClick(PrintInstructionsMsg.PrintPdf)
           )(text("Print PDF"))
         ),
-        h2(`class` := "screen-title")(text(screenId.title))
+        None,
+        false
       ),
       p(`class` := s"${NesCss.text} screen-intro")(
         text("Choose a build config and set the booklet title, then generate the PDF.")

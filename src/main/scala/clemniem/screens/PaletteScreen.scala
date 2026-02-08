@@ -127,22 +127,14 @@ object PaletteScreen extends Screen {
   def view(model: Model): Html[Msg] = {
     val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
     div(`class` := root)(
-      div(`class` := "screen-header")(
+      ScreenHeader(
+        screenId.title,
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
           button(`class` := NesCss.btn, onClick(PaletteMsg.Back))(text("← Palettes")),
           button(`class` := NesCss.btnPrimary, onClick(PaletteMsg.Save))(text("Save"))
         ),
-        h2(`class` := "screen-title")(text(screenId.title))
-      ),
-      div(`class` := "palette-name-row")(
-        input(
-          id := "palette-name",
-          `type` := "text",
-          placeholder := "Name",
-          value := model.name,
-          onInput(PaletteMsg.SetName.apply),
-          `class` := s"${NesCss.input} palette-name-input",
-        )
+        Some(ScreenHeader.nameRowInput(model.name, PaletteMsg.SetName.apply, Some("palette-name"), "palette-name-row")),
+        false
       ),
       p(`class` := NesCss.text, style := "margin-bottom: 1rem;")(
         text(s"Colors (${model.colors.length}/$maxColors). Edit hex or use picker. Use arrows to reorder.")

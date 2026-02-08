@@ -66,6 +66,17 @@ body {
   margin-bottom: 1rem;
 }
 
+.screen-header-name-row {
+  margin-top: 0.25rem;
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.screen-header-name-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .screen-title {
   margin: 0 0 1rem 0;
 }
@@ -414,11 +425,6 @@ body {
 /* ========== Palette edit screen ========== */
 .palette-name-row {
   margin-bottom: 1rem;
-}
-
-.palette-name-input {
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .palette-edit-list {

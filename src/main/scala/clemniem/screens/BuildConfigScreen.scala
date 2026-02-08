@@ -304,19 +304,14 @@ object BuildConfigScreen extends Screen {
 
   def view(model: Model): Html[Msg] = {
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide")(
-      div(`class` := "screen-header")(
+      ScreenHeader(
+        screenId.title,
         div(`class` := "flex-row")(
           button(`class` := NesCss.btn, onClick(BuildConfigMsg.Back))(text("← Build configs")),
-          input(
-            `type` := "text",
-            placeholder := "Name",
-            value := model.name,
-            onInput(BuildConfigMsg.SetName.apply),
-            `class` := s"${NesCss.input} input-w-12"
-          ),
           button(`class` := NesCss.btnPrimary, onClick(BuildConfigMsg.Save))(text("Save"))
         ),
-        h2(`class` := "screen-title")(text(screenId.title))
+        Some(ScreenHeader.nameRowInput(model.name, BuildConfigMsg.SetName.apply, None, "")),
+        false
       ),
       selectRow("Grid", model.gridConfigs, model.selectedGridId, BuildConfigMsg.SetGrid.apply, (g: StoredGridConfig) => g.name, (g: StoredGridConfig) => g.id),
       selectRow("Image", model.images, model.selectedImageId, BuildConfigMsg.SetImage.apply, (i: StoredImage) => i.name, (i: StoredImage) => i.id),

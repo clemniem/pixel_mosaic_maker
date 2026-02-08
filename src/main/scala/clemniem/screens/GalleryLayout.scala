@@ -33,8 +33,8 @@ object GalleryLayout {
     }
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container")(
       div(`class` := headerClass)(
-        headerButtons,
-        h1(`class` := "screen-title")(text(title))
+        h1(`class` := "screen-title")(text(title)),
+        headerButtons
       ),
       div(`class` := galleryContentClass)(content)
     )
