@@ -43,7 +43,7 @@ jobs:
           cp target/scala-*/pixel_mosaic_maker-opt/main.js.map dist/ 2>/dev/null || true
           cp css/style.css dist/css/
           cp favicon.ico favicon-32x32.png favicon-16x16.png apple-touch-icon.png android-chrome-192x192.png android-chrome-512x512.png dist/ 2>/dev/null || true
-          cp site.webmanifest sw.js dist/ 2>/dev/null || true
+          cp site.webmanifest sw.js dist/
           echo "import { TyrianApp } from './main.js';" > dist/loader.js
           echo "TyrianApp.launch(\"myapp\");" >> dist/loader.js
           cat > dist/index.html << 'INDEX'
@@ -67,7 +67,7 @@ jobs:
             <script>
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function () {
-                  navigator.serviceWorker.register('./sw.js').catch(function () {});
+                  navigator.serviceWorker.register(new URL('./sw.js', document.baseURI).href).catch(function () {});
                 });
               }
             </script>
