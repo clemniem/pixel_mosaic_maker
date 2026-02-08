@@ -189,6 +189,16 @@ body {
   box-sizing: border-box;
 }
 
+.input-w-4 {
+  width: 5rem;
+  box-sizing: border-box;
+}
+
+.input-w-3half {
+  width: 4.5rem;
+  box-sizing: border-box;
+}
+
 .input-min-w-16 {
   min-width: 16rem;
 }
@@ -238,6 +248,88 @@ body {
   max-width: 100%;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+/* ========== Grid config screen ========== */
+.normalize-choice-box {
+  margin-bottom: 1rem;
+  padding: 12px;
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  border-radius: 6px;
+}
+
+.normalize-choice-box.hidden {
+  display: none;
+}
+
+.grid-editor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.grid-editor-row-first {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.grid-editor-row-second {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.grid-editor-row .grid-editor-label {
+  font-size: 0.85rem;
+  min-width: 3rem;
+}
+
+.grid-editor-row .grid-editor-meta {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.grid-editor-row .grid-editor-cells {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Less horizontal padding in grid editor so numbers are clearly visible */
+.grid-editor-row input.nes-input,
+.grid-editor-row input[type="number"] {
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+.grid-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grid-preview-box {
+  margin-top: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.grid-preview-box .section-title {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
 }
 
 /* ========== Error and empty states ========== */
