@@ -80,7 +80,11 @@ object GridConfigScreen extends Screen {
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case GridConfigMsg.AddRow =>
-      val next = model.copy(rowDefs = model.rowDefs :+ RowDef(defaultRowHeight, List(defaultCellWidth)))
+      val newRow = model.rowDefs.lastOption match {
+        case Some(prev) => RowDef(prev.height, prev.cellWidths)
+        case None       => RowDef(defaultRowHeight, List(defaultCellWidth))
+      }
+      val next = model.copy(rowDefs = model.rowDefs :+ newRow)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case GridConfigMsg.RemoveRow(idx) =>
@@ -127,7 +131,11 @@ object GridConfigScreen extends Screen {
       (next, Cmd.None)
 
     case GridConfigMsg.AddColumn =>
-      val next = model.copy(columnDefs = model.columnDefs :+ ColumnDef(defaultColWidth, List(defaultCellHeight)))
+      val newCol = model.columnDefs.lastOption match {
+        case Some(prev) => ColumnDef(prev.width, prev.cellHeights)
+        case None       => ColumnDef(defaultColWidth, List(defaultCellHeight))
+      }
+      val next = model.copy(columnDefs = model.columnDefs :+ newCol)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case GridConfigMsg.RemoveColumn(idx) =>
