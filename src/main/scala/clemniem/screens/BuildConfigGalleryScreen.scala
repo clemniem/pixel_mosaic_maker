@@ -159,7 +159,7 @@ object BuildConfigGalleryScreen extends Screen {
           if (list.isEmpty)
             GalleryEmptyState("No build configs yet.", "+ Create BuildConfig", BuildConfigGalleryMsg.CreateNew)
           else
-            div(`class` := "flex-col")(
+            div(`class` := GalleryLayout.galleryListClass)(
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
                 button(`class` := NesCss.btnPrimary, onClick(BuildConfigGalleryMsg.CreateNew))(text("+ Create BuildConfig")))*
             )

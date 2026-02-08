@@ -7,9 +7,15 @@ import tyrian.*
 /** Shared layout for gallery screens: root container, header (title + back button), and content. */
 object GalleryLayout {
 
+  /** CSS class for the content area so items don't touch container borders. Use with gallery-list for the list wrapper. */
+  val galleryContentClass = "gallery-content"
+
+  /** CSS class for the vertical list of gallery cards + actions (gap between items, no touching). */
+  val galleryListClass = "gallery-list"
+
   /** @param title       Screen title (e.g. "Palettes", "Build configs")
     * @param backButton  Back button HTML (e.g. ← Overview)
-    * @param content     Main content: loading state, empty state, or list + actions
+    * @param content     Main content: loading state, empty state, or list + actions (will be wrapped in gallery-content)
     * @param shortHeader If true, use smaller margin below header
     */
   def apply[Msg](
@@ -24,7 +30,7 @@ object GalleryLayout {
         h1(`class` := "screen-title")(text(title)),
         backButton
       ),
-      content
+      div(`class` := galleryContentClass)(content)
     )
   }
 }

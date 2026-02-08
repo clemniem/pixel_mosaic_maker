@@ -438,6 +438,18 @@ body {
 }
 
 /* ========== Gallery screens ========== */
+/* Content area: padding so cards don't touch container borders */
+.gallery-content {
+  padding: 0 0.5rem;
+}
+
+/* Vertical list of gallery cards + actions: consistent gap so items don't touch */
+.gallery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 /* Override NES.css container background for gallery entries (match rounded variant). Opaque, not see-through. */
 .nes-container.gallery-card,
 .nes-container.is-rounded.gallery-card {

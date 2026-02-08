@@ -75,9 +75,9 @@ object ImagesGalleryScreen extends Screen {
           if (list.isEmpty)
             GalleryEmptyState("No images yet.", "Upload", ImagesGalleryMsg.CreateNew)
           else
-            div(`class` := "flex-col flex-col--gap-tight")(
+            div(`class` := GalleryLayout.galleryListClass)(
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
-                button(`class` := NesCss.btnPrimary, style := "margin-top: 0.5rem;", onClick(ImagesGalleryMsg.CreateNew))(text("Upload")))*
+                button(`class` := NesCss.btnPrimary, onClick(ImagesGalleryMsg.CreateNew))(text("Upload")))*
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = true)
     }

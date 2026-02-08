@@ -225,8 +225,8 @@ object BuildsGalleryScreen extends Screen {
             )
           else
             button(`class` := NesCss.btnPrimary, onClick(BuildsGalleryMsg.ShowNewBuildDropdown))(text("+ Start new build"))
-        val content = div(
-          div(`class` := "flex-col")(
+        val content = div(`class` := GalleryLayout.galleryListClass)(
+          div(`class` := GalleryLayout.galleryListClass)(
             builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))*
           ),
           bottomSection

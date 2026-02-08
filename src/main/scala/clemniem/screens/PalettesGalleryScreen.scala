@@ -120,16 +120,16 @@ object PalettesGalleryScreen extends Screen {
       case Some(list) =>
         val content =
           if (list.isEmpty)
-            div(`class` := "flex-col")(
+            div(`class` := GalleryLayout.galleryListClass)(
               GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew),
-              div(`class` := "flex-row", style := "margin-top: 0.5rem;")(
+              div(`class` := "flex-row")(
                 button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
               )
             )
           else
-            div(`class` := "flex-col")(
+            div(`class` := GalleryLayout.galleryListClass)(
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
-                div(`class` := "flex-row", style := "margin-top: 0.5rem;")(
+                div(`class` := "flex-row")(
                   button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
                   button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
                 ))*

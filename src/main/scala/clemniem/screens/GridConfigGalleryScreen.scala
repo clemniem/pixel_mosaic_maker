@@ -75,9 +75,9 @@ object GridConfigGalleryScreen extends Screen {
           if (list.isEmpty)
             GalleryEmptyState("No grid configs yet.", "+ Create GridConfig", GridConfigGalleryMsg.CreateNew)
           else
-            div(`class` := "flex-col flex-col--gap-tight")(
+            div(`class` := GalleryLayout.galleryListClass)(
               (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
-                button(`class` := NesCss.btnPrimary, style := "margin-top: 0.5rem;", onClick(GridConfigGalleryMsg.CreateNew))(text("+ Create GridConfig")))*
+                button(`class` := NesCss.btnPrimary, onClick(GridConfigGalleryMsg.CreateNew))(text("+ Create GridConfig")))*
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = true)
     }
