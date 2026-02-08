@@ -165,9 +165,10 @@ This document captures what was learned during development of the Pixel Mosaic M
 2. **New stored entity:** Add case class in `StoredEntities.scala`, Circe encoder + backward-compatible decoder if needed, add `StorageKeys` key if it’s a new list.
 3. **New navigation payload:** Add a `ScreenOutput` case class; pass it in `NavigateNext(screenId, Some(output))` and handle it in the target screen’s `init`.
 4. **Canvas:** Use `CanvasUtils.drawAfterViewReady` or `drawAfterViewReadyDelayed`; use `drawPixelPic` for PixelPic; set canvas size in draw code when it depends on content (e.g. smaller image → smaller canvas).
-5. **Gallery empty state:** Use `GalleryEmptyState(emptyText, buttonLabel, msg)`.
+5. **Gallery empty state:** Use `GalleryEmptyState(emptyText, buttonLabel, msg)` for all galleries when the list is empty (see §5). Builds gallery uses it when there are no builds; the button can emit a message that opens a dropdown (e.g. `ShowNewBuildDropdown`) instead of navigating.
 6. **Gallery / NES styling:** Use `NesCss` + classes from `css/style.css` as in **§8** (screen-container, gallery-card, gallery-actions, etc.); keep only dynamic values (e.g. color, progress %) as inline styles.
-7. After changes: `sbt compile` and `sbt test`; fix Scalafix and test failures.
+7. **Editor/creation screen:** Use **`ScreenHeader`** for the header and **`ScreenHeader.nameRowInput`** for the entity name row where applicable (see §16.1).
+8. After changes: `sbt compile` and `sbt test`; fix Scalafix and test failures.
 
 Using this file together with **FLOW.md** and **README.md** should give enough context to work on the project efficiently.
 

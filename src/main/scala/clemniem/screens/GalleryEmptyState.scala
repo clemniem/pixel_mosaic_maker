@@ -13,7 +13,7 @@ object GalleryEmptyState {
     */
   def apply[Msg](emptyText: String, buttonLabel: String, createMsg: Msg): Html[Msg] =
     div(`class` := s"${NesCss.container} empty-state")(
-      p(`class` := NesCss.text, style := "margin-bottom: 1rem;")(text(emptyText)),
+      p(`class` := NesCss.text)(text(emptyText)),
       button(`class` := NesCss.btnPrimary, onClick(createMsg))(text(buttonLabel))
     )
 }

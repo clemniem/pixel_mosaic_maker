@@ -226,12 +226,19 @@ object BuildsGalleryScreen extends Screen {
             )
           else
             button(`class` := NesCss.btnPrimary, onClick(BuildsGalleryMsg.ShowNewBuildDropdown))(text("+ Start new build"))
-        val content = div(`class` := GalleryLayout.galleryListClass)(
-          div(`class` := GalleryLayout.galleryListClass)(
-            builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))*
-          ),
-          bottomSection
-        )
+        val content =
+          if (builds.isEmpty)
+            if (model.showNewBuildDropdown)
+              div(`class` := GalleryLayout.galleryListClass)(bottomSection)
+            else
+              GalleryEmptyState("No builds yet.", "+ Start new build", BuildsGalleryMsg.ShowNewBuildDropdown)
+          else
+            div(`class` := GalleryLayout.galleryListClass)(
+              div(`class` := GalleryLayout.galleryListClass)(
+                builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))*
+              ),
+              bottomSection
+            )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
     }
   }
@@ -265,7 +272,7 @@ object BuildsGalleryScreen extends Screen {
         if (confirmingDelete)
           div(`class` := "gallery-delete-confirm")(
             span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
-            button(`class` := NesCss.btnError, style := "margin-right: 6px;", onClick(BuildsGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
+            button(`class` := NesCss.btnError, onClick(BuildsGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
             button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.CancelDelete))(text("Cancel"))
           )
         else

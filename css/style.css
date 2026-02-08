@@ -452,6 +452,10 @@ input[type="number"].nes-input {
   text-align: center;
 }
 
+.empty-state p {
+  margin-bottom: 1rem;
+}
+
 .hidden {
   display: none;
 }
@@ -732,6 +736,10 @@ input[type="number"].nes-input {
 .gallery-delete-confirm {
   margin-top: 0.5rem;
   padding: 6px 0;
+}
+
+.gallery-delete-confirm .nes-btn:not(:last-child) {
+  margin-right: 6px;
 }
 
 .delete-confirm-text {
