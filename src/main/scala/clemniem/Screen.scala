@@ -8,24 +8,30 @@ import tyrian.{Cmd, Html, Sub}
 /** Identifies a screen in the SPA. See FLOW.md for the six-step flow. */
 trait ScreenId {
   def name: String
-  /** Display title used in the UI (e.g. header, document title). */
+  /** Display title used in the UI (e.g. header, document title, overview link card). */
   def title: String
+  /** Short description for the overview page link card. None = screen is not shown on overview. */
+  def overviewDescription: Option[String] = None
 }
 
 /** All screen IDs: Overview (home), galleries (list of saved items), and flow/editor screens. */
 object ScreenId {
   case object OverviewId          extends ScreenId { val name = "overview";          val title = "Overview" }
-  case object GridConfigsId       extends ScreenId { val name = "grid-configs";      val title = "Grid configs" }
-  case object GridConfigId        extends ScreenId { val name = "grid-config";      val title = "Grid config" }
-  case object PalettesId          extends ScreenId { val name = "palettes";          val title = "Palettes" }
+  case object GridConfigsId       extends ScreenId { val name = "grid-configs";      val title = "Define Grid";       override val overviewDescription = Some("Grid configs (plate layouts)") }
+  case object GridConfigId        extends ScreenId { val name = "grid-config";       val title = "Grid config" }
+  case object PalettesId          extends ScreenId { val name = "palettes";           val title = "Create Palettes";    override val overviewDescription = Some("Color palettes") }
   case object PaletteId           extends ScreenId { val name = "palette";           val title = "Palette" }
-  case object ImagesId            extends ScreenId { val name = "images";            val title = "Images" }
-  case object BuildConfigsId      extends ScreenId { val name = "build-configs";    val title = "Mosaic" }
-  case object BuildsId            extends ScreenId { val name = "builds";            val title = "Builds" }
+  case object ImagesId            extends ScreenId { val name = "images";           val title = "Upload Images";       override val overviewDescription = Some("Upload and manage pixel images") }
+  case object BuildConfigsId      extends ScreenId { val name = "build-configs";     val title = "Mosaic Configurator"; override val overviewDescription = Some("Build configurations (grid + image + palette)") }
+  case object BuildsId            extends ScreenId { val name = "builds";           val title = "Mosaic Builder";      override val overviewDescription = Some("Step-by-step build runs") }
   case object ImageUploadId       extends ScreenId { val name = "image-upload";     val title = "Upload image" }
   case object BuildConfigId       extends ScreenId { val name = "build-config";     val title = "Build config" }
   case object BuildId             extends ScreenId { val name = "build";             val title = "Build" }
-  case object PrintInstructionsId extends ScreenId { val name = "print-instructions"; val title = "Print instructions" }
+  case object PrintInstructionsId extends ScreenId { val name = "print-instructions"; val title = "Print Instructions"; override val overviewDescription = Some("Generate PDF print instructions") }
+
+  /** Screen IDs shown on the overview page as link cards, in order. */
+  val overviewScreenIds: List[ScreenId] =
+    List(ImagesId, GridConfigsId, PalettesId, BuildConfigsId, BuildsId, PrintInstructionsId)
 }
 
 /** Data passed from one screen to the next when navigating. See FLOW.md for the six-step flow. */

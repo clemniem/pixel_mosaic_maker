@@ -34,12 +34,9 @@ object OverviewScreen extends Screen {
         text("Choose a gallery to manage saved items, or create new ones.")
       ),
       div(`class` := "flex-col flex-col--gap-1")(
-        linkCard("Upload Images", ScreenId.ImagesId, "Upload and manage pixel images"),
-        linkCard("Define Grid", ScreenId.GridConfigsId, "Grid configs (plate layouts)"),
-        linkCard("Create Palettes", ScreenId.PalettesId, "Color palettes"),
-        linkCard("Mosaic Configurator", ScreenId.BuildConfigsId, "Build configurations (grid + image + palette)"),
-        linkCard("Mosaic Builder", ScreenId.BuildsId, "Step-by-step build runs"),
-        linkCard("Print Instructions", ScreenId.PrintInstructionsId, "Generate PDF print instructions")
+        ScreenId.overviewScreenIds.flatMap { id =>
+          id.overviewDescription.map(desc => linkCard(id.title, id, desc))
+        }*
       )
     )
 

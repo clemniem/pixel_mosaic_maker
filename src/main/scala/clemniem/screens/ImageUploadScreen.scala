@@ -153,7 +153,7 @@ object ImageUploadScreen extends Screen {
       `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container"
     )(
       div(`class` := "screen-header screen-header--short")(
-        h2(`class` := "screen-title")(text("Upload image")),
+        h2(`class` := "screen-title")(text(screenId.title)),
         div(`class` := "flex-row")(
           button(`class` := NesCss.btn, onClick(ImageUploadMsg.Back))(text("← Images")),
           label(

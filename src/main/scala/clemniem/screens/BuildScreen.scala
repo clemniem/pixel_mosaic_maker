@@ -330,13 +330,12 @@ object BuildScreen extends Screen {
     })
 
   def view(model: Model): Html[Msg] = {
-    val container = "font-family: system-ui, sans-serif; max-width: 42rem; margin: 0 auto; padding: 1rem;"
-    val steps    = model.steps
+    val steps = model.steps
     val total    = steps.size
     val current  = model.stepIndex
     val stepLabel = if (total == 0) "Step 0 / 0" else s"Step ${current + 1} / $total"
 
-    div(style := container)(
+    div(`class` := "screen-container screen-container--wide")(
       div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;")(
         h2(style := "margin: 0;")(text(model.currentBuild.map(_.name).orElse(model.buildConfig.map(_.name)).getOrElse("Build"))),
         div(style := "display: flex; align-items: center; gap: 8px;")(

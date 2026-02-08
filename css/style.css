@@ -46,6 +46,15 @@ body {
   margin: 0 auto;
 }
 
+/* Editor screens (Build, Build config) that need slightly wider content */
+.screen-container--wide {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1rem;
+  font-family: system-ui, sans-serif;
+  box-sizing: border-box;
+}
+
 .screen-header {
   display: flex;
   align-items: flex-start;
@@ -607,7 +616,8 @@ body {
   }
 
   .screen-container,
-  .screen-container--narrow {
+  .screen-container--narrow,
+  .screen-container--wide {
     padding-left: 0.25rem;
     padding-right: 0.25rem;
   }

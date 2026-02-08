@@ -124,7 +124,7 @@ object PrintInstructionsScreen extends Screen {
       `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--narrow"
     )(
       div(`class` := "screen-header")(
-        h2(`class` := "screen-title")(text("Print Instructions")),
+        h2(`class` := "screen-title")(text(screenId.title)),
         button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.Back))(text("← Overview"))
       ),
       p(`class` := s"${NesCss.text} screen-intro")(

@@ -233,7 +233,7 @@ object GridConfigScreen extends Screen {
       style := "font-family: system-ui, sans-serif; max-width: 56rem; margin: 0 auto; padding: 1rem;"
     )(
       div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-        h2(style := "margin: 0;")(text("Grid config")),
+        h2(style := "margin: 0;")(text(screenId.title)),
         div(style := "display: flex; align-items: center; gap: 8px;")(
           button(style := "padding: 6px 12px; cursor: pointer;", onClick(GridConfigMsg.Back))(
             text("← GridConfigs")

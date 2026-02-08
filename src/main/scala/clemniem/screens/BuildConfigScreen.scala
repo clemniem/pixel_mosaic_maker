@@ -302,10 +302,9 @@ object BuildConfigScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val container = "font-family: system-ui, sans-serif; max-width: 42rem; margin: 0 auto; padding: 1rem;"
-    div(style := container)(
+    div(`class` := "screen-container screen-container--wide")(
       div(style := "display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;")(
-        h2(style := "margin: 0;")(text("Build config")),
+        h2(style := "margin: 0;")(text(screenId.title)),
         div(style := "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;")(
           button(style := "padding: 6px 12px; cursor: pointer;", onClick(BuildConfigMsg.Back))(text("← Build configs")),
           input(
