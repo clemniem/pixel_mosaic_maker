@@ -27,7 +27,7 @@ object CanvasUtils {
       })
     }
 
-  /** Run `io` after `n` animation frames. Use n=2 for list items / multiple canvases so the DOM is fully committed. */
+  /** Run `io` after `n` animation frames. Use n=1 for gallery list canvases (faster); use n=2 if the canvas is not found yet. */
   def runAfterFrames(n: Int)(io: IO[Unit]): IO[Unit] =
     if (n <= 0) io
     else runAfterNextFrame(runAfterFrames(n - 1)(io))

@@ -752,6 +752,8 @@ input[type="number"].nes-input {
   border-radius: 2px;
   flex-shrink: 0;
   image-rendering: pixelated;
+  /* Placeholder until draw runs (onLoad → drawAfterViewReady = 1–2 frames delay) */
+  background-color: #eee;
   image-rendering: crisp-edges;
 }
 

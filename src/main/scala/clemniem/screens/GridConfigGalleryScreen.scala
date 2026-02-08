@@ -119,15 +119,14 @@ object GridConfigGalleryScreen extends Screen {
   private def drawPreview(stored: StoredGridConfig): IO[Unit] =
     CanvasUtils.drawAfterViewReadyDelayed(
       id = s"grid-preview-${stored.id}",
-      framesToWait = 2,
+      framesToWait = 1,
       maxRetries = 100,
       delayMs = 3
-    )((canvas: Canvas, ctx: CanvasRenderingContext2D) => drawGridScaled(canvas, ctx, stored.config))
+    )((_: Canvas, ctx: CanvasRenderingContext2D) => drawGridScaled(ctx, stored.config))
 
-  private def drawGridScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, grid: GridConfig): Unit = {
-    canvas.width = previewWidth
-    canvas.height = previewHeight
-    ctx.clearRect(0, 0, previewWidth, previewHeight)
+  private def drawGridScaled(ctx: CanvasRenderingContext2D, grid: GridConfig): Unit = {
+    ctx.fillStyle = "#eee"
+    ctx.fillRect(0, 0, previewWidth, previewHeight)
     if (grid.parts.nonEmpty && grid.width > 0 && grid.height > 0) {
       val scale = (previewWidth.toDouble / grid.width).min(previewHeight.toDouble / grid.height)
       ctx.save()

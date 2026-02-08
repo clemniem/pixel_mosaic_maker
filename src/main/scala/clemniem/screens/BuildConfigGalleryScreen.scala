@@ -102,7 +102,7 @@ object BuildConfigGalleryScreen extends Screen {
   ): IO[Unit] =
     CanvasUtils.drawAfterViewReadyDelayed(
       id = s"buildconfig-preview-${stored.id}",
-      framesToWait = 2,
+      framesToWait = 1,
       maxRetries = 100,
       delayMs = 3
     )((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
@@ -118,9 +118,9 @@ object BuildConfigGalleryScreen extends Screen {
               val scale = (previewWidth.toDouble / cropped.width).min(previewHeight.toDouble / cropped.height).min(1.0)
               val cw = (cropped.width * scale).toInt.max(1)
               val ch = (cropped.height * scale).toInt.max(1)
-              canvas.width = cw
-              canvas.height = ch
-              ctx.clearRect(0, 0, cw, ch)
+              /* Keep canvas at fixed previewWidth×previewHeight to avoid layout shift; draw scaled into it */
+              ctx.fillStyle = "#eee"
+              ctx.fillRect(0, 0, previewWidth, previewHeight)
               CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
               ctx.strokeStyle = "rgba(255,0,0,0.7)"
               ctx.lineWidth = 1
@@ -130,8 +130,6 @@ object BuildConfigGalleryScreen extends Screen {
                 ctx.strokeRect(part.x * gsx, part.y * gsy, (part.width * gsx).max(1), (part.height * gsy).max(1))
               }
             case None =>
-              canvas.width = previewWidth
-              canvas.height = previewHeight
               ctx.fillStyle = "#eee"
               ctx.fillRect(0, 0, previewWidth, previewHeight)
               ctx.fillStyle = "#999"
@@ -139,8 +137,6 @@ object BuildConfigGalleryScreen extends Screen {
               ctx.fillText("Grid out of bounds", 8, previewHeight / 2)
           }
         case _ =>
-          canvas.width = previewWidth
-          canvas.height = previewHeight
           ctx.fillStyle = "#eee"
           ctx.fillRect(0, 0, previewWidth, previewHeight)
           ctx.fillStyle = "#999"

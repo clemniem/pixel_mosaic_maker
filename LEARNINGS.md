@@ -42,6 +42,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 ## 4. Canvas drawing
 
 - **clemniem.common.CanvasUtils:** Use `drawAfterViewReady(id, maxRetries, delayMs)(draw)` or `drawAfterViewReadyDelayed` for canvases in lists (extra frames so DOM is ready). Never draw before the canvas is in the DOM.
+- **Gallery canvas “delayed” appearance:** Drawing is scheduled from `onLoad` and runs after the next animation frame (and retries until the canvas exists), so there is always at least one frame where the canvas is visible but not yet drawn. To reduce the effect: (1) use **`framesToWait = 1`** in `drawAfterViewReadyDelayed` for gallery previews so the draw is attempted one frame earlier; (2) give **`.gallery-preview-canvas`** a **`background-color: #eee`** in CSS so the pre-draw state is a consistent grey placeholder instead of a flash of white/transparent.
 - **Drawing a PixelPic:** Use `CanvasUtils.drawPixelPic(canvas, ctx, pic, targetWidth, targetHeight)` – fills ImageData from pic, draws via offscreen buffer, sets `imageSmoothingEnabled = false`. Used in BuildConfig, BuildConfigGallery, ImagesGallery, ImageUpload, Build screens.
 - **Applying a palette to a PixelPic:** `PaletteUtils.applyPaletteToPixelPic(pic, storedPalette)` – maps StoredPalette colors to Pixel (alpha 255), pads/trims to pic’s palette size, then `pic.setPalette(...)`.
 
@@ -110,6 +111,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 - **No `null`:** Use `Option` and `.filter` / `.getOrElse`.
 - **No `var` / `while`:** Prefer immutable and for-comprehensions / `.fold` / `.forall`.
 - **No default arguments** in some rules; pass explicitly at call sites if required.
+- **Unused parameters:** Do **not** use `@unused`. If a parameter is never needed, **remove it** from the method and update all call sites (e.g. callbacks that receive `(canvas, ctx)` but only use `ctx` can call a helper that takes just `(ctx, ...)` and use `(_: Canvas, ctx) => helper(ctx, ...)` at the call site). If a parameter is **sometimes** needed and sometimes not, make it **optional** (e.g. `Option[Canvas]` or default `None` and pass `Some(canvas)` when needed).
 - Run `sbt compile` (Scalafix runs as part of compile); fix any reported issues before committing.
 
 ---

@@ -129,24 +129,19 @@ object ImagesGalleryScreen extends Screen {
   private def drawPreview(stored: StoredImage): IO[Unit] =
     CanvasUtils.drawAfterViewReadyDelayed(
       id = s"image-preview-${stored.id}",
-      framesToWait = 2,
+      framesToWait = 1,
       maxRetries = 100,
       delayMs = 3
     )((canvas: Canvas, ctx: CanvasRenderingContext2D) => drawPixelPicScaled(canvas, ctx, stored.pixelPic))
 
   private def drawPixelPicScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
+    ctx.fillStyle = "#eee"
+    ctx.fillRect(0, 0, previewWidth, previewHeight)
     if (pic.width > 0 && pic.height > 0) {
       val scale = (previewWidth.toDouble / pic.width).min(previewHeight.toDouble / pic.height)
       val cw = (pic.width * scale).toInt.max(1)
       val ch = (pic.height * scale).toInt.max(1)
-      canvas.width = cw
-      canvas.height = ch
-      ctx.clearRect(0, 0, cw, ch)
       CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
-    } else {
-      canvas.width = previewWidth
-      canvas.height = previewHeight
-      ctx.clearRect(0, 0, previewWidth, previewHeight)
     }
   }
 

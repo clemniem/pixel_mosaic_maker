@@ -128,9 +128,7 @@ object BuildsGalleryScreen extends Screen {
     val configOpt = configs.find(_.id == build.buildConfigRef)
     configOpt match {
       case None =>
-        CanvasUtils.drawAfterViewReadyDelayed(s"builds-preview-${build.id}", 2, 100, 3)((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
-          canvas.width = buildPreviewWidth
-          canvas.height = buildPreviewHeight
+        CanvasUtils.drawAfterViewReadyDelayed(s"builds-preview-${build.id}", 1, 100, 3)((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
           ctx.fillStyle = "#eee"
           ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
           ctx.fillStyle = "#999"
@@ -146,7 +144,7 @@ object BuildsGalleryScreen extends Screen {
 
         CanvasUtils.drawAfterViewReadyDelayed(
           id = s"builds-preview-${build.id}",
-          framesToWait = 2,
+          framesToWait = 1,
           maxRetries = 100,
           delayMs = 3
         )((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
@@ -156,13 +154,12 @@ object BuildsGalleryScreen extends Screen {
               val gw    = stored.config.grid.width
               val gh    = stored.config.grid.height
               val scale = (buildPreviewWidth.toDouble / gw).min(buildPreviewHeight.toDouble / gh).min(1.0)
+              ctx.fillStyle = "#eee"
+              ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
               pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
                 case Some(cropped) =>
                   val cw = (cropped.width * scale).toInt.max(1)
                   val ch = (cropped.height * scale).toInt.max(1)
-                  canvas.width = cw
-                  canvas.height = ch
-                  ctx.clearRect(0, 0, cw, ch)
                   CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
                   ctx.strokeStyle = "rgba(255,0,0,0.6)"
                   ctx.lineWidth = 1
@@ -177,17 +174,11 @@ object BuildsGalleryScreen extends Screen {
                     ctx.strokeRect(rx * scale, ry * scale, (patchSize * scale).max(1), (patchSize * scale).max(1))
                   }
                 case None =>
-                  canvas.width = buildPreviewWidth
-                  canvas.height = buildPreviewHeight
-                  ctx.fillStyle = "#eee"
-                  ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
                   ctx.fillStyle = "#999"
                   ctx.font = "12px \"Press Start 2P\", cursive"
                   ctx.fillText("Grid out of bounds", 8, buildPreviewHeight / 2)
               }
             case _ =>
-              canvas.width = buildPreviewWidth
-              canvas.height = buildPreviewHeight
               ctx.fillStyle = "#eee"
               ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
               ctx.fillStyle = "#999"
