@@ -3,6 +3,7 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{
   BuildConfig,
+  Color,
   NavigateNext,
   PixelPic,
   Screen,
@@ -32,6 +33,38 @@ object BuildScreen extends Screen {
   private val previewCanvasId        = "build-preview"
   private val patchSize              = 16
   private val defaultPatchBackground = "#eeeeee"
+
+  /** Pastel background that contrasts with all palette colors and with white and black: light, muted, in a band that is clearly off-white and off-black. */
+  private def pastelBackgroundFromPalette(colors: Vector[Color]): String = {
+    if (colors.isEmpty) defaultPatchBackground
+    else {
+      val n    = colors.size
+      val rAvg = colors.map(_.r).sum / n
+      val gAvg = colors.map(_.g).sum / n
+      val bAvg = colors.map(_.b).sum / n
+      val base = 228
+      val tilt = 0.14
+      def clamp(c: Int): Int = math.max(0, math.min(255, c))
+      val r0 = clamp((base + (255 - rAvg) * tilt).round.toInt)
+      val g0 = clamp((base + (255 - gAvg) * tilt).round.toInt)
+      val b0 = clamp((base + (255 - bAvg) * tilt).round.toInt)
+      /* Keep clearly off-white (max ≤ 215) and off-black (min ≥ 185) for contrast with both */
+      val minChan = 185
+      val maxChan = 215
+      val r = math.max(minChan, math.min(maxChan, r0))
+      val g = math.max(minChan, math.min(maxChan, g0))
+      val b = math.max(minChan, math.min(maxChan, b0))
+      Color(r, g, b).toHex
+    }
+  }
+
+  private def suggestedPatchBackground(model: Model): Option[String] =
+    for {
+      stored  <- model.buildConfig
+      palettes <- model.palettes
+      palette  <- palettes.find(_.id == stored.config.paletteRef)
+      if palette.colors.nonEmpty
+    } yield pastelBackgroundFromPalette(palette.colors)
 
   /** One step = one 16×16 patch in image coordinates (top-left). */
   def stepsForConfig(config: BuildConfig): Vector[(Int, Int)] = {
@@ -114,10 +147,10 @@ object BuildScreen extends Screen {
       val configOpt = model.currentBuild.flatMap(b => list.find(_.id == b.buildConfigRef))
       val steps     = configOpt.map(c => stepsForConfig(c.config)).getOrElse(Vector.empty)
       val stepIndex = if (steps.isEmpty) 0 else model.stepIndex.max(0).min(steps.length - 1)
-      val next = model.copy(
-        buildConfig = configOpt,
-        stepIndex = stepIndex
-      )
+      val nextBase  = model.copy(buildConfig = configOpt, stepIndex = stepIndex)
+      val next = if (nextBase.patchBackgroundColorHex == defaultPatchBackground)
+        suggestedPatchBackground(nextBase).fold(nextBase)(bg => nextBase.copy(patchBackgroundColorHex = bg))
+      else nextBase
       (next, drawCmd(next))
 
     case BuildScreenMsg.LoadedImages(list) =>
@@ -125,7 +158,10 @@ object BuildScreen extends Screen {
       (next, drawCmd(next))
 
     case BuildScreenMsg.LoadedPalettes(list) =>
-      val next = model.copy(palettes = Some(list))
+      val nextBase = model.copy(palettes = Some(list))
+      val next = if (nextBase.patchBackgroundColorHex == defaultPatchBackground)
+        suggestedPatchBackground(nextBase).fold(nextBase)(bg => nextBase.copy(patchBackgroundColorHex = bg))
+      else nextBase
       (next, drawCmd(next))
 
     case BuildScreenMsg.SetStep(index) =>
@@ -406,20 +442,11 @@ object BuildScreen extends Screen {
         ),
         div(`class` := s"${NesCss.field} build-patch-bg-block")(
           label(`class` := "label-block")(text("Patch background")),
-          div(`class` := "flex-row flex-row--tight")(
-            input(
-              `type` := "color",
-              `class` := "input-color",
-              value := normalizedPatchBackgroundHex(model.patchBackgroundColorHex),
-              onInput(hex => BuildScreenMsg.SetPatchBackgroundColor(hex))
-            ),
-            input(
-              `type` := "text",
-              `class` := s"${NesCss.input} input-w-7 input-monospace",
-              value := model.patchBackgroundColorHex,
-              placeholder := defaultPatchBackground,
-              onInput(BuildScreenMsg.SetPatchBackgroundColor.apply)
-            )
+          input(
+            `type` := "color",
+            `class` := "input-color",
+            value := normalizedPatchBackgroundHex(model.patchBackgroundColorHex),
+            onInput(hex => BuildScreenMsg.SetPatchBackgroundColor(hex))
           )
         )
       ),

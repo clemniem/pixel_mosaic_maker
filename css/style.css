@@ -1,6 +1,7 @@
 /* ========== NES.css integration – body and app root ========== */
 html {
   font-size: 12px; /* smaller base = more compact layout (default 16px) */
+  scrollbar-gutter: stable; /* reserve space for scrollbar so layout does not jump when it appears */
 }
 
 body {
@@ -18,10 +19,10 @@ body {
   padding: 2rem 1rem;
 }
 
-/* App root: centered column with max-width */
+/* App root: fixed width so it does not jump when switching screens (title length, etc.) */
 #myapp {
-  width: 100%;
-  max-width: 56rem;
+  width: 42rem;
+  max-width: 100%;
   min-height: 0;
   padding: 1rem;
   box-sizing: border-box;
@@ -36,22 +37,19 @@ body {
 }
 
 /* ========== Screen layout ========== */
-.screen-container {
-  max-width: 40rem;
-  margin: 0 auto;
-}
-
-.screen-container--narrow {
-  max-width: 36rem;
-  margin: 0 auto;
-}
-
-/* Editor screens (Build, Build config) that need slightly wider content */
+/* Fixed width so the outer container does not resize when switching screens or title length */
+.screen-container,
+.screen-container--narrow,
 .screen-container--wide {
-  max-width: 42rem;
+  width: 42rem;
+  max-width: 100%;
+  min-width: 0;
   margin: 0 auto;
-  padding: 1rem;
   box-sizing: border-box;
+}
+
+.screen-container--wide {
+  padding: 1rem;
 }
 
 .screen-header {
