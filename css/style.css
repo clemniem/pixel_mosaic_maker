@@ -438,6 +438,12 @@ body {
 }
 
 /* ========== Gallery screens ========== */
+/* Override NES.css container background for gallery entries (match rounded variant). Opaque, not see-through. */
+.nes-container.gallery-card,
+.nes-container.is-rounded.gallery-card {
+  background-color: #fafafa; /* very faint gray for all gallery entries */
+}
+
 .gallery-card {
   display: flex;
   align-items: center;
