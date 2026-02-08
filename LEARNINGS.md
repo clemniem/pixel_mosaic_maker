@@ -76,7 +76,8 @@ This document captures what was learned during development of the Pixel Mosaic M
 ## 8. NES.css and gallery styling
 
 - **NES.css:** The app uses **NES.css** for a consistent retro look. Central class-name strings live in **`clemniem.common.nescss.NesCss`** (e.g. `NesCss.container`, `NesCss.containerRounded`, `NesCss.btn`, `NesCss.btnPrimary`, `NesCss.btnError`, `NesCss.text`, `NesCss.input`). Shared layout and gallery-specific classes are in **`css/style.css`** (e.g. `screen-container`, `screen-header`, `screen-title`, `flex-row`, `flex-col`, `gallery-card`, `gallery-card-body`, `gallery-card-title`, `gallery-card-meta`, `gallery-preview-canvas`, `gallery-actions`, `gallery-delete-confirm`, `palette-strip`, `palette-strip-swatch`, `progress-bar`, `progress-bar-fill`, `dropdown-panel`, `dropdown-panel-title`).
-- **Gallery pattern (all galleries):** Root = `NesCss.container` + `NesCss.containerRounded` + `screen-container`. Header = `screen-header`, `screen-title`, back button = `NesCss.btn`. Primary action (Create/Upload) = `NesCss.btnPrimary`. Entry cards = `nes-container` + `gallery-card` (use `gallery-card--start` for Builds); body = `gallery-card-body`, title = `gallery-card-title`, meta = `gallery-card-meta nes-text`. Delete confirm block = `gallery-delete-confirm`, text = `delete-confirm-text nes-text`, Yes = `NesCss.btnError`, Cancel = `NesCss.btn`. Actions row = `gallery-actions`; Edit = `NesCss.btn`, Delete = `NesCss.btnError`; Resume (Builds) = `NesCss.btnPrimary`. Only **dynamic** values stay inline (e.g. palette/color `background`, progress bar `width` %).
+- **Gallery pattern (all galleries):** Root = `NesCss.container` + `NesCss.containerRounded` + `screen-container`. Header = `screen-header`, `screen-title`, back button = `NesCss.btn`.
+- **Editor/creation screens:** Use **`ScreenHeader`** (`screens/ScreenHeader.scala`) for a consistent header: title, button row, optional name row (full-width input via `nameRowInput`). BuildConfig, GridConfig, Palette, ImageUpload, PrintInstructions, Build all use it where applicable. Primary action (Create/Upload) = `NesCss.btnPrimary`. Entry cards = `nes-container` + `gallery-card` (use `gallery-card--start` for Builds); body = `gallery-card-body`, title = `gallery-card-title`, meta = `gallery-card-meta nes-text`. Delete confirm block = `gallery-delete-confirm`, text = `delete-confirm-text nes-text`, Yes = `NesCss.btnError`, Cancel = `NesCss.btn`. Actions row = `gallery-actions`; Edit = `NesCss.btn`, Delete = `NesCss.btnError`; Resume (Builds) = `NesCss.btnPrimary`. Only **dynamic** values stay inline (e.g. palette/color `background`, progress bar `width` %).
 - **Empty state:** `GalleryEmptyState` uses NES + `empty-state`; its main button uses `NesCss.btnPrimary`.
 
 ---
@@ -132,6 +133,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 | App entry: sets window.jspdf, then launches app | `export-wrapper.js` |
 | GitHub Pages deploy (Scala.js build + upload-pages-artifact + deploy-pages) | `.github/workflows/deploy.yml` |
 | Gallery empty state component | `screens/GalleryEmptyState.scala` |
+| Shared screen header (title, buttons, optional name row) | `screens/ScreenHeader.scala` |
 | Root app, screen registry | `PixelMosaicMaker.scala` |
 | Grid logic (parts, row/column defs) | `GridConfig.scala` |
 | Pixel image (crop, setPalette, toImageData) | `PixelPic.scala` |
@@ -168,3 +170,28 @@ This document captures what was learned during development of the Pixel Mosaic M
 7. After changes: `sbt compile` and `sbt test`; fix Scalafix and test failures.
 
 Using this file together with **FLOW.md** and **README.md** should give enough context to work on the project efficiently.
+
+---
+
+## 16. UI / layout learnings (shared components, build screen, scrollbar)
+
+### 16.1 Shared ScreenHeader and name row
+
+- **ScreenHeader** (`screens/ScreenHeader.scala`): Shared header for editor/creation screens. Use `ScreenHeader(title, buttonRow, nameRow, shortHeader)` where `nameRow` is `Option[Html[Msg]]` (use `ScreenHeader.nameRowInput(...)` for the entity name). No default arguments (Scalafix); pass `None` and `false` when no name row or short header.
+- **Name row:** `ScreenHeader.nameRowInput(nameValue, setMsg, inputId, extraRowClass)` produces a full-width name input (CSS `screen-header-name-input`: width 100%). Use for BuildConfig, GridConfig, Palette, ImageUpload (when image loaded). Palette uses `inputId = Some("palette-name")`, `extraRowClass = "palette-name-row"` for a11y and spacing.
+
+### 16.2 Build screen layout
+
+- **Row 0:** Save step + Back. **Row 1:** Previous | Next | [current step number input] | from [total]. No “Go to:” label; the number input is the current step (1-based).
+- **Row 2:** Overview canvas + Patch background (color picker only, no hex text input) side by side (`.build-overview-row`).
+- **Row 3:** “Current patch by color” title + preview canvas (`.build-preview-row`, `.build-preview-inner`). Canvas displays at **natural size** (no JS scaling); parent has `overflow: auto` so long content scrolls. Do not scale the preview canvas in JS; it caused layout/sizing issues.
+- **Patch background default:** When the build config’s palette is loaded, if the user hasn’t changed the background yet (`patchBackgroundColorHex == defaultPatchBackground`), set it to a **palette-derived pastel**: `pastelBackgroundFromPalette(palette.colors)` in BuildScreen. Pastel is light, muted, with a tint opposite to the palette average; clamped to **185–215** per RGB channel so it contrasts clearly with both white and black. Applied in `LoadedBuildConfigs` and `LoadedPalettes` only when still at default.
+
+### 16.3 Number inputs and pixel font
+
+- **Readable number inputs:** With the “Press Start 2P” pixel font, number inputs need explicit sizing. In **`css/style.css`**, a global rule for `input[type="number"]` sets `font-size: 0.95rem`, `line-height: 1.3`, `padding-left/right: 6px`, `box-sizing: border-box` so digits are readable. Grid editor row keeps its own overrides for tight layout.
+
+### 16.4 Consistent outer width and scrollbar
+
+- **Fixed app width:** To prevent the outer container from changing size when switching screens (e.g. Overview vs Palettes) or when the title length varies, use a **fixed width** for the app root and screen container: **`#myapp`** has `width: 42rem; max-width: 100%`. **`.screen-container`** (and `--narrow` / `--wide`) all use `width: 42rem; max-width: 100%`. So the main column is always 42rem when the viewport allows.
+- **Scrollbar layout jump:** When content becomes long (e.g. Palettes gallery), the browser shows a vertical scrollbar and the viewport width shrinks by the scrollbar width, causing a visible layout jump. Fix: **`scrollbar-gutter: stable`** on **`html`** so the browser reserves space for the scrollbar from the start. Layout then stays stable when navigating between short and long screens.
