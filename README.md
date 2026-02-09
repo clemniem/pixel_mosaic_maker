@@ -18,39 +18,23 @@ Everything runs in the browser. Data (grids, palettes, images, build configs, bu
 
 See **[docs/FLOW.md](docs/FLOW.md)** for the full six-step app flow: GridConfig → ImageUpload → Palettes → BuildConfig → Build → Print Instructions.
 
-## Setup instructions
+## Run locally
 
-To run the program in a browser you will need to have yarn (or npm) installed.
-
-Before your first run and for your tests to work, **you must** install the node dependencies with:
+**Requirements:** [Node](https://nodejs.org/) (for yarn/npm), [sbt](https://www.scala-sbt.org/).
 
 ```sh
 yarn install
-```
-
-This example uses Parcel.js as our bundler and dev server, there are lots of other options you might prefer like Webpack, scalajs-bunder, or even just vanilla JavaScript.
-
-We recommend you have two terminal tabs open in the directory containing this README file.
-
-In the first, we'll run sbt.
-
-```sh
-sbt
-```
-
-From now on, we can recompile the app with `fastLinkJS` or `fullLinkJS` _**but please note** that the `tyrianapp.js` file in the root is expecting the output from `fastLinkJS`_.
-
-Run `fastLinkJS` now to get an initial build in place.
-
-Then start your dev server, with:
-
-```sh
 yarn start
 ```
 
-Now navigate to [http://localhost:1234/](http://localhost:1234/) to see your site running.
+In another terminal, from the project root:
 
-If you leave parcel's dev server running, all you have to do is another `fastLinkJS` or `fullLinkJS` and your app running in the browser should hot-reload the new code.
+```sh
+sbt
+sbt:...> fastLinkJS
+```
+
+Open [http://localhost:1234/](http://localhost:1234/). After code changes, run `fastLinkJS` again and the browser will hot-reload.
 
 ## Libraries
 
@@ -60,3 +44,7 @@ If you leave parcel's dev server running, all you have to do is another `fastLin
 | [NES.css](https://nostalgic-css.github.io/NES.css/) | Retro pixel-art CSS framework for the UI look |
 | [Scala.js](https://www.scala-js.org/) | Scala compiled to JavaScript |
 | [Parcel](https://parceljs.org/) | Dev server and bundler |
+
+## Feedback
+
+Feedback is welcome via [GitHub issues](https://github.com/clemniem/pixel_mosaic_maker/issues) or pull requests.
