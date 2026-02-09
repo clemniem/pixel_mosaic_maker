@@ -154,15 +154,20 @@ object JsPDF {
                 val _ = doc.rect(x, y, w, h, "F")
               }
               (docOpt, (pageW, pageH), pageIndex)
-            case Instruction.DrawSwatchRow(x, y, r, g, b, count, swatchSize, gap, fontSizePt) =>
+            case Instruction.DrawSwatchRow(x, y, r, g, b, count, swatchSize, gap, fontSizePt, strokeLineWidth) =>
               docOpt.foreach { doc =>
-                val textStr = "× " + count
+                val textStr = "×" + count
                 val _ = doc.setFontSize(fontSizePt)
                 val dims = doc.getTextDimensions(textStr).asInstanceOf[js.Dynamic]
                 val th = dims.h.asInstanceOf[Double]
                 val baselineY = y + (swatchSize + th) / 2
                 val _ = doc.setFillColor(r, g, b)
                 val _ = doc.rect(x, y, swatchSize, swatchSize, "F")
+                if (strokeLineWidth > 0) {
+                  val _ = doc.setDrawColor(0, 0, 0)
+                  val _ = doc.setLineWidth(strokeLineWidth)
+                  val _ = doc.rect(x, y, swatchSize, swatchSize, "S")
+                }
                 val _ = doc.setTextColor(0, 0, 0)
                 val _ = doc.text(textStr, x + swatchSize + gap, baselineY)
               }

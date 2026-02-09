@@ -55,7 +55,7 @@ object PdfUtils {
       case Some((pic, grid)) =>
         val cover        = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
         val emptyPage    = List(Instruction.AddPage)
-        val fullOverview = fullOverviewPageInstructions(pic, marginLR, marginTB, availableW, availableH, config)
+        val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, config)
         val chapters     = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, config)
         (cover, emptyPage ++ fullOverview, chapters)
       case None =>
@@ -100,9 +100,9 @@ object PdfUtils {
     )
   }
 
-  /** One pixel-count row: swatch + "× count". Uses [[Instruction.DrawSwatchRow]] (text centered with swatch). */
+  /** One pixel-count row: swatch (with black frame) + "× count". Uses [[Instruction.DrawSwatchRow]] (text centered with swatch). */
   private def drawSwatchRow(x: Double, y: Double, r: Int, g: Int, b: Int, count: Int, sw: SwatchBlock): List[Instruction] =
-    List(Instruction.DrawSwatchRow(x, y, r, g, b, count, sw.swatchSizeMm, sw.swatchGapMm, sw.countFontSizePt))
+    List(Instruction.DrawSwatchRow(x, y, r, g, b, count, sw.swatchSizeMm, sw.swatchGapMm, sw.countFontSizePt, sw.swatchStrokeLineWidthMm))
 
   /** Multiple pixel-count rows. Each row uses [[drawSwatchRow]]; y advances by sw.lineHeightMm (includes padding between rows). */
   private def drawSwatchRows(x: Double, yStart: Double, rows: Seq[(Int, Int, Int, Int)], sw: SwatchBlock): List[Instruction] =
@@ -110,9 +110,10 @@ object PdfUtils {
       drawSwatchRow(x, yStart + sw.firstLineOffsetMm + i * sw.lineHeightMm, r, g, b, count, sw)
     }.toList
 
-  /** One page after the empty page: color list top-left (same height as former title), image right, top-aligned, as big as possible. No title. */
+  /** One page after the empty page: color list top-left, image right (top-aligned). If grid has parts, draw exploded view with gaps; else single image. No title. */
   private def fullOverviewPageInstructions(
       fullPic: PixelPic,
+      grid: GridConfig,
       marginLR: Double,
       marginTB: Double,
       availableW: Double,
@@ -121,24 +122,69 @@ object PdfUtils {
   ): List[Instruction] = {
     val fo  = config.fullOverview
     val sw  = fo.swatch
-    val (pw, ph, rgbFlat) = pixelPicToRgbFlat(fullPic)
-    val contentTopY       = marginTB + fo.titleOffsetFromTopMm
-    val imageAreaW        = availableW - fo.colorListReservedWidthMm
-    val imageAreaH        = availableH - fo.titleOffsetFromTopMm
-    val scale             = (imageAreaW / pw).min(imageAreaH / ph)
-    val imageW            = pw * scale
-    val imageH            = ph * scale
-    val x0                = marginLR + fo.colorListReservedWidthMm + (imageAreaW - imageW) / 2
-    val y0                = contentTopY
+    val contentTopY    = marginTB + fo.titleOffsetFromTopMm
+    val imageAreaW     = availableW - fo.colorListReservedWidthMm
+    val imageAreaH     = availableH - fo.titleOffsetFromTopMm
     val colorRows = fullPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
       val px = fullPic.paletteLookup(idx)
       (px.r, px.g, px.b, count)
     }
     val colorCountInstrs = drawSwatchRows(marginLR, contentTopY, colorRows, sw)
-    List(
-      Instruction.AddPage,
-      Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat)
-    ) ++ colorCountInstrs
+    val imageInstrs = if (grid.parts.nonEmpty) {
+      explodedOverviewInstructions(fullPic, grid, marginLR + fo.colorListReservedWidthMm, contentTopY, imageAreaW, imageAreaH, fo.explodedGapMm)
+    } else {
+      val (pw, ph, rgbFlat) = pixelPicToRgbFlat(fullPic)
+      val scale             = (imageAreaW / pw).min(imageAreaH / ph)
+      val imageW            = pw * scale
+      val imageH            = ph * scale
+      val x0                = marginLR + fo.colorListReservedWidthMm + (imageAreaW - imageW) / 2
+      val y0                = contentTopY
+      List(Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat))
+    }
+    List(Instruction.AddPage) ++ imageInstrs ++ colorCountInstrs
+  }
+
+  /** Exploded overview: one DrawPixelGrid per grid part, with gapMm between parts. Scale chosen to fit in (areaW × areaH); layout centered in area. */
+  private def explodedOverviewInstructions(
+      fullPic: PixelPic,
+      grid: GridConfig,
+      areaX: Double,
+      areaY: Double,
+      areaW: Double,
+      areaH: Double,
+      gapMm: Double
+  ): List[Instruction] = {
+    val parts = grid.parts.toList
+    val uniqueXs = parts.map(_.x).distinct.sorted
+    val uniqueYs = parts.map(_.y).distinct.sorted
+    val colWidthsPx = uniqueXs.map { x => parts.filter(_.x == x).map(_.width).max }
+    val rowHeightsPx = uniqueYs.map { y => parts.filter(_.y == y).map(_.height).max }
+    val totalWpx = colWidthsPx.sum.toDouble
+    val totalHpx = rowHeightsPx.sum.toDouble
+    val numGapsX = (uniqueXs.size - 1).max(0)
+    val numGapsY = (uniqueYs.size - 1).max(0)
+    val scale = (
+      (areaW - numGapsX * gapMm) / totalWpx
+    ).min((areaH - numGapsY * gapMm) / totalHpx)
+    val totalWmm = totalWpx * scale + numGapsX * gapMm
+    val baseX = areaX + (areaW - totalWmm) / 2
+    val baseY = areaY
+    val colOffsetPx = colWidthsPx.scanLeft(0)(_ + _).dropRight(1)
+    val rowOffsetPx = rowHeightsPx.scanLeft(0)(_ + _).dropRight(1)
+    parts.flatMap { part =>
+      val col = uniqueXs.indexOf(part.x)
+      val row = uniqueYs.indexOf(part.y)
+      val offsetXmm = colOffsetPx(col) * scale + col * gapMm
+      val offsetYmm = rowOffsetPx(row) * scale + row * gapMm
+      fullPic.crop(part.x, part.y, part.width, part.height).toList.flatMap { cropped =>
+        val (_, _, rgbFlat) = pixelPicToRgbFlat(cropped)
+        val x0 = baseX + offsetXmm
+        val y0 = baseY + offsetYmm
+        val wMm = part.width * scale
+        val hMm = part.height * scale
+        List(Instruction.DrawPixelGrid(x0, y0, wMm, hMm, part.width, part.height, rgbFlat))
+      }
+    }
   }
 
   /** All chapters: one chapter per plate (overview page + sections per step). */

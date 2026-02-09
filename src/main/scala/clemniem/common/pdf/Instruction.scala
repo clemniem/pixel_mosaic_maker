@@ -52,7 +52,7 @@ object Instruction {
   /** Draw a filled rectangle (e.g. color swatch). */
   case class FillRect(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, r: Int, g: Int, b: Int) extends Instruction
 
-  /** Draw one pixel-count row: swatch square + "× count" text. Text is vertically centered with the swatch. Reusable for full overview and chapter pages. */
+  /** Draw one pixel-count row: swatch square (with optional black frame) + "× count" text. Text is vertically centered with the swatch. */
   case class DrawSwatchRow(
       xMm: Double,
       yMm: Double,
@@ -62,7 +62,8 @@ object Instruction {
       count: Int,
       swatchSizeMm: Double,
       gapMm: Double,
-      fontSizePt: Int
+      fontSizePt: Int,
+      swatchStrokeLineWidthMm: Double
   ) extends Instruction
 
   /** Draw a filled rounded rectangle (e.g. cover frame). */

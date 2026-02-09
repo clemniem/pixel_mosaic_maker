@@ -36,20 +36,22 @@ object PdfLayoutConfig {
       titleBoxPaddingMm: Double
   )
 
-  /** Full overview page: color list top-left, mosaic right (top-aligned with list). No title. */
+  /** Full overview page: color list top-left, mosaic right (top-aligned with list). No title. Exploded view uses grid parts with gap between them. */
   final case class FullOverview(
       titleOffsetFromTopMm: Double,
       colorListReservedWidthMm: Double,
+      explodedGapMm: Double,
       titleFontSizePt: Int,
       countLabelFontSizePt: Int,
       swatch: SwatchBlock
   )
 
-  /** Shared swatch list block (full overview and chapter overview). Row = swatch + gap + "× count"; text is centered with swatch. lineHeightMm > swatchSizeMm for padding between rows. */
+  /** Shared swatch list block (full overview and chapter overview). Row = swatch (with black frame) + gap + "× count"; text centered with swatch. lineHeightMm > swatchSizeMm for row spacing. */
   final case class SwatchBlock(
       swatchSizeMm: Double,
       swatchGapMm: Double,
       lineHeightMm: Double,
+      swatchStrokeLineWidthMm: Double,
       countFontSizePt: Int,
       firstLineOffsetMm: Double
   )
@@ -116,12 +118,14 @@ object PdfLayoutConfig {
     fullOverview = FullOverview(
       titleOffsetFromTopMm = -1.0,
       colorListReservedWidthMm = 22.0,
+      explodedGapMm = 3.0,
       titleFontSizePt = 12,
       countLabelFontSizePt = 10,
       swatch = SwatchBlock(
         swatchSizeMm = 4.5,
         swatchGapMm = 0.5,
-        lineHeightMm = 5.5,
+        lineHeightMm = 6.0,
+        swatchStrokeLineWidthMm = 0.2,
         countFontSizePt = 10,
         firstLineOffsetMm = 0.0
       )
@@ -142,7 +146,8 @@ object PdfLayoutConfig {
       swatch = SwatchBlock(
         swatchSizeMm = 4.5,
         swatchGapMm = 0.5,
-        lineHeightMm = 5.5,
+        lineHeightMm = 6.0,
+        swatchStrokeLineWidthMm = 0.2,
         countFontSizePt = 10,
         firstLineOffsetMm = 5.0
       )
