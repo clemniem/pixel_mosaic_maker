@@ -1,4 +1,9 @@
 /* ========== NES.css integration – body and app root ========== */
+/* NES pointer cursor (pixel hand) – use for all clickable elements so hover is consistent with NES.css */
+:root {
+  --nes-pointer: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAzElEQVRYR+2X0Q6AIAhF5f8/2jYXZkwEjNSVvVUjDpcrGgT7FUkI2D9xRfQETwNIiWO85wfINfQUEyxBG2ArsLwC0jioGt5zFcwF4OYDPi/mBYKm4t0U8ATgRm3ThFoAqkhNgWkA0jJLvaOVSs7j3qMnSgXWBMiWPXe94QqMBMBc1VZIvaTu5u5pQewq0EqNZvIEMCmxAawK0DNkay9QmfFNAJUXfgGgUkLaE7j/h8fnASkxHTz0DGIBMCnBeeM7AArpUd3mz2x3C7wADglA8BcWMZhZAAAAAElFTkSuQmCC") 14 0, pointer;
+}
+
 html {
   font-size: 12px; /* smaller base = more compact layout (default 16px) */
   scrollbar-gutter: stable; /* reserve space for scrollbar so layout does not jump when it appears */
@@ -220,7 +225,7 @@ body.fonts-loaded {
   width: 3rem;
   height: 2rem;
   padding: 0;
-  cursor: pointer;
+  cursor: var(--nes-pointer);
 }
 
 .input-monospace {
@@ -260,7 +265,7 @@ input[type="number"].nes-input {
 }
 
 .label-as-button {
-  cursor: pointer;
+  cursor: var(--nes-pointer);
   margin: 0;
 }
 
@@ -540,7 +545,7 @@ input[type="number"].nes-input {
   width: 2.25rem;
   height: 1.75rem;
   padding: 2px;
-  cursor: pointer;
+  cursor: var(--nes-pointer);
   border-radius: 4px;
   border: 1px solid #999;
 }
@@ -610,7 +615,7 @@ input[type="number"].nes-input {
   background: #1565c0;
   color: #fff;
   border: 1px solid #1565c0;
-  cursor: pointer;
+  cursor: var(--nes-pointer);
   font-weight: 600;
 }
 
@@ -618,7 +623,7 @@ input[type="number"].nes-input {
   background: #f0f0f0;
   color: #333;
   border: 1px solid #ccc;
-  cursor: pointer;
+  cursor: var(--nes-pointer);
 }
 
 .step-size-range-wrap {
@@ -770,7 +775,7 @@ input[type="number"].nes-input {
   padding: 2px 4px;
   border-radius: 4px;
   width: fit-content;
-  cursor: pointer;
+  cursor: var(--nes-pointer);
 }
 
 /* Use with .nes-btn.palette-button-inline for same look but not clickable (upload preview) */
