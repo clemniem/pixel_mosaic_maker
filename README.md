@@ -1,8 +1,22 @@
 # Pixel Mosaic Maker
 
-Single-page app to create mosaic instructions from pixel art (e.g. Game Boy Camera photos → Lego-style instructions). Built with **Tyrian** and **Scala.js**.
+This project was **entirely written with [Cursor](https://cursor.com)** (AI-assisted editor).
 
-See **[docs/FLOW.md](docs/FLOW.md)** for the six-step app flow: GridConfig → ImageUpload → Palettes → BuildConfig → Build → Print Instructions.
+---
+
+Pixel Mosaic Maker is a single-page web app that turns **pixel art** (e.g. Game Boy Camera photos or other low-res images) into **printable mosaic instructions**—step-by-step guides you can follow to recreate the image with physical tiles or bricks (Lego-style plates, perler beads, etc.).
+
+**What it does:**
+
+1. You define a **grid** that splits the image into plates (regions).
+2. You **upload** your pixel art; the app detects scale and keeps it crisp.
+3. You create **palettes** (color sets) and **build configs** that tie together: grid + image + palette + offset.
+4. You run a **build** to generate the mosaic layout.
+5. You get **print instructions**: a PDF book with a cover, overview, per-plate chapters (with color swatches and piece counts), and layer-by-layer patch pages showing which colors to place where.
+
+Everything runs in the browser. Data (grids, palettes, images, build configs, builds) is stored in **LocalStorage**, so no server or account is required. The app is built with **[Tyrian](https://github.com/PurpleKingdomGames/tyrian)** (Elm-style architecture) and **Scala.js**, and uses **[NES.css](https://nostalgic-css.github.io/NES.css/)** for the retro pixel-UI look.
+
+See **[docs/FLOW.md](docs/FLOW.md)** for the full six-step app flow: GridConfig → ImageUpload → Palettes → BuildConfig → Build → Print Instructions.
 
 ## Setup instructions
 
@@ -37,3 +51,12 @@ yarn start
 Now navigate to [http://localhost:1234/](http://localhost:1234/) to see your site running.
 
 If you leave parcel's dev server running, all you have to do is another `fastLinkJS` or `fullLinkJS` and your app running in the browser should hot-reload the new code.
+
+## Libraries
+
+| Library | Purpose |
+|--------|--------|
+| [Tyrian](https://github.com/PurpleKingdomGames/tyrian) | Elm-style UI framework for Scala.js (model / update / view) |
+| [NES.css](https://nostalgic-css.github.io/NES.css/) | Retro pixel-art CSS framework for the UI look |
+| [Scala.js](https://www.scala-js.org/) | Scala compiled to JavaScript |
+| [Parcel](https://parceljs.org/) | Dev server and bundler |
