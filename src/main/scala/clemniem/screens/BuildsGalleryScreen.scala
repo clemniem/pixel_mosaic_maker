@@ -224,11 +224,9 @@ object BuildsGalleryScreen extends Screen {
             else
               GalleryEmptyState("No builds yet.", "+ Start new build", BuildsGalleryMsg.ShowNewBuildDropdown)
           else
-            div(`class` := GalleryLayout.galleryListClass)(
-              div(`class` := GalleryLayout.galleryListClass)(
-                builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))*
-              ),
-              bottomSection
+            GalleryLayout.listWithAddAction(
+              bottomSection,
+              builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
     }

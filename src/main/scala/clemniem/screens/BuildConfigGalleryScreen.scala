@@ -156,9 +156,9 @@ object BuildConfigGalleryScreen extends Screen {
           if (list.isEmpty)
             GalleryEmptyState("No build configs yet.", "+ Create BuildConfig", BuildConfigGalleryMsg.CreateNew)
           else
-            div(`class` := GalleryLayout.galleryListClass)(
-              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
-                button(`class` := NesCss.btnPrimary, onClick(BuildConfigGalleryMsg.CreateNew))(text("+ Create BuildConfig")))*
+            GalleryLayout.listWithAddAction(
+              button(`class` := NesCss.btnPrimary, onClick(BuildConfigGalleryMsg.CreateNew))(text("+ Create BuildConfig")),
+              list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id)))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
     }

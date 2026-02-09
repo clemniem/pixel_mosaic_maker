@@ -13,6 +13,10 @@ object GalleryLayout {
   /** CSS class for the vertical list of gallery cards + actions (gap between items, no touching). */
   val galleryListClass = "gallery-list"
 
+  /** Gallery list with add/create action at the top, then the given entries. Use for all galleries so the add button is consistently first. */
+  def listWithAddAction[Msg](addAction: Html[Msg], entries: Iterable[Html[Msg]]): Html[Msg] =
+    div(`class` := galleryListClass)((addAction +: entries.toSeq)*)
+
   /** @param title       Screen title (e.g. "Palettes", "Build configs")
     * @param backButton  Back button HTML (e.g. ← Overview)
     * @param content     Main content: loading state, empty state, or list + actions (will be wrapped in gallery-content)

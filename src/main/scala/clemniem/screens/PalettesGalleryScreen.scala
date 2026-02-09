@@ -122,18 +122,19 @@ object PalettesGalleryScreen extends Screen {
         val content =
           if (list.isEmpty)
             div(`class` := GalleryLayout.galleryListClass)(
-              GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew),
               div(`class` := "flex-row")(
+                button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
                 button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
-              )
+              ),
+              GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew)
             )
           else
-            div(`class` := GalleryLayout.galleryListClass)(
-              (list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id))) :+
-                div(`class` := "flex-row")(
-                  button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
-                  button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
-                ))*
+            GalleryLayout.listWithAddAction(
+              div(`class` := "flex-row")(
+                button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
+                button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
+              ),
+              list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id)))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
     }
