@@ -133,8 +133,8 @@ object PdfLayoutConfig {
     ),
     chapterOverview = ChapterOverview(
       contentTopOffsetFromTopMm = -1.0,
-      colorListReservedWidthMm = 22.0,
-      gridOverviewMaxHeightMm = 35.0,
+      colorListReservedWidthMm = 26.0,
+      gridOverviewMaxHeightMm = 48.0,
       gridOverviewGapAboveMm = 6.0,
       gridOverviewLeftMarginMm = 3.0,
       gridOverviewRightMarginMm = 2.0,
