@@ -19,10 +19,8 @@ final case class PrintBookRequest(
 object PdfUtils {
 
   /** Default page background: light pastel yellow (old LEGO-catalog style). */
-  val defaultPageBackgroundColor: Color = Color(253, 251, 230)
+  val defaultPageBackgroundColor: Color = Color.defaultPageBackground
 
-  /** Background RGB for layer patches (pixels not in the current cumulative set). Later configurable. */
-  private val layerPatchBackgroundGrey = 220
 
   /** Extra offset (mm) applied below config so the top line of pixel counts (and content aligned with it) is shifted down on all overview and step pages. */
   private val pixelCountTopExtraMm = 2.0
@@ -42,7 +40,6 @@ object PdfUtils {
     (marginLR, gridOverviewY, smallScale, smallOverviewW, smallOverviewH)
   }
 
-  private val smallOverviewGreyRgb       = 210
   private val smallOverviewGreyOpacity   = 0.4
   private val smallOverviewHighlightFrameMm = 0.25
   private val smallOverviewOuterBorderMm  = 0.35
@@ -50,6 +47,7 @@ object PdfUtils {
   private val smallOverviewStepGridLineWidthMm = 0.15
   private val smallOverviewStepGridDashMm      = 0.9
   private val smallOverviewStepGridGapMm       = 1.0
+  private val progressBarHeightMm              = 3.0
 
   /** Stroke rects for layout grid over full mosaic (small overview): lines at grid part boundaries, not step subdivisions. */
   private def smallOverviewLayoutGridStrokeRects(
@@ -94,12 +92,61 @@ object PdfUtils {
   ): List[Instruction] = {
     val (_, _, fullRgbFlat) = pixelPicToRgbFlat(fullPic)
     val gridInstr   = List(Instruction.DrawPixelGrid(smallX0, smallY0, smallOverviewW, smallOverviewH, fullPic.width, fullPic.height, fullRgbFlat))
-    val greyInstrs  = greyRectsMm.map { case (x, y, w, h) => Instruction.FillRectWithOpacity(x, y, w, h, smallOverviewGreyRgb, smallOverviewGreyRgb, smallOverviewGreyRgb, smallOverviewGreyOpacity) }
+    val greyInstrs  = greyRectsMm.map { case (x, y, w, h) => Instruction.FillRectWithOpacity(x, y, w, h, Color.smallOverviewGrey.r, Color.smallOverviewGrey.g, Color.smallOverviewGrey.b, smallOverviewGreyOpacity) }
     val layoutGridRects = smallOverviewLayoutGridStrokeRects(smallX0, smallY0, smallOverviewW, smallOverviewH, grid, fullPic.width, fullPic.height, smallOverviewStepGridLineWidthMm)
     val layoutGridDashed = dashedStrokeRectsInstructions(layoutGridRects, smallOverviewStepGridDashMm, smallOverviewStepGridGapMm)
-    val frameInstr  = List(Instruction.DrawStrokeRects(List(highlightedRectMm), 0, 0, 0, smallOverviewHighlightFrameMm))
-    val borderInstr = List(Instruction.DrawStrokeRects(List((smallX0, smallY0, smallOverviewW, smallOverviewH)), 0, 0, 0, smallOverviewOuterBorderMm))
+    val frameInstr  = List(Instruction.DrawStrokeRects(List(highlightedRectMm), Color.black.r, Color.black.g, Color.black.b, smallOverviewHighlightFrameMm))
+    val borderInstr = List(Instruction.DrawStrokeRects(List((smallX0, smallY0, smallOverviewW, smallOverviewH)), Color.black.r, Color.black.g, Color.black.b, smallOverviewOuterBorderMm))
     gridInstr ++ greyInstrs ++ layoutGridDashed ++ frameInstr ++ borderInstr
+  }
+
+  /** Progress bar at the bottom of the page, above the printer margin: full width (0 to pageW), y = pageH - marginTB - bar height. For booklet: bar represents overall progress 0–100%; when filling the second half, the first half is always completely full. */
+  private def progressBarInstructions(
+      pageIndex1Based: Int,
+      totalPages: Int,
+      pageW: Double,
+      pageH: Double,
+      marginTB: Double
+  ): List[Instruction] = {
+    if (totalPages <= 0) Nil
+    else {
+      val barY = pageH - marginTB - progressBarHeightMm
+      if (barY < 0) Nil
+      else {
+        val barX     = 0.0
+        val barW     = pageW
+        val progress = pageIndex1Based.toDouble / totalPages
+        val fillRatio = math.min(1.0, progress)
+        val fillW = (barW * fillRatio).max(0)
+        val bg    = List(Instruction.FillRect(barX, barY, barW, progressBarHeightMm, Color.progressBarBackgroundPastelBlue.r, Color.progressBarBackgroundPastelBlue.g, Color.progressBarBackgroundPastelBlue.b))
+        val fill  = if (fillW > 0) List(Instruction.FillRect(barX, barY, fillW, progressBarHeightMm, Color.progressBarFill.r, Color.progressBarFill.g, Color.progressBarFill.b)) else Nil
+        bg ++ fill
+      }
+    }
+  }
+
+  /** Insert progress bar instructions before each AddPage (for the page we're leaving) and before Save (for the last page). Uses foldLeft to avoid stack overflow on large documents. */
+  private def insertProgressBars(
+      instructions: List[Instruction],
+      totalPages: Int,
+      pageW: Double,
+      pageH: Double,
+      marginTB: Double
+  ): List[Instruction] = {
+    type State = (Int, List[Instruction]) // currentPage, reversed result
+    val (_, revResult) = instructions.foldLeft[State]((1, Nil)) { case ((currentPage, acc), inst) =>
+      inst match {
+        case Instruction.AddPage =>
+          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, marginTB)
+          (currentPage + 1, Instruction.AddPage :: (bar.reverse ++ acc))
+        case s @ Instruction.Save(_) =>
+          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, marginTB)
+          (currentPage, s :: (bar.reverse ++ acc))
+        case other =>
+          (currentPage, other :: acc)
+      }
+    }
+    revResult.reverse
   }
 
   /** Generate the book PDF. Single entry point for both Print PDF buttons; pass a [[PrintBookRequest]]. */
@@ -139,8 +186,10 @@ object PdfUtils {
       case None =>
         (PdfLayout.coverInstructions(title, printerMarginMm, config), List(Instruction.AddPage), Nil)
     }
-    val instructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
-    JsPDF.run(instructions, pageBackgroundColor.r, pageBackgroundColor.g, pageBackgroundColor.b, printerMarginMm)
+    val rawInstructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
+    val totalPages     = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
+    val instructions   = insertProgressBars(rawInstructions, totalPages, pageW, pageH, marginTB)
+    JsPDF.run(instructions, pageBackgroundColor, printerMarginMm)
   }
 
   /** Cover page: centered image with 3mm white frame + black outline, title in top-right over frame (NES-style). */
@@ -171,10 +220,10 @@ object PdfUtils {
     val titleYTop  = frameY - 4.0
     List(
       Instruction.PageSize(pageW, pageH),
-      Instruction.RoundedFillRect(frameX, frameY, frameW, frameH, c.frameCornerRadiusMm, 255, 255, 255),
-      Instruction.RoundedStrokeRect(frameX, frameY, frameW, frameH, c.frameCornerRadiusMm, 0, 0, 0, c.frameStrokeLineWidthMm),
+      Instruction.RoundedFillRect(frameX, frameY, frameW, frameH, c.frameCornerRadiusMm, Color.white.r, Color.white.g, Color.white.b),
+      Instruction.RoundedStrokeRect(frameX, frameY, frameW, frameH, c.frameCornerRadiusMm, Color.black.r, Color.black.g, Color.black.b, c.frameStrokeLineWidthMm),
       Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat),
-      Instruction.TextWithBackground(titleXLeft, titleYTop, title, c.titleFontSizePt, c.titleBoxPaddingMm, alignLeft = true, 255, 255, 255)
+      Instruction.TextWithBackground(titleXLeft, titleYTop, title, c.titleFontSizePt, c.titleBoxPaddingMm, alignLeft = true, Color.white.r, Color.white.g, Color.white.b)
     )
   }
 
@@ -259,7 +308,7 @@ object PdfUtils {
       val colEndX = colStartX + colWidthsPx(c) * scale
       val centerX = baseX + (colOffsetPx(c) + colWidthsPx(c) / 2.0) * scale + c * gapMm
       List(
-        Instruction.DrawLine(colStartX, topDimY, colEndX, topDimY, dimLineWidthMm, 0, 0, 0),
+        Instruction.DrawLine(colStartX, topDimY, colEndX, topDimY, dimLineWidthMm, Color.black.r, Color.black.g, Color.black.b),
         Instruction.TextAligned(centerX, topTextY, colWidthsPx(c).toString, "center", dimFontSizePt)
       )
     }
@@ -268,7 +317,7 @@ object PdfUtils {
       val rowEndY = rowStartY + rowHeightsPx(r) * scale
       val centerY = baseY + (rowOffsetPx(r) + rowHeightsPx(r) / 2.0) * scale + r * gapMm
       List(
-        Instruction.DrawLine(rightDimX, rowStartY, rightDimX, rowEndY, dimLineWidthMm, 0, 0, 0),
+        Instruction.DrawLine(rightDimX, rowStartY, rightDimX, rowEndY, dimLineWidthMm, Color.black.r, Color.black.g, Color.black.b),
         Instruction.TextAligned(rightTextX, centerY, rowHeightsPx(r).toString, "left", dimFontSizePt)
       )
     }
@@ -325,7 +374,7 @@ object PdfUtils {
           (accInstrs, accRects :+ rect)
       }
     }
-    val frameInstrs = List(Instruction.DrawStrokeRects(partRects, 0, 0, 0, explodedPartFrameLineWidthMm))
+    val frameInstrs = List(Instruction.DrawStrokeRects(partRects, Color.black.r, Color.black.g, Color.black.b, explodedPartFrameLineWidthMm))
     (gridInstrs ++ frameInstrs, baseX, baseY, scale, totalWmm, colOffsetPx, rowOffsetPx, colWidthsPx, rowHeightsPx, uniqueXs, uniqueYs)
   }
 
@@ -553,7 +602,7 @@ object PdfUtils {
         val grid4x4Rects  = grid4x4StrokeRects(x0, y0, w, h, lp.grid4x4LineWidthMm)
         val grid16Dashed  = dashedStrokeRectsInstructions(grid16Rects, 0.9, 1.0)
         val grid4x4Dashed = dashedStrokeRectsInstructions(grid4x4Rects, 0.9, 1.0)
-        val borderInstr   = Instruction.DrawStrokeRects(List((x0, y0, w, h)), 0, 0, 0, patchBorderLineWidthMm)
+        val borderInstr   = Instruction.DrawStrokeRects(List((x0, y0, w, h)), Color.black.r, Color.black.g, Color.black.b, patchBorderLineWidthMm)
         List(Instruction.DrawPixelGrid(x0, y0, w, h, patchW, patchH, rgb)) ++ grid16Dashed ++ grid4x4Dashed :+ borderInstr
       }
     }
@@ -569,7 +618,7 @@ object PdfUtils {
     val length = math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
     if (length <= 0) Nil
     else {
-      val white = Instruction.DrawLine(x1, y1, x2, y2, lineWidthMm, 255, 255, 255)
+      val white = Instruction.DrawLine(x1, y1, x2, y2, lineWidthMm, Color.white.r, Color.white.g, Color.white.b)
       val period = dashLengthMm + gapMm
       val nFullDashes = (length / period).floor.toInt.max(0)
       val fullBlackDashes = (0 until nFullDashes).flatMap { i =>
@@ -583,7 +632,7 @@ object PdfUtils {
           val sy = y1 + startT * (y2 - y1)
           val ex = x1 + endT * (x2 - x1)
           val ey = y1 + endT * (y2 - y1)
-          List(Instruction.DrawLine(sx, sy, ex, ey, lineWidthMm, 0, 0, 0))
+          List(Instruction.DrawLine(sx, sy, ex, ey, lineWidthMm, Color.black.r, Color.black.g, Color.black.b))
         }
       }.toList
       val remainderStart = nFullDashes * period
@@ -594,7 +643,7 @@ object PdfUtils {
           val ey = y1 + 1.0 * (y2 - y1)
           val sx = x1 + startT * (x2 - x1)
           val sy = y1 + startT * (y2 - y1)
-          List(Instruction.DrawLine(sx, sy, ex, ey, lineWidthMm, 0, 0, 0))
+          List(Instruction.DrawLine(sx, sy, ex, ey, lineWidthMm, Color.black.r, Color.black.g, Color.black.b))
         } else Nil
       white :: (fullBlackDashes ++ finalDash)
     }
@@ -666,7 +715,7 @@ object PdfUtils {
         if (colorIndexSet.contains(idx)) {
           val p = paletteLookup(idx)
           (p.r, p.g, p.b)
-        } else (layerPatchBackgroundGrey, layerPatchBackgroundGrey, layerPatchBackgroundGrey)
+        } else Color.layerPatchBackground.rgb
       Vector(r, g, b)
     }.toVector
 

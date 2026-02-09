@@ -6,6 +6,9 @@ import io.circe.{Decoder, Encoder}
 /** Wrapper around RGB values with hex conversion. Components clamped to 0–255. */
 final case class Color(r: Int, g: Int, b: Int) {
 
+  /** RGB as a tuple for APIs that expect (r, g, b). */
+  def rgb: (Int, Int, Int) = (r, g, b)
+
   /** Hex string in the form #rrggbb (lowercase). */
   def toHex: String = {
     def pad(n: Int): String = {
@@ -14,9 +17,28 @@ final case class Color(r: Int, g: Int, b: Int) {
     }
     s"#${pad(r)}${pad(g)}${pad(b)}"
   }
+
+  /** CSS/canvas rgba string: "rgba(r,g,b,a)". Alpha clamped to 0.0–1.0. */
+  def rgba(alpha: Double): String = {
+    val a = math.max(0.0, math.min(1.0, alpha))
+    s"rgba($r,$g,$b,$a)"
+  }
 }
 
 object Color {
+
+  /** Central definitions for fixed colors used across the app (PDF, UI, etc.). */
+  val black: Color                           = Color(0, 0, 0)
+  val white: Color                           = Color(255, 255, 255)
+  val smallOverviewGrey: Color               = Color(210, 210, 210)
+  val progressBarBackgroundPastelBlue: Color = Color(200, 220, 240)
+  val progressBarFill: Color                 = Color(0, 0, 0)
+  val layerPatchBackground: Color           = Color(220, 220, 220)
+  val defaultPageBackground: Color          = Color(253, 251, 230)
+  /** Red used for error/validation strokes (e.g. canvas overlay). */
+  val errorStroke: Color                  = Color(255, 0, 0)
+  /** Green used for highlight/success strokes (e.g. current step overlay). */
+  val highlightStroke: Color              = Color(0, 200, 0)
 
   private def clamp(c: Int): Int = math.max(0, math.min(255, c))
 

@@ -2,6 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{
+  Color,
   NavigateNext,
   Screen,
   ScreenId,
@@ -192,7 +193,7 @@ object BuildsGalleryScreen extends Screen {
                   val cw = (cropped.width * scale).toInt.max(1)
                   val ch = (cropped.height * scale).toInt.max(1)
                   CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
-                  ctx.strokeStyle = "rgba(255,0,0,0.6)"
+                  ctx.strokeStyle = Color.errorStroke.rgba(0.6)
                   ctx.lineWidth = 1
                   stored.config.grid.parts.foreach { part =>
                     ctx.strokeRect(part.x * scale, part.y * scale, (part.width * scale).max(1), (part.height * scale).max(1))
@@ -200,7 +201,7 @@ object BuildsGalleryScreen extends Screen {
                   currentStep.foreach { case (sx, sy) =>
                     val rx = sx - stored.config.offsetX
                     val ry = sy - stored.config.offsetY
-                    ctx.strokeStyle = "rgba(0,200,0,0.9)"
+                    ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
                     ctx.lineWidth = 2
                     ctx.strokeRect(rx * scale, ry * scale, (patchSize * scale).max(1), (patchSize * scale).max(1))
                   }

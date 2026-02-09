@@ -1,5 +1,6 @@
 package clemniem.common.pdf
 
+import clemniem.Color
 import org.scalajs.dom.console
 import scala.scalajs.js
 import scala.scalajs.js.timers.setTimeout
@@ -35,6 +36,12 @@ object JsPDF {
       if (js.typeOf(base64Val) == "undefined") None
       else Some(base64Val.asInstanceOf[String]).filter(_.nonEmpty)
     val _ = setTimeout(0)(runNow(instructions, bgR, bgG, bgB, printerMarginMm, fontBase64Opt))
+  }
+
+  /** Overload: pass background as [[Color]] (uses [[Color.rgb]]). */
+  def run(instructions: List[Instruction], pageBackground: Color, printerMarginMm: Double): Unit = {
+    val (r, g, b) = pageBackground.rgb
+    run(instructions, r, g, b, printerMarginMm)
   }
 
   /** Total page count: 1 + number of AddPage (Save is not a page). */

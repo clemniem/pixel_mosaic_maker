@@ -2,6 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{
+  Color,
   NavigateNext,
   PixelPic,
   Screen,
@@ -152,7 +153,7 @@ object BuildConfigGalleryScreen extends Screen {
               ctx.fillStyle = "#eee"
               ctx.fillRect(0, 0, previewWidth, previewHeight)
               CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
-              ctx.strokeStyle = "rgba(255,0,0,0.7)"
+              ctx.strokeStyle = Color.errorStroke.rgba(0.7)
               ctx.lineWidth = 1
               val gsx = scale
               val gsy = scale

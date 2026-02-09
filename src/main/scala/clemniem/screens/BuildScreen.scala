@@ -260,7 +260,7 @@ object BuildScreen extends Screen {
               canvas.height = ch
               ctx.clearRect(0, 0, cw, ch)
               CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
-              ctx.strokeStyle = "rgba(255,0,0,0.6)"
+              ctx.strokeStyle = Color.errorStroke.rgba(0.6)
               ctx.lineWidth = 1
               val gsx = scale
               val gsy = scale
@@ -270,7 +270,7 @@ object BuildScreen extends Screen {
               model.currentStep.foreach { case (sx, sy) =>
                 val rx = sx - stored.config.offsetX
                 val ry = sy - stored.config.offsetY
-                ctx.strokeStyle = "rgba(0,200,0,0.9)"
+                ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
                 ctx.lineWidth = 2
                 ctx.strokeRect(rx * scale, ry * scale, (patchSize * scale).max(1), (patchSize * scale).max(1))
               }
@@ -363,7 +363,7 @@ object BuildScreen extends Screen {
                   }
                 }
                 ctx.putImageData(imgData, ox, oy)
-                ctx.strokeStyle = "rgba(0,0,0,0.45)"
+                ctx.strokeStyle = Color.black.rgba(0.45)
                 ctx.lineWidth = 1
                 for (g <- 1 until 4) {
                   val pos = g * gridStep * cellPx
