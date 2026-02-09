@@ -270,7 +270,7 @@ object GridConfigScreen extends Screen {
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row")(
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.Back))(text("← GridConfigs")),
+          button(`class` := NesCss.btn, onClick(GridConfigMsg.Back))(GalleryLayout.backButtonLabel("←", "GridConfigs")),
           button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.Save))(text("Save"))
         ),
         Some(ScreenHeader.nameRowInput(model.name, GridConfigMsg.SetName.apply, None, "")),

@@ -30,7 +30,7 @@ object BuildConfigGalleryScreen extends Screen {
   private val previewHeight = 80
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
-    val model = BuildConfigGalleryModel(None, None, None, None)
+    val model = BuildConfigGalleryModel(None, None, None, None, currentPage = 1)
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       BuildConfigGalleryMsg.LoadedBuildConfigs.apply,
       _ => BuildConfigGalleryMsg.LoadedBuildConfigs(Nil),
@@ -51,7 +51,8 @@ object BuildConfigGalleryScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case BuildConfigGalleryMsg.LoadedBuildConfigs(list) =>
-      val next = model.copy(buildConfigs = Some(list))
+      val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
+      val next = model.copy(buildConfigs = Some(list), currentPage = model.currentPage.min(maxPage).max(1))
       val cmd  = if (next.canDrawPreviews) Cmd.SideEffect(drawAllPreviews(next)) else Cmd.None
       (next, cmd)
     case BuildConfigGalleryMsg.LoadedImages(list) =>
@@ -78,12 +79,26 @@ object BuildConfigGalleryScreen extends Screen {
             _ => BuildConfigGalleryMsg.CancelDelete,
             (_, _) => BuildConfigGalleryMsg.CancelDelete
           )
-          (model.copy(buildConfigs = Some(newList), pendingDeleteId = None), saveCmd)
+          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / GalleryLayout.defaultPageSize) + 1
+          (model.copy(buildConfigs = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
     case BuildConfigGalleryMsg.CancelDelete =>
       (model.copy(pendingDeleteId = None), Cmd.None)
+    case BuildConfigGalleryMsg.PreviousPage =>
+      val next = model.copy(currentPage = (model.currentPage - 1).max(1))
+      val cmd  = if (next.canDrawPreviews) Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next))) else Cmd.None
+      (next, cmd)
+    case BuildConfigGalleryMsg.NextPage =>
+      model.buildConfigs match {
+        case Some(list) =>
+          val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
+          val next    = model.copy(currentPage = (model.currentPage + 1).min(maxPage))
+          val cmd     = if (next.canDrawPreviews) Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next))) else Cmd.None
+          (next, cmd)
+        case None => (model, Cmd.None)
+      }
     case BuildConfigGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case _: NavigateNext =>
@@ -94,6 +109,21 @@ object BuildConfigGalleryScreen extends Screen {
     model.buildConfigs.getOrElse(Nil).foldLeft(IO.unit)((acc, item) =>
       acc.flatMap(_ => drawBuildConfigPreview(item, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil)))
     )
+
+  private def drawPreviewsForCurrentPage(model: BuildConfigGalleryModel): IO[Unit] = {
+    val list = model.buildConfigs.getOrElse(Nil)
+    if (list.isEmpty) IO.unit
+    else {
+      val pageSize = GalleryLayout.defaultPageSize
+      val start    = (model.currentPage - 1) * pageSize
+      val slice    = list.slice(start, start + pageSize)
+      val images   = model.images.getOrElse(Nil)
+      val palettes = model.palettes.getOrElse(Nil)
+      slice.foldLeft(IO.unit)((acc, item) =>
+        acc.flatMap(_ => drawBuildConfigPreview(item, images, palettes))
+      )
+    }
+  }
 
   private def drawBuildConfigPreview(
       stored: StoredBuildConfig,
@@ -146,8 +176,8 @@ object BuildConfigGalleryScreen extends Screen {
     })
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(BuildConfigGalleryMsg.Back))(text("← Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(text("Next →"))
+    val backBtn  = button(`class` := NesCss.btn, onClick(BuildConfigGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
+    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
     model.buildConfigs match {
       case None =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false, Some(nextBtn))
@@ -156,12 +186,35 @@ object BuildConfigGalleryScreen extends Screen {
           if (list.isEmpty)
             GalleryEmptyState("No build configs yet.", "+ Create BuildConfig", BuildConfigGalleryMsg.CreateNew)
           else
-            GalleryLayout.listWithAddAction(
+            paginatedList(
+              list,
+              model.currentPage,
               button(`class` := NesCss.btnPrimary, onClick(BuildConfigGalleryMsg.CreateNew))(text("+ Create BuildConfig")),
-              list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id)))
+              item => entryCard(item, model.pendingDeleteId.contains(item.id))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
     }
+  }
+
+  private def paginatedList(
+      list: List[StoredBuildConfig],
+      currentPage: Int,
+      addAction: Html[Msg],
+      entryCard: StoredBuildConfig => Html[Msg]
+  ): Html[Msg] = {
+    val pageSize   = GalleryLayout.defaultPageSize
+    val totalPages = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
+    val page       = currentPage.min(totalPages).max(1)
+    val start      = (page - 1) * pageSize
+    val slice      = list.slice(start, start + pageSize)
+    GalleryLayout.listWithAddActionAndPagination(
+      addAction,
+      slice.map(entryCard),
+      page,
+      totalPages,
+      BuildConfigGalleryMsg.PreviousPage,
+      BuildConfigGalleryMsg.NextPage
+    )
   }
 
   private def entryCard(item: StoredBuildConfig, confirmingDelete: Boolean): Html[Msg] =
@@ -199,7 +252,8 @@ final case class BuildConfigGalleryModel(
     buildConfigs: Option[List[StoredBuildConfig]],
     images: Option[List[StoredImage]],
     palettes: Option[List[StoredPalette]],
-    pendingDeleteId: Option[String]
+    pendingDeleteId: Option[String],
+    currentPage: Int
 ) {
   def canDrawPreviews: Boolean =
     buildConfigs.isDefined && images.isDefined && palettes.isDefined
@@ -215,4 +269,6 @@ enum BuildConfigGalleryMsg:
   case Delete(stored: StoredBuildConfig)
   case ConfirmDelete(id: String)
   case CancelDelete
+  case PreviousPage
+  case NextPage
   case Back

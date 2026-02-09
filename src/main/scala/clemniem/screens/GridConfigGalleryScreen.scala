@@ -23,7 +23,7 @@ object GridConfigGalleryScreen extends Screen {
       _ => GridConfigGalleryMsg.Loaded(Nil),
       (_, _) => GridConfigGalleryMsg.Loaded(Nil)
     )
-    (GridConfigGalleryModel(None, None), cmd)
+    (GridConfigGalleryModel(None, None, currentPage = 1), cmd)
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
@@ -36,7 +36,8 @@ object GridConfigGalleryScreen extends Screen {
               list.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
             )
           )
-      (model.copy(list = Some(list)), drawPreviews)
+      val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
+      (model.copy(list = Some(list), currentPage = model.currentPage.min(maxPage).max(1)), drawPreviews)
     case GridConfigGalleryMsg.Edit(stored) =>
       (model, Cmd.Emit(NavigateNext(ScreenId.GridConfigId, Some(ScreenOutput.EditGridConfig(stored)))))
     case GridConfigGalleryMsg.Delete(stored) =>
@@ -49,7 +50,8 @@ object GridConfigGalleryScreen extends Screen {
             _ => GridConfigGalleryMsg.CancelDelete,
             (_, _) => GridConfigGalleryMsg.CancelDelete
           )
-          (model.copy(list = Some(newList), pendingDeleteId = None), saveCmd)
+          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / GalleryLayout.defaultPageSize) + 1
+          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
@@ -57,6 +59,24 @@ object GridConfigGalleryScreen extends Screen {
       (model.copy(pendingDeleteId = None), Cmd.None)
     case GridConfigGalleryMsg.CreateNew =>
       (model, Cmd.Emit(NavigateNext(ScreenId.GridConfigId, None)))
+    case GridConfigGalleryMsg.PreviousPage =>
+      val next = model.copy(currentPage = (model.currentPage - 1).max(1))
+      val cmd  = model.list match {
+        case Some(list) if list.nonEmpty =>
+          Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
+        case _ => Cmd.None
+      }
+      (next, cmd)
+    case GridConfigGalleryMsg.NextPage =>
+      model.list match {
+        case Some(list) =>
+          val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
+          val next    = model.copy(currentPage = (model.currentPage + 1).min(maxPage))
+          val cmd = if (list.isEmpty) Cmd.None
+          else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
+          (next, cmd)
+        case None => (model, Cmd.None)
+      }
     case GridConfigGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case GridConfigGalleryMsg.DrawPreview(stored) =>
@@ -66,8 +86,8 @@ object GridConfigGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.Back))(text("← Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(text("Next →"))
+    val backBtn  = button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
+    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
     model.list match {
       case None =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = true, Some(nextBtn))
@@ -76,12 +96,35 @@ object GridConfigGalleryScreen extends Screen {
           if (list.isEmpty)
             GalleryEmptyState("No grid configs yet.", "+ Create GridConfig", GridConfigGalleryMsg.CreateNew)
           else
-            GalleryLayout.listWithAddAction(
+            paginatedList(
+              list,
+              model.currentPage,
               button(`class` := NesCss.btnPrimary, onClick(GridConfigGalleryMsg.CreateNew))(text("+ Create GridConfig")),
-              list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id)))
+              item => entryCard(item, model.pendingDeleteId.contains(item.id))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = true, Some(nextBtn))
     }
+  }
+
+  private def paginatedList(
+      list: List[StoredGridConfig],
+      currentPage: Int,
+      addAction: Html[Msg],
+      entryCard: StoredGridConfig => Html[Msg]
+  ): Html[Msg] = {
+    val pageSize   = GalleryLayout.defaultPageSize
+    val totalPages = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
+    val page       = currentPage.min(totalPages).max(1)
+    val start      = (page - 1) * pageSize
+    val slice      = list.slice(start, start + pageSize)
+    GalleryLayout.listWithAddActionAndPagination(
+      addAction,
+      slice.map(entryCard),
+      page,
+      totalPages,
+      GridConfigGalleryMsg.PreviousPage,
+      GridConfigGalleryMsg.NextPage
+    )
   }
 
   private def entryCard(item: StoredGridConfig, confirmingDelete: Boolean): Html[Msg] =
@@ -116,6 +159,16 @@ object GridConfigGalleryScreen extends Screen {
   private val previewWidth  = 120
   private val previewHeight = 80
 
+  private def drawPreviewsForCurrentPage(model: Model): IO[Unit] =
+    model.list match {
+      case Some(list) if list.nonEmpty =>
+        val pageSize = GalleryLayout.defaultPageSize
+        val start    = (model.currentPage - 1) * pageSize
+        val slice    = list.slice(start, start + pageSize)
+        slice.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
+      case _ => IO.unit
+    }
+
   private def drawPreview(stored: StoredGridConfig): IO[Unit] =
     CanvasUtils.drawAfterViewReadyDelayed(
       id = s"grid-preview-${stored.id}",
@@ -146,7 +199,8 @@ object GridConfigGalleryScreen extends Screen {
 
 final case class GridConfigGalleryModel(
     list: Option[List[StoredGridConfig]],
-    pendingDeleteId: Option[String]
+    pendingDeleteId: Option[String],
+    currentPage: Int
 )
 
 enum GridConfigGalleryMsg:
@@ -157,4 +211,6 @@ enum GridConfigGalleryMsg:
   case CancelDelete
   case DrawPreview(stored: StoredGridConfig)
   case CreateNew
+  case PreviousPage
+  case NextPage
   case Back

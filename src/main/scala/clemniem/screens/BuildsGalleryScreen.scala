@@ -31,7 +31,7 @@ object BuildsGalleryScreen extends Screen {
   private val patchSize          = 16
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
-    val model = BuildsGalleryModel(None, None, None, None, None, showNewBuildDropdown = false, pendingDeleteId = None)
+    val model = BuildsGalleryModel(None, None, None, None, None, showNewBuildDropdown = false, pendingDeleteId = None, currentPage = 1)
     val loadBuilds   = LocalStorageUtils.loadList(StorageKeys.builds)(
       BuildsGalleryMsg.LoadedBuilds.apply,
       _ => BuildsGalleryMsg.LoadedBuilds(Nil),
@@ -57,9 +57,10 @@ object BuildsGalleryScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case BuildsGalleryMsg.LoadedBuilds(list) =>
-      val valid = list.filter(_.buildConfigRef.nonEmpty)
-      val next  = model.copy(builds = Some(valid))
-      val cmd   = if (next.canDrawPreviews) Cmd.SideEffect(drawAllBuildPreviews(next)) else Cmd.None
+      val valid  = list.filter(_.buildConfigRef.nonEmpty)
+      val maxPage = if (valid.isEmpty) 1 else ((valid.size - 1) / GalleryLayout.defaultPageSize) + 1
+      val next   = model.copy(builds = Some(valid), currentPage = model.currentPage.min(maxPage).max(1))
+      val cmd    = if (next.canDrawPreviews) Cmd.SideEffect(drawAllBuildPreviews(next)) else Cmd.None
       (next, cmd)
     case BuildsGalleryMsg.LoadedBuildConfigs(list) =>
       val next = model.copy(buildConfigs = Some(list))
@@ -102,12 +103,26 @@ object BuildsGalleryScreen extends Screen {
             _ => BuildsGalleryMsg.CancelDelete,
             (_, _) => BuildsGalleryMsg.CancelDelete
           )
-          (model.copy(builds = Some(newList), pendingDeleteId = None), saveCmd)
+          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / GalleryLayout.defaultPageSize) + 1
+          (model.copy(builds = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
     case BuildsGalleryMsg.CancelDelete =>
       (model.copy(pendingDeleteId = None), Cmd.None)
+    case BuildsGalleryMsg.PreviousPage =>
+      val next = model.copy(currentPage = (model.currentPage - 1).max(1))
+      val cmd  = if (next.canDrawPreviews) Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next))) else Cmd.None
+      (next, cmd)
+    case BuildsGalleryMsg.NextPage =>
+      model.builds match {
+        case Some(builds) =>
+          val maxPage = if (builds.isEmpty) 1 else ((builds.size - 1) / GalleryLayout.defaultPageSize) + 1
+          val next    = model.copy(currentPage = (model.currentPage + 1).min(maxPage))
+          val cmd     = if (next.canDrawPreviews) Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next))) else Cmd.None
+          (next, cmd)
+        case None => (model, Cmd.None)
+      }
     case BuildsGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case _: NavigateNext =>
@@ -118,6 +133,22 @@ object BuildsGalleryScreen extends Screen {
     model.builds.getOrElse(Nil).foldLeft(IO.unit)((acc, build) =>
       acc.flatMap(_ => drawBuildPreview(build, model.buildConfigs.getOrElse(Nil), model.images.getOrElse(Nil), model.palettes.getOrElse(Nil)))
     )
+
+  private def drawPreviewsForCurrentPage(model: BuildsGalleryModel): IO[Unit] = {
+    val builds = model.builds.getOrElse(Nil)
+    if (builds.isEmpty) IO.unit
+    else {
+      val pageSize = GalleryLayout.defaultPageSize
+      val start    = (model.currentPage - 1) * pageSize
+      val slice    = builds.slice(start, start + pageSize)
+      val configs  = model.buildConfigs.getOrElse(Nil)
+      val images   = model.images.getOrElse(Nil)
+      val palettes = model.palettes.getOrElse(Nil)
+      slice.foldLeft(IO.unit)((acc, build) =>
+        acc.flatMap(_ => drawBuildPreview(build, configs, images, palettes))
+      )
+    }
+  }
 
   private def drawBuildPreview(
       build: StoredBuild,
@@ -190,8 +221,8 @@ object BuildsGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.Back))(text("← Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(text("Next →"))
+    val backBtn  = button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
+    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
     (model.builds, model.buildConfigs) match {
       case (None, _) | (_, None) =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false, Some(nextBtn))
@@ -224,12 +255,35 @@ object BuildsGalleryScreen extends Screen {
             else
               GalleryEmptyState("No builds yet.", "+ Start new build", BuildsGalleryMsg.ShowNewBuildDropdown)
           else
-            GalleryLayout.listWithAddAction(
+            paginatedList(
+              builds,
+              model.currentPage,
               bottomSection,
-              builds.map(b => entryCard(b, configs, model.pendingDeleteId.contains(b.id)))
+              b => entryCard(b, configs, model.pendingDeleteId.contains(b.id))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
     }
+  }
+
+  private def paginatedList(
+      builds: List[StoredBuild],
+      currentPage: Int,
+      addAction: Html[Msg],
+      entryCard: StoredBuild => Html[Msg]
+  ): Html[Msg] = {
+    val pageSize   = GalleryLayout.defaultPageSize
+    val totalPages = if (builds.isEmpty) 1 else ((builds.size - 1) / pageSize) + 1
+    val page       = currentPage.min(totalPages).max(1)
+    val start      = (page - 1) * pageSize
+    val slice      = builds.slice(start, start + pageSize)
+    GalleryLayout.listWithAddActionAndPagination(
+      addAction,
+      slice.map(entryCard),
+      page,
+      totalPages,
+      BuildsGalleryMsg.PreviousPage,
+      BuildsGalleryMsg.NextPage
+    )
   }
 
   private def entryCard(item: StoredBuild, configs: List[StoredBuildConfig], confirmingDelete: Boolean): Html[Msg] = {
@@ -281,7 +335,8 @@ final case class BuildsGalleryModel(
     palettes: Option[List[StoredPalette]],
     selectedBuildConfigId: Option[String],
     showNewBuildDropdown: Boolean,
-    pendingDeleteId: Option[String]
+    pendingDeleteId: Option[String],
+    currentPage: Int
 ) {
   def canDrawPreviews: Boolean =
     builds.isDefined && buildConfigs.isDefined && images.isDefined && palettes.isDefined
@@ -301,4 +356,6 @@ enum BuildsGalleryMsg:
   case Delete(stored: StoredBuild)
   case ConfirmDelete(id: String)
   case CancelDelete
+  case PreviousPage
+  case NextPage
   case Back

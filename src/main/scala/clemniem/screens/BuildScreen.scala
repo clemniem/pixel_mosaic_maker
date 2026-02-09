@@ -408,7 +408,7 @@ object BuildScreen extends Screen {
               `class` := (if (model.pendingSave.isDefined) s"${NesCss.btn} btn-disabled" else NesCss.btnSuccess),
               onClick(BuildScreenMsg.Save)
             )(text(if (model.pendingSave.isDefined) "Saving…" else "Save step")),
-            button(`class` := NesCss.btn, onClick(BuildScreenMsg.Back))(text("← Builds"))
+            button(`class` := NesCss.btn, onClick(BuildScreenMsg.Back))(GalleryLayout.backButtonLabel("←", "Builds"))
           ),
           div(`class` := "flex-row flex-row--tight", style := "margin-top: 0.5rem;")(
             button(

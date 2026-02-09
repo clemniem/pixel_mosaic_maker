@@ -269,6 +269,15 @@ input[type="number"].nes-input {
   margin: 0;
 }
 
+/* Arrow glyphs (← →) in nav buttons: use system font so they render at readable size; Press Start 2P doesn't cover them well */
+.btn-arrow {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1.15em;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 /* ========== Canvas ========== */
 .pixel-canvas {
   border: 1px solid #333;
@@ -656,6 +665,28 @@ input[type="number"].nes-input {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* Paginated list: entries area has max height so pagination is needed */
+.gallery-list-entries {
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gallery-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-shrink: 0;
+}
+
+.gallery-pagination-label {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Override NES.css container background for gallery entries (match rounded variant). Opaque, not see-through. */

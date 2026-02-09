@@ -307,7 +307,7 @@ object BuildConfigScreen extends Screen {
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row")(
-          button(`class` := NesCss.btn, onClick(BuildConfigMsg.Back))(text("← Build configs")),
+          button(`class` := NesCss.btn, onClick(BuildConfigMsg.Back))(GalleryLayout.backButtonLabel("←", "Build configs")),
           button(`class` := NesCss.btnPrimary, onClick(BuildConfigMsg.Save))(text("Save"))
         ),
         Some(ScreenHeader.nameRowInput(model.name, BuildConfigMsg.SetName.apply, None, "")),

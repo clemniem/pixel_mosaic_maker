@@ -19,13 +19,15 @@ object PalettesGalleryScreen extends Screen {
 
   val screenId: ScreenId = ScreenId.PalettesId
 
+  private val pageSize: Int = 4
+
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val loadCmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
       PalettesGalleryMsg.Loaded.apply,
       _ => PalettesGalleryMsg.Loaded(Nil),
       (_, _) => PalettesGalleryMsg.Loaded(Nil)
     )
-    (PalettesGalleryModel(None, None), loadCmd)
+    (PalettesGalleryModel(None, None, currentPage = 1), loadCmd)
   }
 
   private def baseNameFromFileName(fileName: String): String = {
@@ -63,7 +65,8 @@ object PalettesGalleryScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case PalettesGalleryMsg.Loaded(list) =>
-      (model.copy(list = Some(list)), Cmd.None)
+      val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
+      (model.copy(list = Some(list), currentPage = model.currentPage.min(maxPage).max(1)), Cmd.None)
     case PalettesGalleryMsg.CreateNew =>
       (model, Cmd.Emit(NavigateNext(ScreenId.PaletteId, None)))
     case PalettesGalleryMsg.Edit(stored) =>
@@ -78,7 +81,8 @@ object PalettesGalleryScreen extends Screen {
             _ => PalettesGalleryMsg.CancelDelete,
             (_, _) => PalettesGalleryMsg.CancelDelete
           )
-          (model.copy(list = Some(newList), pendingDeleteId = None), saveCmd)
+          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / pageSize) + 1
+          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
@@ -108,13 +112,22 @@ object PalettesGalleryScreen extends Screen {
       (model, Cmd.None)
     case PalettesGalleryMsg.RequestPaletteFromImage =>
       (model, Cmd.Run(openFilePickerForPalette(), (m: PalettesGalleryMsg) => m))
+    case PalettesGalleryMsg.PreviousPage =>
+      (model.copy(currentPage = (model.currentPage - 1).max(1)), Cmd.None)
+    case PalettesGalleryMsg.NextPage =>
+      model.list match {
+        case Some(list) =>
+          val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
+          (model.copy(currentPage = (model.currentPage + 1).min(maxPage)), Cmd.None)
+        case None => (model, Cmd.None)
+      }
     case _: NavigateNext =>
       (model, Cmd.None)
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Back))(text("← Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(text("Next →"))
+    val backBtn  = button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
+    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
     model.list match {
       case None =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false, Some(nextBtn))
@@ -129,15 +142,37 @@ object PalettesGalleryScreen extends Screen {
               GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew)
             )
           else
-            GalleryLayout.listWithAddAction(
+            paginatedList(
+              list,
+              model.currentPage,
               div(`class` := "flex-row")(
                 button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
                 button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
               ),
-              list.map(item => entryCard(item, model.pendingDeleteId.contains(item.id)))
+              item => entryCard(item, model.pendingDeleteId.contains(item.id))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
     }
+  }
+
+  private def paginatedList(
+      list: List[StoredPalette],
+      currentPage: Int,
+      addAction: Html[Msg],
+      entryCard: StoredPalette => Html[Msg]
+  ): Html[Msg] = {
+    val totalPages = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
+    val page       = currentPage.min(totalPages).max(1)
+    val start      = (page - 1) * pageSize
+    val slice      = list.slice(start, start + pageSize)
+    GalleryLayout.listWithAddActionAndPagination(
+      addAction,
+      slice.map(entryCard),
+      page,
+      totalPages,
+      PalettesGalleryMsg.PreviousPage,
+      PalettesGalleryMsg.NextPage
+    )
   }
 
   private def entryCard(item: StoredPalette, confirmingDelete: Boolean): Html[Msg] =
@@ -167,7 +202,8 @@ object PalettesGalleryScreen extends Screen {
 
 final case class PalettesGalleryModel(
     list: Option[List[StoredPalette]],
-    pendingDeleteId: Option[String]
+    pendingDeleteId: Option[String],
+    currentPage: Int
 )
 
 enum PalettesGalleryMsg:
@@ -181,4 +217,6 @@ enum PalettesGalleryMsg:
   case Delete(stored: StoredPalette)
   case ConfirmDelete(id: String)
   case CancelDelete
+  case PreviousPage
+  case NextPage
   case Back
