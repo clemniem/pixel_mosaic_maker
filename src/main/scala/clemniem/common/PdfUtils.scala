@@ -48,37 +48,40 @@ object PdfUtils {
   private val smallOverviewOuterBorderMm  = 0.35
   private val explodedPartFrameLineWidthMm = 0.25
   private val smallOverviewStepGridLineWidthMm = 0.15
-  private val smallOverviewStepGridDashMm      = 1.5
+  private val smallOverviewStepGridDashMm      = 0.9
   private val smallOverviewStepGridGapMm       = 1.0
 
-  /** Stroke rects for step grid over full mosaic (small overview): one line every stepSizePx pixels. */
-  private def smallOverviewStepGridStrokeRects(
+  /** Stroke rects for layout grid over full mosaic (small overview): lines at grid part boundaries, not step subdivisions. */
+  private def smallOverviewLayoutGridStrokeRects(
       x0: Double,
       y0: Double,
       imageW: Double,
       imageH: Double,
+      grid: GridConfig,
       mosaicWidthPx: Int,
       mosaicHeightPx: Int,
-      stepSizePx: Int,
       lineWidthMm: Double
   ): List[(Double, Double, Double, Double)] = {
-    val half   = lineWidthMm / 2
-    val nCols  = mosaicWidthPx / stepSizePx
-    val nRows  = mosaicHeightPx / stepSizePx
-    val pxW    = imageW / mosaicWidthPx
-    val pxH    = imageH / mosaicHeightPx
-    val verticals   = (1 until nCols).map { i =>
-      val x = x0 + i * stepSizePx * pxW - half
+    val half    = lineWidthMm / 2
+    val parts   = grid.parts.toList
+    val scaleX  = imageW / mosaicWidthPx
+    val scaleY  = imageH / mosaicHeightPx
+    val allX    = parts.flatMap(p => List(p.x, p.x + p.width)).distinct.sorted
+    val allY    = parts.flatMap(p => List(p.y, p.y + p.height)).distinct.sorted
+    val interiorX = allX.drop(1).dropRight(1)
+    val interiorY = allY.drop(1).dropRight(1)
+    val verticals   = interiorX.map { xPx =>
+      val x = x0 + xPx * scaleX - half
       (x, y0, lineWidthMm, imageH)
-    }.toList
-    val horizontals = (1 until nRows).map { j =>
-      val y = y0 + j * stepSizePx * pxH - half
+    }
+    val horizontals = interiorY.map { yPx =>
+      val y = y0 + yPx * scaleY - half
       (x0, y, imageW, lineWidthMm)
-    }.toList
+    }
     verticals ++ horizontals
   }
 
-  /** Draw the small overview: full mosaic, grey overlays on greyRectsMm (everything except highlighted), dashed step grid, black frame on highlightedRectMm, then outer border. */
+  /** Draw the small overview: full mosaic, grey overlays on greyRectsMm (everything except highlighted), dashed layout grid (part boundaries), black frame on highlightedRectMm, then outer border. */
   private def drawSmallOverview(
       fullPic: PixelPic,
       smallX0: Double,
@@ -87,16 +90,16 @@ object PdfUtils {
       smallOverviewH: Double,
       greyRectsMm: List[(Double, Double, Double, Double)],
       highlightedRectMm: (Double, Double, Double, Double),
-      stepSizePx: Int
+      grid: GridConfig
   ): List[Instruction] = {
     val (_, _, fullRgbFlat) = pixelPicToRgbFlat(fullPic)
     val gridInstr   = List(Instruction.DrawPixelGrid(smallX0, smallY0, smallOverviewW, smallOverviewH, fullPic.width, fullPic.height, fullRgbFlat))
     val greyInstrs  = greyRectsMm.map { case (x, y, w, h) => Instruction.FillRectWithOpacity(x, y, w, h, smallOverviewGreyRgb, smallOverviewGreyRgb, smallOverviewGreyRgb, smallOverviewGreyOpacity) }
-    val stepGridRects = smallOverviewStepGridStrokeRects(smallX0, smallY0, smallOverviewW, smallOverviewH, fullPic.width, fullPic.height, stepSizePx, smallOverviewStepGridLineWidthMm)
-    val stepGridDashed = dashedStrokeRectsInstructions(stepGridRects, smallOverviewStepGridDashMm, smallOverviewStepGridGapMm)
+    val layoutGridRects = smallOverviewLayoutGridStrokeRects(smallX0, smallY0, smallOverviewW, smallOverviewH, grid, fullPic.width, fullPic.height, smallOverviewStepGridLineWidthMm)
+    val layoutGridDashed = dashedStrokeRectsInstructions(layoutGridRects, smallOverviewStepGridDashMm, smallOverviewStepGridGapMm)
     val frameInstr  = List(Instruction.DrawStrokeRects(List(highlightedRectMm), 0, 0, 0, smallOverviewHighlightFrameMm))
     val borderInstr = List(Instruction.DrawStrokeRects(List((smallX0, smallY0, smallOverviewW, smallOverviewH)), 0, 0, 0, smallOverviewOuterBorderMm))
-    gridInstr ++ greyInstrs ++ stepGridDashed ++ frameInstr ++ borderInstr
+    gridInstr ++ greyInstrs ++ layoutGridDashed ++ frameInstr ++ borderInstr
   }
 
   /** Generate the book PDF. Single entry point for both Print PDF buttons; pass a [[PrintBookRequest]]. */
@@ -374,7 +377,7 @@ object PdfUtils {
       val (smallX0, smallY0, smallScale, smallOverviewW, smallOverviewH) = smallOverviewLayoutParams(fullPic, gridOverviewY, marginLR, co)
       val greyRectsMm     = parts.toList.filter(_ != part).map(p => (smallX0 + p.x * smallScale, smallY0 + p.y * smallScale, p.width * smallScale, p.height * smallScale))
       val highlightedRectMm = (smallX0 + part.x * smallScale, smallY0 + part.y * smallScale, part.width * smallScale, part.height * smallScale)
-      val smallOverviewInstrs = drawSmallOverview(fullPic, smallX0, smallY0, smallOverviewW, smallOverviewH, greyRectsMm, highlightedRectMm, stepSizePx)
+      val smallOverviewInstrs = drawSmallOverview(fullPic, smallX0, smallY0, smallOverviewW, smallOverviewH, greyRectsMm, highlightedRectMm, grid)
       val areaX = marginLR + co.colorListReservedWidthMm
       val areaY = contentTopY
       val areaW = availableW - co.colorListReservedWidthMm
@@ -485,7 +488,7 @@ object PdfUtils {
     val stepGlobalX       = part.x + stepCx * stepSizePx
     val stepGlobalY       = part.y + stepCy * stepSizePx
     val highlightedRectMm = (smallX0 + stepGlobalX * smallScale, smallY0 + stepGlobalY * smallScale, stepSizePx * smallScale, stepSizePx * smallScale)
-    val smallOverviewInstrs = drawSmallOverview(fullPic, smallX0, smallY0, smallOverviewW, smallOverviewH, greyRectsMm, highlightedRectMm, stepSizePx)
+    val smallOverviewInstrs = drawSmallOverview(fullPic, smallX0, smallY0, smallOverviewW, smallOverviewH, greyRectsMm, highlightedRectMm, grid)
     colorCountInstrs ++ smallOverviewInstrs
   }
 
@@ -548,15 +551,15 @@ object PdfUtils {
       List(Instruction.AddPage) ++ leftColumnInstrs ++ perPage.flatMap { case (x0, y0, w, h, rgb) =>
         val grid16Rects   = grid16x16PatchStrokeRects(x0, y0, w, h, patchW, patchH, stepSizePx, lp.grid16LineWidthMm)
         val grid4x4Rects  = grid4x4StrokeRects(x0, y0, w, h, lp.grid4x4LineWidthMm)
-        val grid16Dashed  = dashedStrokeRectsInstructions(grid16Rects, 1.5, 1.0)
-        val grid4x4Dashed = dashedStrokeRectsInstructions(grid4x4Rects, 1.5, 1.0)
+        val grid16Dashed  = dashedStrokeRectsInstructions(grid16Rects, 0.9, 1.0)
+        val grid4x4Dashed = dashedStrokeRectsInstructions(grid4x4Rects, 0.9, 1.0)
         val borderInstr   = Instruction.DrawStrokeRects(List((x0, y0, w, h)), 0, 0, 0, patchBorderLineWidthMm)
         List(Instruction.DrawPixelGrid(x0, y0, w, h, patchW, patchH, rgb)) ++ grid16Dashed ++ grid4x4Dashed :+ borderInstr
       }
     }
   }
 
-  /** Instructions to draw a line as white full line with dashed black on top (for step grid). (x1,y1) to (x2,y2), lineWidthMm, dash and gap in mm. */
+  /** Instructions to draw a line as white full line with dashed black on top (for step grid). (x1,y1) to (x2,y2), lineWidthMm, dash and gap in mm. Includes a final partial dash so black runs to the end. */
   private def dashedLineInstructions(
       x1: Double, y1: Double, x2: Double, y2: Double,
       lineWidthMm: Double,
@@ -566,24 +569,34 @@ object PdfUtils {
     val length = math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
     if (length <= 0) Nil
     else {
-    val white = Instruction.DrawLine(x1, y1, x2, y2, lineWidthMm, 255, 255, 255)
-    val period = dashLengthMm + gapMm
-    val nDashes = (length / period).floor.toInt.max(0)
-    val blackDashes = (0 until nDashes).flatMap { i =>
-      val startMm = i * period
-      val endMm   = (i * period + dashLengthMm).min(length)
-      if (endMm <= startMm) Nil
-      else {
-        val startT = startMm / length
-        val endT   = endMm / length
-        val sx = x1 + startT * (x2 - x1)
-        val sy = y1 + startT * (y2 - y1)
-        val ex = x1 + endT * (x2 - x1)
-        val ey = y1 + endT * (y2 - y1)
-        List(Instruction.DrawLine(sx, sy, ex, ey, lineWidthMm, 0, 0, 0))
-      }
-    }.toList
-    white :: blackDashes
+      val white = Instruction.DrawLine(x1, y1, x2, y2, lineWidthMm, 255, 255, 255)
+      val period = dashLengthMm + gapMm
+      val nFullDashes = (length / period).floor.toInt.max(0)
+      val fullBlackDashes = (0 until nFullDashes).flatMap { i =>
+        val startMm = i * period
+        val endMm   = (i * period + dashLengthMm).min(length)
+        if (endMm <= startMm) Nil
+        else {
+          val startT = startMm / length
+          val endT   = endMm / length
+          val sx = x1 + startT * (x2 - x1)
+          val sy = y1 + startT * (y2 - y1)
+          val ex = x1 + endT * (x2 - x1)
+          val ey = y1 + endT * (y2 - y1)
+          List(Instruction.DrawLine(sx, sy, ex, ey, lineWidthMm, 0, 0, 0))
+        }
+      }.toList
+      val remainderStart = nFullDashes * period
+      val finalDash =
+        if (remainderStart < length && dashLengthMm > 0) {
+          val startT = remainderStart / length
+          val ex = x1 + 1.0 * (x2 - x1)
+          val ey = y1 + 1.0 * (y2 - y1)
+          val sx = x1 + startT * (x2 - x1)
+          val sy = y1 + startT * (y2 - y1)
+          List(Instruction.DrawLine(sx, sy, ex, ey, lineWidthMm, 0, 0, 0))
+        } else Nil
+      white :: (fullBlackDashes ++ finalDash)
     }
   }
 
