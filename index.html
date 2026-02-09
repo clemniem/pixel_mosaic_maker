@@ -17,6 +17,8 @@
 
 <body>
   <div id="myapp"></div>
+  <!-- Load fontData.js first so pressStartBase64 is available for PDF (same as gbcamutil) -->
+  <script src="./assets/fontData.js"></script>
   <script type="module" src="./sw-register.js"></script>
   <script type="module" src="./export-wrapper.js"></script>
 </body>

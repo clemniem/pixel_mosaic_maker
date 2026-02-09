@@ -2,7 +2,7 @@ package clemniem.common.nescss
 
 /** NES.css class names for use with Tyrian (e.g. cls := NesCss.container). */
 object NesCss {
-  val container         = "nes-container"
+  val container        = "nes-container"
   val containerTitle   = "nes-container with-title"
   val containerRounded = "nes-container is-rounded"
   val btn              = "nes-btn"

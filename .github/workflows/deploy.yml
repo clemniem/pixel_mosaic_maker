@@ -42,7 +42,7 @@ jobs:
           cp target/scala-*/pixel_mosaic_maker-opt/main.js dist/
           cp target/scala-*/pixel_mosaic_maker-opt/main.js.map dist/ 2>/dev/null || true
           cp css/style.css dist/css/
-          cp assets/favicon.ico assets/favicon-32x32.png assets/favicon-16x16.png assets/apple-touch-icon.png assets/android-chrome-192x192.png assets/android-chrome-512x512.png assets/site.webmanifest assets/PressStart2P-Regular.ttf dist/assets/
+          cp assets/favicon.ico assets/favicon-32x32.png assets/favicon-16x16.png assets/apple-touch-icon.png assets/android-chrome-192x192.png assets/android-chrome-512x512.png assets/site.webmanifest assets/PressStart2P-Regular.ttf assets/fontData.js dist/assets/
           cp sw.js dist/
           echo "import { TyrianApp } from './main.js';" > dist/loader.js
           echo "TyrianApp.launch(\"myapp\");" >> dist/loader.js
@@ -63,6 +63,7 @@ jobs:
           </head>
           <body>
             <div id="myapp"></div>
+            <script src="./assets/fontData.js"></script>
             <script>
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function () {

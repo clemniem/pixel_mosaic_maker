@@ -3,31 +3,17 @@ package clemniem.common.pdf
 import org.scalajs.dom.console
 import scala.scalajs.js
 import scala.scalajs.js.timers.setTimeout
-import scala.scalajs.js.typedarray.Uint8Array
 
 /**
  * Runs PDF [[Instruction]]s using the jsPDF library (must be loaded on window.jspdf).
  * All jsPDF API access is confined to this object.
- * Uses "Press Start 2P" (same as the website) when the font is loaded from assets.
+ * Uses "Press Start 2P" from window.pressStartBase64 (fontData.js), same as gbcamutil.
  */
 object JsPDF {
 
-  private val pressStart2PFontUrl  = "./assets/PressStart2P-Regular.ttf"
-  private val pressStart2PVfsName  = "PressStart2P-Regular.ttf"
-  private val pressStart2PFontName = "Press Start 2P"
-
-  private def arrayBufferToBase64(ab: js.typedarray.ArrayBuffer): String = {
-    val bytes = new Uint8Array(ab)
-    val len   = bytes.length
-    @scala.annotation.tailrec
-    def loop(i: Int, sb: StringBuilder): String =
-      if (i >= len) js.Dynamic.global.btoa(sb.result()).asInstanceOf[String]
-      else {
-        sb.append((bytes(i) & 0xff).toChar)
-        loop(i + 1, sb)
-      }
-    loop(0, new StringBuilder(len))
-  }
+  /** VFS filename and font name: same as gbcamutil (PressStart2P.ttf, PressStart). */
+  private val pressStart2PVfsName  = "PressStart2P.ttf"
+  private val pressStart2PFontName = "PressStart"
 
   private def fillPageBackground(doc: js.Dynamic, w: Double, h: Double, r: Int, g: Int, b: Int, printerMarginMm: Double): Unit = {
     val _ = doc.setFillColor(r, g, b)
@@ -42,25 +28,13 @@ object JsPDF {
     }
   }
 
-  /** Execute instructions after a short delay (so jsPDF global is ready). Fetches Press Start 2P font from assets, then runs; falls back to default font if fetch fails. */
+  /** Execute instructions after a short delay (so jsPDF global is ready). Uses window.pressStartBase64 from fontData.js (same as gbcamutil). */
   def run(instructions: List[Instruction], bgR: Int, bgG: Int, bgB: Int, printerMarginMm: Double): Unit = {
-    val runWithFont    = (base64: String) => runNow(instructions, bgR, bgG, bgB, printerMarginMm, Some(base64))
-    val runWithoutFont = () => runNow(instructions, bgR, bgG, bgB, printerMarginMm, None)
-    val _ = setTimeout(0) {
-      val fetchFn = js.Dynamic.global.selectDynamic("fetch").asInstanceOf[js.Function1[String, js.Dynamic]]
-      val promise = fetchFn(pressStart2PFontUrl)
-      val _ = promise
-        .`then`(js.defined { (r: js.Dynamic) => r.arrayBuffer() })
-        .`then`(js.defined { (ab: js.Dynamic) =>
-          runWithFont(arrayBufferToBase64(ab.asInstanceOf[js.typedarray.ArrayBuffer]))
-          ()
-        })
-        .`catch`(js.defined { (_: js.Dynamic) =>
-          runWithoutFont()
-          ()
-        })
-      ()
-    }
+    val base64Val = js.Dynamic.global.selectDynamic("pressStartBase64")
+    val fontBase64Opt =
+      if (js.typeOf(base64Val) == "undefined") None
+      else Some(base64Val.asInstanceOf[String]).filter(_.nonEmpty)
+    val _ = setTimeout(0)(runNow(instructions, bgR, bgG, bgB, printerMarginMm, fontBase64Opt))
   }
 
   /** Total page count: 1 + number of AddPage (Save is not a page). */
@@ -115,7 +89,7 @@ object JsPDF {
               fontBase64Opt.foreach { base64 =>
                 val _ = doc.addFileToVFS(pressStart2PVfsName, base64)
                 val _ = doc.addFont(pressStart2PVfsName, pressStart2PFontName, "normal")
-                val _ = doc.setFont(pressStart2PFontName, "normal")
+                val _ = doc.setFont(pressStart2PFontName)
               }
               (Some(doc), (w, h), 0)
             case Instruction.FontSize(pt) =>
