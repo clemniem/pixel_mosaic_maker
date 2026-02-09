@@ -192,7 +192,7 @@ object BuildConfigScreen extends Screen {
         case (Some(pic), None) =>
           drawFullImageOnly(canvas, ctx, pic)
         case _ =>
-          drawPlaceholder(canvas, ctx, 400, 200, "Select image and palette for overview")
+          drawPlaceholder(canvas, ctx, 400, 200, "Select an image and colors for preview")
       }
     })
 
@@ -222,10 +222,10 @@ object BuildConfigScreen extends Screen {
                 ctx.strokeRect(part.x * gsx, part.y * gsy, (part.width * gsx).max(1), (part.height * gsy).max(1))
               }
             case None =>
-              drawPlaceholder(canvas, ctx, 300, 200, "Grid region outside image bounds")
+              drawPlaceholder(canvas, ctx, 300, 200, "Layout area is outside the image")
           }
         case _ =>
-          drawPlaceholder(canvas, ctx, 300, 200, "Select image, palette and grid for preview")
+          drawPlaceholder(canvas, ctx, 300, 200, "Select image, colors and layout for preview")
       }
     })
 
@@ -307,13 +307,13 @@ object BuildConfigScreen extends Screen {
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row")(
-          button(`class` := NesCss.btn, onClick(BuildConfigMsg.Back))(GalleryLayout.backButtonLabel("←", "Build configs")),
+          button(`class` := NesCss.btn, onClick(BuildConfigMsg.Back))(GalleryLayout.backButtonLabel("←", "Mosaic setup")),
           button(`class` := NesCss.btnPrimary, onClick(BuildConfigMsg.Save))(text("Save"))
         ),
         Some(ScreenHeader.nameRowInput(model.name, BuildConfigMsg.SetName.apply, None, "")),
         false
       ),
-      selectRow("Grid", model.gridConfigs, model.selectedGridId, BuildConfigMsg.SetGrid.apply, (g: StoredGridConfig) => g.name, (g: StoredGridConfig) => g.id),
+      selectRow("Layout", model.gridConfigs, model.selectedGridId, BuildConfigMsg.SetGrid.apply, (g: StoredGridConfig) => g.name, (g: StoredGridConfig) => g.id),
       selectRow("Image", model.images, model.selectedImageId, BuildConfigMsg.SetImage.apply, (i: StoredImage) => i.name, (i: StoredImage) => i.id),
       selectRow("Palette", model.palettes, model.selectedPaletteId, BuildConfigMsg.SetPalette.apply, (p: StoredPalette) => p.name, (p: StoredPalette) => p.id),
       offsetRow(model),
@@ -340,7 +340,7 @@ object BuildConfigScreen extends Screen {
       div(`class` := "offset-sliders")(
         div(`class` := "offset-slider-group")(
           label(`class` := "label-block")(
-            span(`class` := NesCss.text)(text("Offset X:")),
+            span(`class` := NesCss.text)(text("Position X:")),
             span(`class` := "offset-value")(text(model.offsetX.toString))
           ),
           input(
@@ -353,7 +353,7 @@ object BuildConfigScreen extends Screen {
         ),
         div(`class` := "offset-slider-group")(
           label(`class` := "label-block")(
-            span(`class` := NesCss.text)(text("Offset Y:")),
+            span(`class` := NesCss.text)(text("Position Y:")),
             span(`class` := "offset-value")(text(model.offsetY.toString))
           ),
           input(

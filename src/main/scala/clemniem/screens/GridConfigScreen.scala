@@ -67,7 +67,7 @@ object GridConfigScreen extends Screen {
           mode = GridDefMode.ByRows,
           rowDefs = List(RowDef(defaultRowHeight, List(defaultCellWidth))),
           columnDefs = List(ColumnDef(defaultColWidth, List(defaultCellHeight))),
-          name = "Unnamed grid",
+          name = "Unnamed layout",
           editingId = None
         )
     }
@@ -270,7 +270,7 @@ object GridConfigScreen extends Screen {
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row")(
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.Back))(GalleryLayout.backButtonLabel("←", "GridConfigs")),
+          button(`class` := NesCss.btn, onClick(GridConfigMsg.Back))(GalleryLayout.backButtonLabel("←", "Layouts")),
           button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.Save))(text("Save"))
         ),
         Some(ScreenHeader.nameRowInput(model.name, GridConfigMsg.SetName.apply, None, "")),
@@ -280,19 +280,19 @@ object GridConfigScreen extends Screen {
         `class` := s"normalize-choice-box ${if (model.pendingNormalizeChoice) "" else "hidden"}"
       )(
         p(`class` := NesCss.text, style := "margin: 0 0 10px 0; font-weight: 500;")(
-          text("Grid is not a rectangle (rows have different total widths or columns different heights). Choose how to fix it; then press Save.")
+          text("Your layout doesn't line up (rows or columns have different lengths). Choose how to fix it, then Save.")
         ),
         div(`class` := "flex-row")(
-          button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.NormalizeWithEnlarging))(text("Enlarge existing cells")),
-          button(`class` := NesCss.btnSuccess, onClick(GridConfigMsg.NormalizeWithNewPlates))(text("Add new plates to fill gaps")),
+          button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.NormalizeWithEnlarging))(text("Stretch existing sections")),
+          button(`class` := NesCss.btnSuccess, onClick(GridConfigMsg.NormalizeWithNewPlates))(text("Add new sections to fill gaps")),
           button(`class` := NesCss.btn, onClick(GridConfigMsg.CancelNormalizeChoice))(text("Cancel"))
         )
       ),
       p(`class` := s"${NesCss.text} field-block")(
-        text("Define the grid of plates (Lego-style). Instructions are generated per plate. Choose by rows or by columns; each row/column can have a different number of cells.")
+        text("Set up how your mosaic is split into sections (like LEGO plates). You can define by rows or columns; each can have a different number of sections.")
       ),
       div(`class` := "field-block")(
-        span(style := "margin-right: 0.5rem;")(text("Define by:")),
+        span(style := "margin-right: 0.5rem;")(text("Set up by:")),
         button(
           `class` := (if (model.mode == GridDefMode.ByRows) s"${NesCss.btn} is-primary" else NesCss.btn),
           onClick(GridConfigMsg.SetMode(GridDefMode.ByRows))
@@ -308,7 +308,7 @@ object GridConfigScreen extends Screen {
       ),
       div(`class` := "grid-preview-box")(
         p(`class` := "section-title")(
-          text(s"Preview · ${grid.width}×${grid.height} px · ${grid.parts.length} plate(s)")
+          text(s"Preview · ${grid.width}×${grid.height} pixels · ${grid.parts.length} section(s)")
         ),
         div(onLoad(GridConfigMsg.DrawGrid))(
           canvas(
@@ -349,13 +349,13 @@ object GridConfigScreen extends Screen {
           button(
             `class` := (if (row.cellWidths.length <= 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
             onClick(GridConfigMsg.RemoveCellFromRow(rowIdx, row.cellWidths.length - 1))
-          )(text("− cell")),
+          )(text("− section")),
           button(
             `class` := (if (anchoredRows.contains(rowIdx)) s"${NesCss.btn} is-primary" else NesCss.btn),
             onClick(GridConfigMsg.ToggleRowAnchor(rowIdx)),
-            title := "When on, all cells in this row share the same width"
+            title := "When on, all sections in this row share the same width"
           )(text("≡")),
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToRow(rowIdx)))(text("+ cell"))
+          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToRow(rowIdx)))(text("+ section"))
         ),
         div(`class` := "grid-editor-row-second")(
           div(`class` := "grid-editor-cells")(cellInputs*)
@@ -393,13 +393,13 @@ object GridConfigScreen extends Screen {
           button(
             `class` := (if (col.cellHeights.length <= 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
             onClick(GridConfigMsg.RemoveCellFromColumn(colIdx, col.cellHeights.length - 1))
-          )(text("− cell")),
+          )(text("− section")),
           button(
             `class` := (if (anchoredColumns.contains(colIdx)) s"${NesCss.btn} is-primary" else NesCss.btn),
             onClick(GridConfigMsg.ToggleColumnAnchor(colIdx)),
-            title := "When on, all cells in this column share the same height"
+            title := "When on, all sections in this column share the same height"
           )(text("≡")),
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToColumn(colIdx)))(text("+ cell"))
+          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToColumn(colIdx)))(text("+ section"))
         ),
         div(`class` := "grid-editor-row-second")(
           div(`class` := "grid-editor-cells")(cellInputs*)

@@ -136,15 +136,15 @@ object PrintInstructionsScreen extends Screen {
         false
       ),
       p(`class` := s"${NesCss.text} screen-intro")(
-        text("Choose a build config and set the booklet title, then generate the PDF.")
+        text("Pick a mosaic setup, add a title, then create your PDF.")
       ),
       div(`class` := s"${NesCss.field} field-block")(
-        label(`class` := "label-block")(text("Build config")),
+        label(`class` := "label-block")(text("Mosaic setup")),
         model.buildConfigs match {
           case None =>
             span(`class` := NesCss.text)(text("Loading…"))
           case Some(list) if list.isEmpty =>
-            span(`class` := NesCss.text)(text("No build configs saved. Create one from the BuildConfigs gallery."))
+            span(`class` := NesCss.text)(text("No setups saved yet. Create one from Mosaic setup."))
           case Some(list) =>
             select(
               `class` := s"${NesCss.input} input-min-w-16",
@@ -160,7 +160,7 @@ object PrintInstructionsScreen extends Screen {
       model.buildConfigs match {
         case Some(_) =>
           div(`class` := "field-block--lg")(
-            div(`class` := "section-title")(text("Grid overview")),
+            div(`class` := "section-title")(text("Layout preview")),
             div(onLoad(PrintInstructionsMsg.DrawOverview))(
               canvas(
                 id := overviewCanvasId,
@@ -200,10 +200,10 @@ object PrintInstructionsScreen extends Screen {
             onInput(PrintInstructionsMsg.SetPageBackgroundColor.apply)
           )
         ),
-        span(`class` := s"${NesCss.text} helper-text")(text("Hex (e.g. #fdfbe6). Used for all PDF pages."))
+        span(`class` := s"${NesCss.text} helper-text")(text("Color code (e.g. #fdfbe6) for all pages."))
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
-        label(`class` := "label-block")(text("Printer margin (mm)")),
+        label(`class` := "label-block")(text("Margin (mm)")),
         input(
           `type` := "number",
           `class` := s"${NesCss.input} input-w-5",
@@ -213,7 +213,7 @@ object PrintInstructionsScreen extends Screen {
           step := "1",
           onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s)))
         ),
-        span(`class` := s"${NesCss.text} helper-text--inline")(text("White border on each side (for booklet printing). Default 3 mm."))
+        span(`class` := s"${NesCss.text} helper-text--inline")(text("White border around each page. Default 3 mm."))
       )
     )
   }
@@ -233,7 +233,7 @@ object PrintInstructionsScreen extends Screen {
 
     div(`class` := "step-size-block")(
       label(`class` := "label-block")(
-        text("Step size (px)")
+        text("Section size (pixels)")
       ),
       div(`class` := "step-size-row step-size-row--wrap")(
         stepSizeCandidates.map { v =>
@@ -249,7 +249,7 @@ object PrintInstructionsScreen extends Screen {
         }*
       ),
       span(`class` := "helper-text helper-text--top step-size-helper")(
-        text("Only values that divide every plate width and height are enabled.")
+        text("Only sizes that fit your layout evenly are available.")
       )
     )
   }
@@ -282,7 +282,7 @@ object PrintInstructionsScreen extends Screen {
         case Some((stored, pic)) =>
           drawFullImageWithGrid(canvas, ctx, pic, stored.config.grid, stored.config.offsetX, stored.config.offsetY)
         case None =>
-          drawPlaceholder(canvas, ctx, 400, 200, "Select a build config for overview")
+          drawPlaceholder(canvas, ctx, 400, 200, "Select a mosaic setup for preview")
       }
     })
 

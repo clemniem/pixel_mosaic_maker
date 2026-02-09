@@ -184,12 +184,12 @@ object BuildConfigGalleryScreen extends Screen {
       case Some(list) =>
         val content =
           if (list.isEmpty)
-            GalleryEmptyState("No build configs yet.", "+ Create BuildConfig", BuildConfigGalleryMsg.CreateNew)
+            GalleryEmptyState("No setups yet.", "+ New mosaic setup", BuildConfigGalleryMsg.CreateNew)
           else
             paginatedList(
               list,
               model.currentPage,
-              button(`class` := NesCss.btnPrimary, onClick(BuildConfigGalleryMsg.CreateNew))(text("+ Create BuildConfig")),
+              button(`class` := NesCss.btnPrimary, onClick(BuildConfigGalleryMsg.CreateNew))(text("+ New mosaic setup")),
               item => entryCard(item, model.pendingDeleteId.contains(item.id))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))

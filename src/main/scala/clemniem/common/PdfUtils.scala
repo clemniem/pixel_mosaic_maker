@@ -401,14 +401,14 @@ object PdfUtils {
         val noteY = gridOverviewY + smallOverviewH + 4.0
         List(
           Instruction.FontSize(co.divisibilityNoteFontSizePt),
-          Instruction.Text(marginLR, noteY, s"Note: not all plates divisible by step size $stepSizePx; only divisible plates have step sections.")
+          Instruction.Text(marginLR, noteY, s"Note: some sections don't match the step size ($stepSizePx); only matching sections get step-by-step pages.")
         )
       }
       val chapterOverviewPage = List(Instruction.AddPage) ++ colorCountInstrs ++ smallOverviewInstrs ++ divisibilityNote ++ explodedInstrs
 
       val thisPlateDivisible = platePic.width % stepSizePx == 0 && platePic.height % stepSizePx == 0
       val sectionInstrs = if (!thisPlateDivisible) {
-        val msg = s"Plate $plateIndex dimensions (${platePic.width}×${platePic.height}) are not divisible by step size $stepSizePx; step-by-step sections omitted."
+        val msg = s"Section $plateIndex: size (${platePic.width}×${platePic.height}) doesn't work with the step size ($stepSizePx). Step-by-step pages are skipped for it."
         List(Instruction.AddPage, Instruction.FontSize(co.nonDivisibleMessageFontSizePt), Instruction.Text(marginLR, marginTB + co.nonDivisibleMessageOffsetFromTopMm, msg))
       } else {
         sectionInstructionsForPlate(platePic, fullPic, grid, part, stepSizePx, marginLR, marginTB, availableW, availableH, config)

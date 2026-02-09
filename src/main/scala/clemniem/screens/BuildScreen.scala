@@ -442,7 +442,7 @@ object BuildScreen extends Screen {
           )
         ),
         div(`class` := s"${NesCss.field} build-patch-bg-block")(
-          label(`class` := "label-block")(text("Patch background")),
+          label(`class` := "label-block")(text("Background for unfinished areas")),
           input(
             `type` := "color",
             `class` := "input-color",
@@ -452,7 +452,7 @@ object BuildScreen extends Screen {
         )
       ),
       div(`class` := "build-preview-row")(
-        div(`class` := "section-title")(text("Current patch by color (least → most)")),
+        div(`class` := "section-title")(text("This section: colors from fewest to most bricks")),
         div(`class` := "build-preview-inner", onLoad(BuildScreenMsg.Draw))(
           canvas(id := previewCanvasId, width := 32, height := 32, `class` := "pixel-canvas")()
         )

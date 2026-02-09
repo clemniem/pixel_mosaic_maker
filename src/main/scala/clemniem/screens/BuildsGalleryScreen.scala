@@ -230,7 +230,7 @@ object BuildsGalleryScreen extends Screen {
         val bottomSection =
           if (model.showNewBuildDropdown)
             div(`class` := s"${NesCss.container} ${NesCss.containerRounded} dropdown-panel")(
-              div(`class` := "dropdown-panel-title")(text("New build from config:")),
+              div(`class` := "dropdown-panel-title")(text("New build from setup:")),
               div(`class` := "flex-row flex-row--tight")(
                 select(
                   `class` := NesCss.input,

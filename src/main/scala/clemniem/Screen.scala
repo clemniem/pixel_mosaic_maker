@@ -17,17 +17,17 @@ trait ScreenId {
 /** All screen IDs: Overview (home), galleries (list of saved items), and flow/editor screens. */
 object ScreenId {
   case object OverviewId          extends ScreenId { val name = "overview";          val title = "Overview" }
-  case object GridConfigsId       extends ScreenId { val name = "grid-configs";      val title = "Define Grid";       override val overviewDescription = Some("Grid configs (plate layouts)") }
-  case object GridConfigId        extends ScreenId { val name = "grid-config";       val title = "Grid config" }
-  case object PalettesId          extends ScreenId { val name = "palettes";           val title = "Create Palettes";    override val overviewDescription = Some("Color palettes") }
+  case object GridConfigsId       extends ScreenId { val name = "grid-configs";      val title = "Layout";             override val overviewDescription = Some("How your mosaic is split into sections") }
+  case object GridConfigId        extends ScreenId { val name = "grid-config";       val title = "Edit layout" }
+  case object PalettesId          extends ScreenId { val name = "palettes";           val title = "Palettes";           override val overviewDescription = Some("Color palettes") }
   case object PaletteId           extends ScreenId { val name = "palette";           val title = "Palette" }
-  case object ImagesId            extends ScreenId { val name = "images";           val title = "Upload Images";       override val overviewDescription = Some("Upload and manage pixel images") }
-  case object BuildConfigsId      extends ScreenId { val name = "build-configs";     val title = "Mosaic Configurator"; override val overviewDescription = Some("Build configurations (grid + image + palette)") }
-  case object BuildsId            extends ScreenId { val name = "builds";           val title = "Mosaic Builder";      override val overviewDescription = Some("Step-by-step build runs") }
+  case object ImagesId            extends ScreenId { val name = "images";           val title = "Images";              override val overviewDescription = Some("Upload and manage your images") }
+  case object BuildConfigsId      extends ScreenId { val name = "build-configs";     val title = "Mosaic setup";       override val overviewDescription = Some("Choose layout, image and colors") }
+  case object BuildsId            extends ScreenId { val name = "builds";           val title = "Build";               override val overviewDescription = Some("Step-by-step building instructions") }
   case object ImageUploadId       extends ScreenId { val name = "image-upload";     val title = "Upload image" }
-  case object BuildConfigId       extends ScreenId { val name = "build-config";     val title = "Build config" }
-  case object BuildId             extends ScreenId { val name = "build";             val title = "Build" }
-  case object PrintInstructionsId extends ScreenId { val name = "print-instructions"; val title = "Print Instructions"; override val overviewDescription = Some("Generate PDF print instructions") }
+  case object BuildConfigId       extends ScreenId { val name = "build-config";     val title = "Mosaic setup" }
+  case object BuildId             extends ScreenId { val name = "build";             val title = "Building steps" }
+  case object PrintInstructionsId extends ScreenId { val name = "print-instructions"; val title = "Print";              override val overviewDescription = Some("Create a printable PDF guide") }
 
   /** Screen IDs shown on the overview page as link cards, in order. */
   val overviewScreenIds: List[ScreenId] =

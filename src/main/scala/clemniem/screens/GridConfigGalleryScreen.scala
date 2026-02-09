@@ -94,12 +94,12 @@ object GridConfigGalleryScreen extends Screen {
       case Some(list) =>
         val content =
           if (list.isEmpty)
-            GalleryEmptyState("No grid configs yet.", "+ Create GridConfig", GridConfigGalleryMsg.CreateNew)
+            GalleryEmptyState("No layouts yet.", "+ New layout", GridConfigGalleryMsg.CreateNew)
           else
             paginatedList(
               list,
               model.currentPage,
-              button(`class` := NesCss.btnPrimary, onClick(GridConfigGalleryMsg.CreateNew))(text("+ Create GridConfig")),
+              button(`class` := NesCss.btnPrimary, onClick(GridConfigGalleryMsg.CreateNew))(text("+ New layout")),
               item => entryCard(item, model.pendingDeleteId.contains(item.id))
             )
         GalleryLayout(screenId.title, backBtn, content, shortHeader = true, Some(nextBtn))

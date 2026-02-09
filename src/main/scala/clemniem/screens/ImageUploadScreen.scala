@@ -73,7 +73,7 @@ object ImageUploadScreen extends Screen {
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case ImageUploadMsg.ImageDecoded(pic, fileName) =>
       val err = if (pic.width > maxWidth || pic.height > maxHeight)
-        Some(s"Image must be at most ${maxWidth}×${maxHeight} px (got ${pic.width}×${pic.height})")
+        Some(s"Image can be at most ${maxWidth}×${maxHeight} pixels (got ${pic.width}×${pic.height})")
       else
         None
       val name = fileName.map(baseNameFromFileName).filter(_.nonEmpty).getOrElse("Unnamed image")
@@ -95,7 +95,7 @@ object ImageUploadScreen extends Screen {
         case None =>
           (model.copy(error = Some("No image to save")), Cmd.None)
         case Some(pic) if pic.width > maxWidth || pic.height > maxHeight =>
-          (model.copy(error = Some(s"Image must be at most ${maxWidth}×${maxHeight} px")), Cmd.None)
+          (model.copy(error = Some(s"Image can be at most ${maxWidth}×${maxHeight} pixels")), Cmd.None)
         case Some(pic) =>
           val cmd = LocalStorageUtils.loadList(StorageKeys.images)(
             ImageUploadMsg.LoadedForSave.apply,

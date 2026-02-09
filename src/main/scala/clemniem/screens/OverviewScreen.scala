@@ -31,7 +31,7 @@ object OverviewScreen extends Screen {
     )(
       h1(`class` := "screen-title")(text("Pixel Mosaic Maker")),
       p(`class` := s"${NesCss.text} screen-intro")(
-        text("Choose a gallery to manage saved items, or create new ones.")
+        text("Pick a step to manage your saved items or create new ones.")
       ),
       div(`class` := "flex-col flex-col--gap-1")(
         ScreenId.overviewScreenIds.flatMap { id =>
