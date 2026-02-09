@@ -143,13 +143,13 @@ object GridConfigGalleryScreen extends Screen {
           text(s"${item.config.width}×${item.config.height} · ${item.config.parts.length} plate(s)")
         ),
         if (confirmingDelete)
-          div(`class` := "gallery-delete-confirm")(
-            span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
-            button(`class` := NesCss.btnError, style := "margin-right: 6px;", onClick(GridConfigGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
-            button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.CancelDelete))(text("Cancel"))
+          GalleryLayout.galleryDeleteConfirm(
+            s"Delete \"${item.name}\"?",
+            GridConfigGalleryMsg.ConfirmDelete(item.id),
+            GridConfigGalleryMsg.CancelDelete
           )
         else
-          div(`class` := "gallery-actions")(
+          GalleryLayout.galleryActionsRow(
             button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.Edit(item)))(text("Edit")),
             button(`class` := NesCss.btnError, onClick(GridConfigGalleryMsg.Delete(item)))(text("Delete"))
           )

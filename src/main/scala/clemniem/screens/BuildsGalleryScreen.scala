@@ -313,13 +313,13 @@ object BuildsGalleryScreen extends Screen {
           )
         ),
         if (confirmingDelete)
-          div(`class` := "gallery-delete-confirm")(
-            span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
-            button(`class` := NesCss.btnError, onClick(BuildsGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
-            button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.CancelDelete))(text("Cancel"))
+          GalleryLayout.galleryDeleteConfirm(
+            s"Delete \"${item.name}\"?",
+            BuildsGalleryMsg.ConfirmDelete(item.id),
+            BuildsGalleryMsg.CancelDelete
           )
         else
-          div(`class` := "gallery-actions")(
+          GalleryLayout.galleryActionsRow(
             button(`class` := NesCss.btnPrimary, onClick(BuildsGalleryMsg.ResumeBuild(item)))(text("Resume")),
             button(`class` := NesCss.btnError, onClick(BuildsGalleryMsg.Delete(item)))(text("Delete"))
           )

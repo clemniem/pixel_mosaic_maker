@@ -733,16 +733,6 @@ input[type="number"].nes-input {
 .gallery-card--palette .gallery-actions,
 .gallery-card--palette .gallery-delete-confirm {
   margin-top: 0;
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.gallery-card--palette .gallery-actions .nes-btn,
-.gallery-card--palette .gallery-delete-confirm .nes-btn {
-  padding: 3px 8px;
-  font-size: 0.7rem;
-  line-height: 1.2;
 }
 
 .gallery-card--palette .gallery-card-preview {
@@ -771,18 +761,27 @@ input[type="number"].nes-input {
 .gallery-actions {
   margin-top: 0.5rem;
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
+}
+
+/* Small Edit/Delete (and Yes/Cancel) buttons in all gallery cards – consistent across app */
+.gallery-actions .nes-btn,
+.gallery-delete-confirm .nes-btn {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  line-height: 1.2;
 }
 
 .gallery-delete-confirm {
   margin-top: 0.5rem;
   padding: 6px 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-.gallery-delete-confirm .nes-btn:not(:last-child) {
-  margin-right: 6px;
-}
 
 .delete-confirm-text {
   font-size: 0.875rem;

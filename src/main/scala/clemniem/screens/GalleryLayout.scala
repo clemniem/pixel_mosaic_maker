@@ -15,6 +15,18 @@ object GalleryLayout {
   def nextButtonLabel[Msg](label: String, arrow: String): Html[Msg] =
     span(text(label + " "), span(`class` := "btn-arrow")(text(arrow)))
 
+  /** Reusable row for gallery card actions (Edit, Delete, etc.). Buttons are styled small via .gallery-actions. */
+  def galleryActionsRow[Msg](buttons: Html[Msg]*): Html[Msg] =
+    div(`class` := "gallery-actions")(buttons*)
+
+  /** Reusable delete confirmation block: message + Yes + Cancel. Use in gallery entry cards when confirming delete. */
+  def galleryDeleteConfirm[Msg](confirmMessage: String, onConfirm: Msg, onCancel: Msg): Html[Msg] =
+    div(`class` := "gallery-delete-confirm")(
+      span(`class` := "delete-confirm-text nes-text")(text(confirmMessage)),
+      button(`class` := NesCss.btnError, onClick(onConfirm))(text("Yes")),
+      button(`class` := NesCss.btn, onClick(onCancel))(text("Cancel"))
+    )
+
   /** CSS class for the content area so items don't touch container borders. Use with gallery-list for the list wrapper. */
   val galleryContentClass = "gallery-content"
 

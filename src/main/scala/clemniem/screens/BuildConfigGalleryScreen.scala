@@ -233,13 +233,13 @@ object BuildConfigGalleryScreen extends Screen {
           text(s"${item.config.grid.width}×${item.config.grid.height} · ${item.config.imageRef}")
         ),
         if (confirmingDelete)
-          div(`class` := "gallery-delete-confirm")(
-            span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
-            button(`class` := NesCss.btnError, style := "margin-right: 6px;", onClick(BuildConfigGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
-            button(`class` := NesCss.btn, onClick(BuildConfigGalleryMsg.CancelDelete))(text("Cancel"))
+          GalleryLayout.galleryDeleteConfirm(
+            s"Delete \"${item.name}\"?",
+            BuildConfigGalleryMsg.ConfirmDelete(item.id),
+            BuildConfigGalleryMsg.CancelDelete
           )
         else
-          div(`class` := "gallery-actions")(
+          GalleryLayout.galleryActionsRow(
             button(`class` := NesCss.btn, onClick(BuildConfigGalleryMsg.Edit(item)))(text("Edit")),
             button(`class` := NesCss.btnError, onClick(BuildConfigGalleryMsg.Delete(item)))(text("Delete"))
           )

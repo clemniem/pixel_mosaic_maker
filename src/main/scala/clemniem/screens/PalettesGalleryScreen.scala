@@ -183,13 +183,13 @@ object PalettesGalleryScreen extends Screen {
       ),
       div(`class` := "gallery-card-row2")(
         if (confirmingDelete)
-          div(`class` := "gallery-delete-confirm")(
-            span(`class` := "delete-confirm-text nes-text")(text(s"Delete \"${item.name}\"?")),
-            button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.ConfirmDelete(item.id)))(text("Yes")),
-            button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.CancelDelete))(text("Cancel"))
+          GalleryLayout.galleryDeleteConfirm(
+            s"Delete \"${item.name}\"?",
+            PalettesGalleryMsg.ConfirmDelete(item.id),
+            PalettesGalleryMsg.CancelDelete
           )
         else
-          div(`class` := "gallery-actions")(
+          GalleryLayout.galleryActionsRow(
             button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Edit(item)))(text("Edit")),
             button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.Delete(item)))(text("Delete"))
           ),
