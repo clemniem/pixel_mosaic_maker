@@ -168,6 +168,16 @@ object JsPDF {
                 val _ = doc.rect(x, y, w, h, "F")
               }
               (docOpt, (pageW, pageH), pageIndex)
+            case Instruction.FillRectWithOpacity(x, y, w, h, r, g, b, opacity) =>
+              docOpt.foreach { doc =>
+                val _ = doc.saveGraphicsState()
+                val gstate = js.Dynamic.newInstance(doc.selectDynamic("GState"))(js.Dynamic.literal(opacity = opacity))
+                val _ = doc.setGState(gstate)
+                val _ = doc.setFillColor(r, g, b)
+                val _ = doc.rect(x, y, w, h, "F")
+                val _ = doc.restoreGraphicsState()
+              }
+              (docOpt, (pageW, pageH), pageIndex)
             case Instruction.DrawSwatchRow(x, y, r, g, b, count, swatchSize, gap, fontSizePt, strokeLineWidth) =>
               docOpt.foreach { doc =>
                 val textStr = "×" + count

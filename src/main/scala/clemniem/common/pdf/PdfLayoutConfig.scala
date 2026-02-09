@@ -3,14 +3,13 @@ package clemniem.common.pdf
 /**
  * Layout configuration for the PDF book. All numeric layout choices (margins, paddings, font sizes, gaps)
  * are defined here so layout can be changed in one place without editing PdfUtils.
- * Aligned with docs/print_instructions_layout.md (cover, full overview, chapter overview, section overview, layer pages).
+ * Aligned with docs/print_instructions_layout.md (cover, full overview, chapter overview, layer pages).
  */
 final case class PdfLayoutConfig(
     global: PdfLayoutConfig.Global,
     cover: PdfLayoutConfig.Cover,
     fullOverview: PdfLayoutConfig.FullOverview,
     chapterOverview: PdfLayoutConfig.ChapterOverview,
-    sectionOverview: PdfLayoutConfig.SectionOverview,
     layerPage: PdfLayoutConfig.LayerPage
 )
 
@@ -59,30 +58,26 @@ object PdfLayoutConfig {
       firstLineOffsetMm: Double
   )
 
-  /** Chapter (plate) overview page: small mosaic, plate image, colors for this plate. */
+  /** Chapter (plate) overview page: same pattern as full overview – left = color list + small grid overview below; right = exploded plate with dimension lines. No title. */
   final case class ChapterOverview(
-      plateImageTopOffsetMm: Double,
-      plateImageHeightReserveForScalePx: Double,
-      smallOverviewHeightMm: Double,
-      smallOverviewTopOffsetMm: Double,
-      chapterTitleFontSizePt: Int,
-      chapterTitleOffsetFromTopMm: Double,
-      countLabelFontSizePt: Int,
-      countListGapBelowImageMm: Double,
+      contentTopOffsetFromTopMm: Double,
+      colorListReservedWidthMm: Double,
+      gridOverviewMaxHeightMm: Double,
+      gridOverviewGapAboveMm: Double,
+      gridOverviewLeftMarginMm: Double,
+      gridOverviewRightMarginMm: Double,
+      gridOverviewExplodedGapMm: Double,
+      explodedGapMm: Double,
+      /** Scale factor for right-side exploded area (e.g. 0.85 = a bit smaller). */
+      explodedAreaScaleFactor: Double,
+      explodedDimensionGapMm: Double,
+      explodedDimensionFontSizePt: Int,
+      explodedDimensionLineWidthMm: Double,
       divisibilityNoteFontSizePt: Int,
       divisibilityNoteOffsetAboveCountYMm: Double,
       nonDivisibleMessageFontSizePt: Int,
       nonDivisibleMessageOffsetFromTopMm: Double,
       swatch: SwatchBlock
-  )
-
-  /** Section overview: plate with step region highlighted. */
-  final case class SectionOverview(
-      titleFontSizePt: Int,
-      titleOffsetFromTopMm: Double,
-      subtitleFontSizePt: Int,
-      subtitleOffsetFromTopMm: Double,
-      stepHighlightLineWidthMm: Double
   )
 
   /** Layer patch pages: 2×2 grid of patches, labels below. */
@@ -137,14 +132,18 @@ object PdfLayoutConfig {
       )
     ),
     chapterOverview = ChapterOverview(
-      plateImageTopOffsetMm = 55.0,
-      plateImageHeightReserveForScalePx = 30.0,
-      smallOverviewHeightMm = 45.0,
-      smallOverviewTopOffsetMm = 6.0,
-      chapterTitleFontSizePt = 12,
-      chapterTitleOffsetFromTopMm = 4.0,
-      countLabelFontSizePt = 10,
-      countListGapBelowImageMm = 6.0,
+      contentTopOffsetFromTopMm = -1.0,
+      colorListReservedWidthMm = 22.0,
+      gridOverviewMaxHeightMm = 35.0,
+      gridOverviewGapAboveMm = 6.0,
+      gridOverviewLeftMarginMm = 3.0,
+      gridOverviewRightMarginMm = 2.0,
+      gridOverviewExplodedGapMm = 1.5,
+      explodedGapMm = 3.0,
+      explodedAreaScaleFactor = 0.85,
+      explodedDimensionGapMm = 3.0,
+      explodedDimensionFontSizePt = 8,
+      explodedDimensionLineWidthMm = 0.5,
       divisibilityNoteFontSizePt = 9,
       divisibilityNoteOffsetAboveCountYMm = 6.0,
       nonDivisibleMessageFontSizePt = 10,
@@ -155,15 +154,8 @@ object PdfLayoutConfig {
         lineHeightMm = 6.0,
         swatchStrokeLineWidthMm = 0.2,
         countFontSizePt = 10,
-        firstLineOffsetMm = 5.0
+        firstLineOffsetMm = 0.0
       )
-    ),
-    sectionOverview = SectionOverview(
-      titleFontSizePt = 12,
-      titleOffsetFromTopMm = 4.0,
-      subtitleFontSizePt = 10,
-      subtitleOffsetFromTopMm = 12.0,
-      stepHighlightLineWidthMm = 0.35
     ),
     layerPage = LayerPage(
       patchMarginMm = 15.0,

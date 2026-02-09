@@ -58,6 +58,9 @@ object Instruction {
   /** Draw a filled rectangle (e.g. color swatch). */
   case class FillRect(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, r: Int, g: Int, b: Int) extends Instruction
 
+  /** Draw a filled rectangle with opacity (e.g. grey overlay). opacity in 0.0–1.0. */
+  case class FillRectWithOpacity(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, r: Int, g: Int, b: Int, opacity: Double) extends Instruction
+
   /** Draw one pixel-count row: swatch square (with optional black frame) + "× count" text. Text is vertically centered with the swatch. */
   case class DrawSwatchRow(
       xMm: Double,
