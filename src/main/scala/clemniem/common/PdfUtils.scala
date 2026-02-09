@@ -131,7 +131,18 @@ object PdfUtils {
     }
     val colorCountInstrs = drawSwatchRows(marginLR, contentTopY, colorRows, sw)
     val imageInstrs = if (grid.parts.nonEmpty) {
-      explodedOverviewInstructions(fullPic, grid, marginLR + fo.colorListReservedWidthMm, contentTopY, imageAreaW, imageAreaH, fo.explodedGapMm)
+      explodedOverviewInstructions(
+        fullPic,
+        grid,
+        marginLR + fo.colorListReservedWidthMm,
+        contentTopY,
+        imageAreaW,
+        imageAreaH,
+        fo.explodedGapMm,
+        fo.explodedDimensionGapMm,
+        fo.explodedDimensionFontSizePt,
+        fo.explodedDimensionLineWidthMm
+      )
     } else {
       val (pw, ph, rgbFlat) = pixelPicToRgbFlat(fullPic)
       val scale             = (imageAreaW / pw).min(imageAreaH / ph)
@@ -144,7 +155,7 @@ object PdfUtils {
     List(Instruction.AddPage) ++ imageInstrs ++ colorCountInstrs
   }
 
-  /** Exploded overview: one DrawPixelGrid per grid part, with gapMm between parts. Scale chosen to fit in (areaW × areaH); layout centered in area. */
+  /** Exploded overview: one DrawPixelGrid per grid part, gapMm between parts; dimension markings (architecture-style) on top and left. */
   private def explodedOverviewInstructions(
       fullPic: PixelPic,
       grid: GridConfig,
@@ -152,7 +163,10 @@ object PdfUtils {
       areaY: Double,
       areaW: Double,
       areaH: Double,
-      gapMm: Double
+      gapMm: Double,
+      dimGapMm: Double,
+      dimFontSizePt: Int,
+      dimLineWidthMm: Double
   ): List[Instruction] = {
     val parts = grid.parts.toList
     val uniqueXs = parts.map(_.x).distinct.sorted
@@ -171,7 +185,7 @@ object PdfUtils {
     val baseY = areaY
     val colOffsetPx = colWidthsPx.scanLeft(0)(_ + _).dropRight(1)
     val rowOffsetPx = rowHeightsPx.scanLeft(0)(_ + _).dropRight(1)
-    parts.flatMap { part =>
+    val gridInstrs = parts.flatMap { part =>
       val col = uniqueXs.indexOf(part.x)
       val row = uniqueYs.indexOf(part.y)
       val offsetXmm = colOffsetPx(col) * scale + col * gapMm
@@ -185,6 +199,29 @@ object PdfUtils {
         List(Instruction.DrawPixelGrid(x0, y0, wMm, hMm, part.width, part.height, rgbFlat))
       }
     }
+    val topDimY = baseY - dimGapMm
+    val topTextY = baseY - dimGapMm - 2.0
+    val rightDimX = baseX + totalWmm + dimGapMm
+    val rightTextX = rightDimX + 2.0
+    val topDims = (0 until uniqueXs.size).flatMap { c =>
+      val colStartX = baseX + colOffsetPx(c) * scale + c * gapMm
+      val colEndX = colStartX + colWidthsPx(c) * scale
+      val centerX = baseX + (colOffsetPx(c) + colWidthsPx(c) / 2.0) * scale + c * gapMm
+      List(
+        Instruction.DrawLine(colStartX, topDimY, colEndX, topDimY, dimLineWidthMm, 0, 0, 0),
+        Instruction.TextAligned(centerX, topTextY, colWidthsPx(c).toString, "center", dimFontSizePt)
+      )
+    }
+    val rightDims = (0 until uniqueYs.size).flatMap { r =>
+      val rowStartY = baseY + rowOffsetPx(r) * scale + r * gapMm
+      val rowEndY = rowStartY + rowHeightsPx(r) * scale
+      val centerY = baseY + (rowOffsetPx(r) + rowHeightsPx(r) / 2.0) * scale + r * gapMm
+      List(
+        Instruction.DrawLine(rightDimX, rowStartY, rightDimX, rowEndY, dimLineWidthMm, 0, 0, 0),
+        Instruction.TextAligned(rightTextX, centerY, rowHeightsPx(r).toString, "left", dimFontSizePt)
+      )
+    }
+    gridInstrs ++ topDims ++ rightDims
   }
 
   /** All chapters: one chapter per plate (overview page + sections per step). */

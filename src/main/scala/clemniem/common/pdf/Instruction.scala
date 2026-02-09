@@ -13,6 +13,12 @@ object Instruction {
   /** Draw text at (x, y) in mm. */
   case class Text(xMm: Double, yMm: Double, value: String) extends Instruction
 
+  /** Draw text at (x, y) with alignment: "left" | "center" | "right". Used for dimension labels. */
+  case class TextAligned(xMm: Double, yMm: Double, value: String, align: String, fontSizePt: Int) extends Instruction
+
+  /** Draw a line segment (e.g. dimension tick). */
+  case class DrawLine(x1Mm: Double, y1Mm: Double, x2Mm: Double, y2Mm: Double, lineWidthMm: Double, r: Int, g: Int, b: Int) extends Instruction
+
   /** Draw text with a filled background (e.g. NES-style title over frame). When alignLeft, xMm is left edge; else xMm is right edge. yTopMm = top of background box. */
   case class TextWithBackground(
       xMm: Double,

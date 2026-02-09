@@ -98,6 +98,20 @@ object JsPDF {
             case Instruction.Text(x, y, value) =>
               docOpt.foreach { doc => val _ = doc.text(value, x, y) }
               (docOpt, (pageW, pageH), pageIndex)
+            case Instruction.TextAligned(x, y, value, align, fontSizePt) =>
+              docOpt.foreach { doc =>
+                val _ = doc.setFontSize(fontSizePt)
+                val _ = doc.setTextColor(0, 0, 0)
+                val _ = doc.text(value, x, y, js.Dynamic.literal(align = align))
+              }
+              (docOpt, (pageW, pageH), pageIndex)
+            case Instruction.DrawLine(x1, y1, x2, y2, lineWidth, r, g, b) =>
+              docOpt.foreach { doc =>
+                val _ = doc.setDrawColor(r, g, b)
+                val _ = doc.setLineWidth(lineWidth)
+                val _ = doc.line(x1, y1, x2, y2)
+              }
+              (docOpt, (pageW, pageH), pageIndex)
             case Instruction.TextWithBackground(x, yTop, value, fontSizePt, padding, alignLeft, bgR, bgG, bgB) =>
               docOpt.foreach { doc =>
                 val _ = doc.setFontSize(fontSizePt)

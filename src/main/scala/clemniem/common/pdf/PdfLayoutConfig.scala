@@ -36,11 +36,14 @@ object PdfLayoutConfig {
       titleBoxPaddingMm: Double
   )
 
-  /** Full overview page: color list top-left, mosaic right (top-aligned with list). No title. Exploded view uses grid parts with gap between them. */
+  /** Full overview page: color list top-left, mosaic right (top-aligned with list). No title. Exploded view uses grid parts with gap; dimension markings (architecture-style) on top and left. */
   final case class FullOverview(
       titleOffsetFromTopMm: Double,
       colorListReservedWidthMm: Double,
       explodedGapMm: Double,
+      explodedDimensionGapMm: Double,
+      explodedDimensionFontSizePt: Int,
+      explodedDimensionLineWidthMm: Double,
       titleFontSizePt: Int,
       countLabelFontSizePt: Int,
       swatch: SwatchBlock
@@ -119,6 +122,9 @@ object PdfLayoutConfig {
       titleOffsetFromTopMm = -1.0,
       colorListReservedWidthMm = 22.0,
       explodedGapMm = 3.0,
+      explodedDimensionGapMm = 3.0,
+      explodedDimensionFontSizePt = 8,
+      explodedDimensionLineWidthMm = 0.5,
       titleFontSizePt = 12,
       countLabelFontSizePt = 10,
       swatch = SwatchBlock(
