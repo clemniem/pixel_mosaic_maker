@@ -31,6 +31,11 @@
       } else {
         showContent();
       }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', showContent);
+      } else {
+        showContent();
+      }
     })();
   </script>
 </head>
