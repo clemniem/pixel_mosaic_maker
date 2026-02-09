@@ -23,34 +23,35 @@ object PdfLayoutConfig {
       contentPaddingTBMm: Double
   )
 
-  /** Cover page: with mosaic (title + image) or title-only. */
+  /** Cover page: with mosaic (centered image, frame, title in corner) or title-only. */
   final case class Cover(
       titleFontSizePt: Int,
       titleOffsetYFromTopMm: Double,
       titleBlockHeightMm: Double,
       titleOnlyXMm: Double,
-      titleOnlyYMm: Double
+      titleOnlyYMm: Double,
+      frameWhiteMarginMm: Double,
+      frameStrokeLineWidthMm: Double,
+      frameCornerRadiusMm: Double,
+      titleBoxPaddingMm: Double
   )
 
-  /** Full overview page: mosaic + "Colors for whole mosaic" list. */
+  /** Full overview page: color list top-left, mosaic right (top-aligned with list). No title. */
   final case class FullOverview(
-      titleBlockHeightMm: Double,
-      colorListReservedHeightMm: Double,
       titleOffsetFromTopMm: Double,
+      colorListReservedWidthMm: Double,
       titleFontSizePt: Int,
       countLabelFontSizePt: Int,
-      countListGapBelowImageMm: Double,
       swatch: SwatchBlock
   )
 
-  /** Shared swatch list block (full overview and chapter overview). */
+  /** Shared swatch list block (full overview and chapter overview). Row = swatch + gap + "× count"; text is centered with swatch. lineHeightMm > swatchSizeMm for padding between rows. */
   final case class SwatchBlock(
       swatchSizeMm: Double,
       swatchGapMm: Double,
       lineHeightMm: Double,
       countFontSizePt: Int,
-      firstLineOffsetMm: Double,
-      swatchTextVerticalRatio: Double
+      firstLineOffsetMm: Double
   )
 
   /** Chapter (plate) overview page: small mosaic, plate image, colors for this plate. */
@@ -102,26 +103,27 @@ object PdfLayoutConfig {
       contentPaddingTBMm = 15.0
     ),
     cover = Cover(
-      titleFontSizePt = 28,
+      titleFontSizePt = 10,
       titleOffsetYFromTopMm = 8.0,
       titleBlockHeightMm = 12.0,
       titleOnlyXMm = 25.0,
-      titleOnlyYMm = 95.0
+      titleOnlyYMm = 95.0,
+      frameWhiteMarginMm = 4.0,
+      frameStrokeLineWidthMm = 1.6,
+      frameCornerRadiusMm = 0.5,
+      titleBoxPaddingMm = 1.5
     ),
     fullOverview = FullOverview(
-      titleBlockHeightMm = 8.0,
-      colorListReservedHeightMm = 55.0,
-      titleOffsetFromTopMm = 4.0,
+      titleOffsetFromTopMm = -1.0,
+      colorListReservedWidthMm = 22.0,
       titleFontSizePt = 12,
       countLabelFontSizePt = 10,
-      countListGapBelowImageMm = 6.0,
       swatch = SwatchBlock(
-        swatchSizeMm = 4.0,
-        swatchGapMm = 1.0,
-        lineHeightMm = 5.0,
+        swatchSizeMm = 4.5,
+        swatchGapMm = 0.5,
+        lineHeightMm = 5.5,
         countFontSizePt = 10,
-        firstLineOffsetMm = 5.0,
-        swatchTextVerticalRatio = 0.75
+        firstLineOffsetMm = 0.0
       )
     ),
     chapterOverview = ChapterOverview(
@@ -138,12 +140,11 @@ object PdfLayoutConfig {
       nonDivisibleMessageFontSizePt = 10,
       nonDivisibleMessageOffsetFromTopMm = 20.0,
       swatch = SwatchBlock(
-        swatchSizeMm = 4.0,
-        swatchGapMm = 1.0,
-        lineHeightMm = 5.0,
+        swatchSizeMm = 4.5,
+        swatchGapMm = 0.5,
+        lineHeightMm = 5.5,
         countFontSizePt = 10,
-        firstLineOffsetMm = 5.0,
-        swatchTextVerticalRatio = 0.75
+        firstLineOffsetMm = 5.0
       )
     ),
     sectionOverview = SectionOverview(

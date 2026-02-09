@@ -3,6 +3,7 @@ package clemniem.common
 import cats.effect.IO
 import clemniem.{Color, GridConfig, GridPart, Pixel, PixelPic}
 import clemniem.common.pdf.{Instruction, JsPDF, PdfLayout, PdfLayoutConfig}
+import clemniem.common.pdf.PdfLayoutConfig.SwatchBlock
 
 /** Request for the book PDF: title, optional mosaic (pic + grid), step size, page background color, printer margin (mm; stays white), and optional layout config. */
 final case class PrintBookRequest(
@@ -64,7 +65,7 @@ object PdfUtils {
     JsPDF.run(instructions, pageBackgroundColor.r, pageBackgroundColor.g, pageBackgroundColor.b, printerMarginMm)
   }
 
-  /** Cover page: title above full mosaic, no grids. */
+  /** Cover page: centered image with 3mm white frame + black outline, title in top-right over frame (NES-style). */
   private def coverWithMosaic(
       title: String,
       pic: PixelPic,
@@ -75,25 +76,41 @@ object PdfUtils {
       availableW: Double,
       config: PdfLayoutConfig
   ): List[Instruction] = {
-    val c               = config.cover
-    val titleBlockHeight = c.titleBlockHeightMm
-    val titleY           = marginTB + c.titleOffsetYFromTopMm
-    val mosaicAvailableH = pageH - marginTB - titleBlockHeight - marginTB
+    val c        = config.cover
+    val availableH = pageH - 2 * marginTB
     val (pw, ph, rgbFlat) = pixelPicToRgbFlat(pic)
-    val scale             = (availableW / pw).min(mosaicAvailableH / ph)
-    val imageW            = pw * scale
-    val imageH            = ph * scale
-    val x0                = marginLR + (availableW - imageW) / 2
-    val y0                = marginTB + titleBlockHeight + (mosaicAvailableH - imageH) / 2
+    val scale    = (availableW / pw).min(availableH / ph)
+    val imageW   = pw * scale
+    val imageH   = ph * scale
+    val x0       = marginLR + (availableW - imageW) / 2
+    val y0       = marginTB + (availableH - imageH) / 2
+    val m        = c.frameWhiteMarginMm
+    val frameX   = x0 - m
+    val frameY   = y0 - m
+    val frameW   = imageW + 2 * m
+    val frameH   = imageH + 2 * m
+    val titleXLeft = frameX + 5.0
+    val titleYTop  = frameY - 4.0
     List(
       Instruction.PageSize(pageW, pageH),
-      Instruction.FontSize(c.titleFontSizePt),
-      Instruction.Text(marginLR, titleY, title),
-      Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat)
+      Instruction.RoundedFillRect(frameX, frameY, frameW, frameH, c.frameCornerRadiusMm, 255, 255, 255),
+      Instruction.RoundedStrokeRect(frameX, frameY, frameW, frameH, c.frameCornerRadiusMm, 0, 0, 0, c.frameStrokeLineWidthMm),
+      Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat),
+      Instruction.TextWithBackground(titleXLeft, titleYTop, title, c.titleFontSizePt, c.titleBoxPaddingMm, alignLeft = true, 255, 255, 255)
     )
   }
 
-  /** One page after the empty page: full-size mosaic overview and all colors for the whole mosaic. */
+  /** One pixel-count row: swatch + "× count". Uses [[Instruction.DrawSwatchRow]] (text centered with swatch). */
+  private def drawSwatchRow(x: Double, y: Double, r: Int, g: Int, b: Int, count: Int, sw: SwatchBlock): List[Instruction] =
+    List(Instruction.DrawSwatchRow(x, y, r, g, b, count, sw.swatchSizeMm, sw.swatchGapMm, sw.countFontSizePt))
+
+  /** Multiple pixel-count rows. Each row uses [[drawSwatchRow]]; y advances by sw.lineHeightMm (includes padding between rows). */
+  private def drawSwatchRows(x: Double, yStart: Double, rows: Seq[(Int, Int, Int, Int)], sw: SwatchBlock): List[Instruction] =
+    rows.zipWithIndex.flatMap { case ((r, g, b, count), i) =>
+      drawSwatchRow(x, yStart + sw.firstLineOffsetMm + i * sw.lineHeightMm, r, g, b, count, sw)
+    }.toList
+
+  /** One page after the empty page: color list top-left (same height as former title), image right, top-aligned, as big as possible. No title. */
   private def fullOverviewPageInstructions(
       fullPic: PixelPic,
       marginLR: Double,
@@ -105,30 +122,22 @@ object PdfUtils {
     val fo  = config.fullOverview
     val sw  = fo.swatch
     val (pw, ph, rgbFlat) = pixelPicToRgbFlat(fullPic)
-    val mosaicAvailableH   = availableH - fo.titleBlockHeightMm - fo.colorListReservedHeightMm
-    val scale              = (availableW / pw).min(mosaicAvailableH / ph)
-    val imageW             = pw * scale
-    val imageH             = ph * scale
-    val x0                 = marginLR + (availableW - imageW) / 2
-    val y0                 = marginTB + fo.titleBlockHeightMm + (mosaicAvailableH - imageH) / 2
-    val countYStart        = y0 + imageH + fo.countListGapBelowImageMm
-    val colorCountInstrs   = fullPic.palette.toVector.sortBy(-_._2).zipWithIndex.flatMap { case ((idx, count), i) =>
+    val contentTopY       = marginTB + fo.titleOffsetFromTopMm
+    val imageAreaW        = availableW - fo.colorListReservedWidthMm
+    val imageAreaH        = availableH - fo.titleOffsetFromTopMm
+    val scale             = (imageAreaW / pw).min(imageAreaH / ph)
+    val imageW            = pw * scale
+    val imageH            = ph * scale
+    val x0                = marginLR + fo.colorListReservedWidthMm + (imageAreaW - imageW) / 2
+    val y0                = contentTopY
+    val colorRows = fullPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
       val px = fullPic.paletteLookup(idx)
-      val y  = countYStart + sw.firstLineOffsetMm + i * sw.lineHeightMm
-      val x  = marginLR
-      List(
-        Instruction.FillRect(x, y, sw.swatchSizeMm, sw.swatchSizeMm, px.r, px.g, px.b),
-        Instruction.FontSize(sw.countFontSizePt),
-        Instruction.Text(x + sw.swatchSizeMm + sw.swatchGapMm, y + sw.swatchSizeMm * sw.swatchTextVerticalRatio, s"× $count")
-      )
-    }.toList
+      (px.r, px.g, px.b, count)
+    }
+    val colorCountInstrs = drawSwatchRows(marginLR, contentTopY, colorRows, sw)
     List(
       Instruction.AddPage,
-      Instruction.FontSize(fo.titleFontSizePt),
-      Instruction.Text(marginLR, marginTB + fo.titleOffsetFromTopMm, "Full mosaic – all colors"),
-      Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat),
-      Instruction.FontSize(fo.countLabelFontSizePt),
-      Instruction.Text(marginLR, countYStart, "Colors for whole mosaic:")
+      Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat)
     ) ++ colorCountInstrs
   }
 
@@ -176,16 +185,11 @@ object PdfUtils {
       val plateX0          = marginLR + (availableW - plateImageW) / 2
       val plateY0          = marginTB + co.plateImageTopOffsetMm
       val countYStart      = plateY0 + plateImageH + co.countListGapBelowImageMm
-      val colorCountInstrs = platePic.palette.toVector.sortBy(-_._2).zipWithIndex.flatMap { case ((idx, count), i) =>
+      val colorRows = platePic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
         val px = fullPic.paletteLookup(idx)
-        val y  = countYStart + sw.firstLineOffsetMm + i * sw.lineHeightMm
-        val x  = marginLR
-        List(
-          Instruction.FillRect(x, y, sw.swatchSizeMm, sw.swatchSizeMm, px.r, px.g, px.b),
-          Instruction.FontSize(sw.countFontSizePt),
-          Instruction.Text(x + sw.swatchSizeMm + sw.swatchGapMm, y + sw.swatchSizeMm * sw.swatchTextVerticalRatio, s"× $count")
-        )
-      }.toList
+        (px.r, px.g, px.b, count)
+      }
+      val colorCountInstrs = drawSwatchRows(marginLR, countYStart, colorRows, sw)
       val smallOverviewH = co.smallOverviewHeightMm
       val smallOverviewW = fullPic.width * (smallOverviewH / fullPic.height)
       val smallX0        = marginLR + (availableW - smallOverviewW) / 2

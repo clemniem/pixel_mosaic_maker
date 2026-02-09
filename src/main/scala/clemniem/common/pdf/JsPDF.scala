@@ -58,10 +58,10 @@ object JsPDF {
       val _             = doc.setTextColor(0, 0, 0)
       val y             = pageH - printerMarginMm - 5
       if (leftSide) {
-        val x = printerMarginMm + 2
+        val x = printerMarginMm + 5  // 3mm inward from outer corner
         val _ = doc.text(contentPageNum.toString, x, y)
       } else {
-        val x = pageW - printerMarginMm - 2
+        val x = pageW - printerMarginMm - 5  // 3mm inward from outer corner
         val _ = doc.text(contentPageNum.toString, x, y, js.Dynamic.literal(align = "right"))
       }
     }
@@ -97,6 +97,24 @@ object JsPDF {
               (docOpt, (pageW, pageH), pageIndex)
             case Instruction.Text(x, y, value) =>
               docOpt.foreach { doc => val _ = doc.text(value, x, y) }
+              (docOpt, (pageW, pageH), pageIndex)
+            case Instruction.TextWithBackground(x, yTop, value, fontSizePt, padding, alignLeft, bgR, bgG, bgB) =>
+              docOpt.foreach { doc =>
+                val _ = doc.setFontSize(fontSizePt)
+                val dims = doc.getTextDimensions(value).asInstanceOf[js.Dynamic]
+                val tw = dims.w.asInstanceOf[Double]
+                val th = dims.h.asInstanceOf[Double]
+                val boxW = tw + 2 * padding
+                val boxH = th + 2 * padding
+                val boxX = if (alignLeft) x else x - boxW
+                val _ = doc.setFillColor(bgR, bgG, bgB)
+                val _ = doc.rect(boxX, yTop, boxW, boxH, "F")
+                val _ = doc.setTextColor(0, 0, 0)
+                val textY = yTop + padding + th
+                val textX = if (alignLeft) x + padding else x - padding
+                val align = if (alignLeft) "left" else "right"
+                val _ = doc.text(value, textX, textY, js.Dynamic.literal(align = align))
+              }
               (docOpt, (pageW, pageH), pageIndex)
             case Instruction.AddPage =>
               docOpt.foreach { doc =>
@@ -134,6 +152,32 @@ object JsPDF {
               docOpt.foreach { doc =>
                 val _ = doc.setFillColor(r, g, b)
                 val _ = doc.rect(x, y, w, h, "F")
+              }
+              (docOpt, (pageW, pageH), pageIndex)
+            case Instruction.DrawSwatchRow(x, y, r, g, b, count, swatchSize, gap, fontSizePt) =>
+              docOpt.foreach { doc =>
+                val textStr = "× " + count
+                val _ = doc.setFontSize(fontSizePt)
+                val dims = doc.getTextDimensions(textStr).asInstanceOf[js.Dynamic]
+                val th = dims.h.asInstanceOf[Double]
+                val baselineY = y + (swatchSize + th) / 2
+                val _ = doc.setFillColor(r, g, b)
+                val _ = doc.rect(x, y, swatchSize, swatchSize, "F")
+                val _ = doc.setTextColor(0, 0, 0)
+                val _ = doc.text(textStr, x + swatchSize + gap, baselineY)
+              }
+              (docOpt, (pageW, pageH), pageIndex)
+            case Instruction.RoundedFillRect(x, y, w, h, radius, r, g, b) =>
+              docOpt.foreach { doc =>
+                val _ = doc.setFillColor(r, g, b)
+                val _ = doc.roundedRect(x, y, w, h, radius, radius, "F")
+              }
+              (docOpt, (pageW, pageH), pageIndex)
+            case Instruction.RoundedStrokeRect(x, y, w, h, radius, strokeR, strokeG, strokeB, lineWidth) =>
+              docOpt.foreach { doc =>
+                val _ = doc.setDrawColor(strokeR, strokeG, strokeB)
+                val _ = doc.setLineWidth(lineWidth)
+                val _ = doc.roundedRect(x, y, w, h, radius, radius, "S")
               }
               (docOpt, (pageW, pageH), pageIndex)
             case Instruction.Save(filename) =>
