@@ -59,8 +59,14 @@ jobs:
             <link rel="apple-touch-icon" href="./apple-touch-icon.png">
             <link rel="manifest" href="./site.webmanifest">
             <link href="https://unpkg.com/nes.css@2.3.0/css/nes.min.css" rel="stylesheet">
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link rel="preload" href="https://fonts.gstatic.com/s/pressstart2p/v16/e3t4euO8T-267oIAQAu6jDQyK3nVivNm4I81.woff2" as="font" type="font/woff2" crossorigin>
             <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
             <link rel="stylesheet" href="./css/style.css">
+            <script>
+              (function(){var done=false;function showContent(){if(done)return;done=true;document.documentElement.classList.add('fonts-loaded');}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(showContent);setTimeout(showContent,3000);}else{showContent();}})();
+            </script>
           </head>
           <body>
             <div id="myapp"></div>

@@ -23,7 +23,7 @@
       function showContent() {
         if (done) return;
         done = true;
-        document.body.classList.add('fonts-loaded');
+        document.documentElement.classList.add('fonts-loaded');
       }
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(showContent);
