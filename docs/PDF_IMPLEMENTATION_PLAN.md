@@ -1,6 +1,6 @@
 # PDF book implementation plan (jsPDF)
 
-Step-by-step plan to implement the print-instructions book from `print_instructions_layout.md`, with checkpoints so you can confirm each part works before moving on. Includes how to unit-test layout logic.
+Step-by-step plan to implement the print-instructions book from `docs/print_instructions_layout.md`, with checkpoints so you can confirm each part works before moving on. Includes how to unit-test layout logic.
 
 ---
 
@@ -88,7 +88,7 @@ Each step ends with: “Run the app, trigger PDF, **confirm in the browser** tha
 | **E.1** | Reuse overview instructions at the end: append `overviewInstructions(...)` again (or a dedicated `finalOverviewInstructions` that reuses the same layout). | Unit test: full book instruction list ends with the same “shape” as overview (e.g. same number of pages or same instruction types) before `Save`. |
 | **E.2** | Full book = Cover + Overview + (for each plate: plate overview + patch pages) + Final overview + Save. Remove or keep test PDF button; ensure Print uses `PdfBookInput` from current build config (name, image, palette, grid). | Print. **Confirm:** PDF ends with a final overview page (same content as first overview), then closes. Full flow is correct. |
 
-**Checkpoint 5:** Book structure matches `print_instructions_layout.md`: Cover → Overview → Chapters (plate overview + patch pages) → Final overview. You do a final visual pass.
+**Checkpoint 5:** Book structure matches `docs/print_instructions_layout.md`: Cover → Overview → Chapters (plate overview + patch pages) → Final overview. You do a final visual pass.
 
 ---
 

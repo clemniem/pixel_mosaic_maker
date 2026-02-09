@@ -102,7 +102,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 - **Scala.js global scope:** Do not assign `js.Dynamic.global` to a variable (e.g. `val g = js.Dynamic.global`); the compiler disallows “loading the global scope as a value”. Use `js.Dynamic.global.selectDynamic("...")` directly.
 - **Abstraction:** PDF behaviour is described as **`Instruction`**s in `common/pdf/Instruction.scala`. **`JsPDF.run(instructions)`** in `common/pdf/JsPDF.scala` runs them; all use of the jsPDF API is confined there. High-level logic lives in **`PdfUtils.scala`**: it builds instruction lists and calls `JsPDF.run`. Entry point for the book is **`PdfUtils.printBookPdf(PrintBookRequest(title, mosaicPicAndGridOpt))`** (used by both Print PDF buttons).
 - **Instruction set:** `PageSize(w, h)`, `AddPage`, **`AddPageWithSize(w, h)`** (for custom page size, e.g. 20×20 cm), `FontSize`, `Text`, `DrawPixelGrid` (pixel or block grid with flat RGB), `DrawStrokeRects` (e.g. plate grid or 4×4 overlay), `FillRect` (e.g. color swatches), `Save(filename)`.
-- **Book layout:** See **`print_instructions_layout.md`** for the full spec. In short: (1) Cover (A4, title); (2) Overview (A4, full mosaic + red plate grid); (3) Chapter 1 – Plate overview (A4: small mosaic with current plate in blue, plate image, color swatches + counts); (4) Layer patch pages (20×20 cm, 4 patches per page in 2×2). Each patch is a **cumulative color layer** at **16×16 block** resolution (colors added least-used first); layer background is light grey (configurable later); each patch has a 4×4 stroke grid overlay and “Layer N” label.
+- **Book layout:** See **`docs/print_instructions_layout.md`** for the full spec. In short: (1) Cover (A4, title); (2) Overview (A4, full mosaic + red plate grid); (3) Chapter 1 – Plate overview (A4: small mosaic with current plate in blue, plate image, color swatches + counts); (4) Layer patch pages (20×20 cm, 4 patches per page in 2×2). Each patch is a **cumulative color layer** at **16×16 block** resolution (colors added least-used first); layer background is light grey (configurable later); each patch has a 4×4 stroke grid overlay and “Layer N” label.
 
 ---
 
@@ -133,7 +133,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 | PDF instructions (PageSize, AddPageWithSize, DrawPixelGrid, …) | `common/pdf/Instruction.scala` |
 | PDF runner (jsPDF behind the scenes) | `common/pdf/JsPDF.scala` |
 | High-level PDF book (printBookPdf, chapter/layer logic) | `common/PdfUtils.scala` |
-| Print book layout spec (cover, overview, chapter, layers) | `print_instructions_layout.md` |
+| Print book layout spec (cover, overview, chapter, layers) | `docs/print_instructions_layout.md` |
 | App entry: sets window.jspdf, then launches app | `export-wrapper.js` |
 | GitHub Pages deploy (Scala.js build + upload-pages-artifact + deploy-pages) | `.github/workflows/deploy.yml` |
 | Gallery empty state component | `screens/GalleryEmptyState.scala` |
@@ -175,7 +175,7 @@ This document captures what was learned during development of the Pixel Mosaic M
 7. **Editor/creation screen:** Use **`ScreenHeader`** for the header and **`ScreenHeader.nameRowInput`** for the entity name row where applicable (see §16.1).
 8. After changes: `sbt compile` and `sbt test`; fix Scalafix and test failures.
 
-Using this file together with **FLOW.md** and **README.md** should give enough context to work on the project efficiently.
+Using this file together with **docs/FLOW.md** and **README.md** should give enough context to work on the project efficiently.
 
 ---
 

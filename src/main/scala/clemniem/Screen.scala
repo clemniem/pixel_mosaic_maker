@@ -5,7 +5,7 @@ import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 import tyrian.{Cmd, Html, Sub}
 
-/** Identifies a screen in the SPA. See FLOW.md for the six-step flow. */
+/** Identifies a screen in the SPA. See docs/FLOW.md for the six-step flow. */
 trait ScreenId {
   def name: String
   /** Display title used in the UI (e.g. header, document title, overview link card). */
@@ -53,7 +53,7 @@ object ScreenId {
     }
 }
 
-/** Data passed from one screen to the next when navigating. See FLOW.md for the six-step flow. */
+/** Data passed from one screen to the next when navigating. See docs/FLOW.md for the six-step flow. */
 sealed trait ScreenOutput
 
 object ScreenOutput {

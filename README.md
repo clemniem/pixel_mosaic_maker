@@ -2,7 +2,7 @@
 
 Single-page app to create mosaic instructions from pixel art (e.g. Game Boy Camera photos → Lego-style instructions). Built with **Tyrian** and **Scala.js**.
 
-See **[FLOW.md](FLOW.md)** for the six-step app flow: GridConfig → ImageUpload → Palettes → BuildConfig → Build → Print Instructions.
+See **[docs/FLOW.md](docs/FLOW.md)** for the six-step app flow: GridConfig → ImageUpload → Palettes → BuildConfig → Build → Print Instructions.
 
 ## Setup instructions
 

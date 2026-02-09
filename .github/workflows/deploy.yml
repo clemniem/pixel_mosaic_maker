@@ -38,12 +38,12 @@ jobs:
 
       - name: Assemble deployable directory
         run: |
-          mkdir -p dist/css
+          mkdir -p dist/css dist/assets
           cp target/scala-*/pixel_mosaic_maker-opt/main.js dist/
           cp target/scala-*/pixel_mosaic_maker-opt/main.js.map dist/ 2>/dev/null || true
           cp css/style.css dist/css/
-          cp favicon.ico favicon-32x32.png favicon-16x16.png apple-touch-icon.png android-chrome-192x192.png android-chrome-512x512.png dist/ 2>/dev/null || true
-          cp site.webmanifest sw.js dist/
+          cp assets/favicon.ico assets/favicon-32x32.png assets/favicon-16x16.png assets/apple-touch-icon.png assets/android-chrome-192x192.png assets/android-chrome-512x512.png assets/site.webmanifest dist/assets/
+          cp sw.js dist/
           echo "import { TyrianApp } from './main.js';" > dist/loader.js
           echo "TyrianApp.launch(\"myapp\");" >> dist/loader.js
           cat > dist/index.html << 'INDEX'
@@ -53,11 +53,11 @@ jobs:
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>Pixel Mosaic Maker</title>
-            <link rel="icon" href="./favicon.ico" sizes="any">
-            <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
-            <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
-            <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-            <link rel="manifest" href="./site.webmanifest">
+            <link rel="icon" href="./assets/favicon.ico" sizes="any">
+            <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32x32.png">
+            <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16x16.png">
+            <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+            <link rel="manifest" href="./assets/site.webmanifest">
             <link href="https://unpkg.com/nes.css@2.3.0/css/nes.min.css" rel="stylesheet">
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
