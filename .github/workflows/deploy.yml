@@ -65,7 +65,7 @@ jobs:
             <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
             <link rel="stylesheet" href="./css/style.css">
             <script>
-              (function(){var done=false;function showContent(){if(done)return;done=true;document.documentElement.classList.add('fonts-loaded');}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(showContent);setTimeout(showContent,3000);}else{showContent();}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',showContent);}else{showContent();}})();
+              (function(){var done=false;function showContent(){if(done)return;done=true;document.documentElement.classList.add('fonts-loaded');}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(showContent);setTimeout(showContent,3000);}else{showContent();}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',showContent);}else{showContent();}setTimeout(showContent,200);})();
             </script>
           </head>
           <body>
