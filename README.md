@@ -42,6 +42,7 @@ Open [http://localhost:1234/](http://localhost:1234/). After code changes, run `
 |--------|--------|
 | [Tyrian](https://github.com/PurpleKingdomGames/tyrian) | Elm-style UI framework for Scala.js (model / update / view) |
 | [NES.css](https://nostalgic-css.github.io/NES.css/) | Retro pixel-art CSS framework for the UI look |
+| [jsPDF](https://github.com/parallax/jsPDF) | Client-side PDF generation (print instructions book) |
 | [Scala.js](https://www.scala-js.org/) | Scala compiled to JavaScript |
 | [Parcel](https://parceljs.org/) | Dev server and bundler |
 

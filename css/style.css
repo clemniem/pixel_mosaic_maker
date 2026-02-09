@@ -1,3 +1,10 @@
+/* ========== Font (same asset as PDF) ========== */
+@font-face {
+  font-family: "Press Start 2P";
+  src: url("../assets/PressStart2P-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
 /* ========== NES.css integration – body and app root ========== */
 /* NES pointer cursor (pixel hand) – use for all clickable elements so hover is consistent with NES.css */
 :root {
@@ -22,12 +29,6 @@ body {
   justify-content: center;
   align-items: flex-start;
   padding: 2rem 1rem;
-  /* Avoid flash of fallback font: hide until "Press Start 2P" is ready (see index.html script) */
-  visibility: hidden;
-}
-
-html.fonts-loaded body {
-  visibility: visible;
 }
 
 /* App root: fixed width so it does not jump when switching screens */
