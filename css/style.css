@@ -9,9 +9,108 @@
 /* NES pointer cursor (pixel hand) – use for all clickable elements so hover is consistent with NES.css */
 :root {
   --nes-pointer: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAzElEQVRYR+2X0Q6AIAhF5f8/2jYXZkwEjNSVvVUjDpcrGgT7FUkI2D9xRfQETwNIiWO85wfINfQUEyxBG2ArsLwC0jioGt5zFcwF4OYDPi/mBYKm4t0U8ATgRm3ThFoAqkhNgWkA0jJLvaOVSs7j3qMnSgXWBMiWPXe94QqMBMBc1VZIvaTu5u5pQewq0EqNZvIEMCmxAawK0DNkay9QmfFNAJUXfgGgUkLaE7j/h8fnASkxHTz0DGIBMCnBeeM7AArpUd3mz2x3C7wADglA8BcWMZhZAAAAAElFTkSuQmCC") 14 0, pointer;
-  /* Main frame and list/content area use same Game Boy–style purple */
-  --screen-container-bg: #8b8b9e;
+
+  /* ========== Palette – single place for theme colors; override in body.theme-gameboy to use Game Boy palette ========== */
+  /* Default palette (current theme) */
+  --palette-bg: #9e9e9e;
+  --palette-element-bg: #fafafa;
+  --palette-element-bg-disabled: #e8e8e8;
+  --palette-bad-bg: #c62828;
+  --palette-bad-border: #c62828;
+  --palette-bad-text: #fff;
+  --palette-good-bg: #1565c0;
+  --palette-good-border: #1565c0;
+  --palette-good-text: #fff;
+  --palette-good-muted-bg: #e3f2fd;
+  --palette-good-muted-text: #1565c0;
+  --palette-good-muted-border: #90caf9;
+  --palette-frame: #8b8b9e;
+  --palette-frame-border: #212529;
+  --palette-font: #212529;
+  --palette-font-muted: #666;
+  --palette-border: #333;
+  --palette-border-light: #999;
+  --palette-border-lighter: #ccc;
+  --palette-border-lightest: #ddd;
+
+  /* Derived / legacy names */
+  --screen-container-bg: var(--palette-frame);
   --screen-inner-bg: transparent;
+}
+
+/* Original Game Boy (DMG) palette: #84d07d light green, #272929 dark, #c4bebb light grey, #494786 purple, #9a2257 magenta */
+body.theme-gameboy {
+  --palette-bg: #272929;
+  --palette-element-bg: #c4bebb;
+  --palette-element-bg-disabled: #9a9a98;
+  --palette-bad-bg: #9a2257;
+  --palette-bad-border: #9a2257;
+  --palette-bad-text: #fff;
+  --palette-good-bg: #494786;
+  --palette-good-border: #494786;
+  --palette-good-text: #fff;
+  --palette-good-muted-bg: #c4bebb;
+  --palette-good-muted-text: #494786;
+  --palette-good-muted-border: #494786;
+  --palette-frame: #84d07d;
+  --palette-frame-border: #272929;
+  --palette-font: #272929;
+  --palette-font-muted: #494786;
+  --palette-border: #272929;
+  --palette-border-light: #494786;
+  --palette-border-lighter: #6a6a6a;
+  --palette-border-lightest: #c4bebb;
+  /* Darker shades for button 3D shadow (bevel) so it matches NES look */
+  --palette-element-shadow: #8a8885;
+  --palette-good-shadow: #36356a;
+  --palette-bad-shadow: #6a1840;
+  /* Force frame background so it applies when theme is toggled */
+  --screen-container-bg: #84d07d;
+}
+
+/* Only override buttons when Game Boy theme is active; default theme keeps original NES.css (full 3D shadow) */
+body.theme-gameboy .nes-btn {
+  background-color: var(--palette-element-bg) !important;
+  color: var(--palette-font) !important;
+}
+body.theme-gameboy .nes-btn::after {
+  box-shadow: inset -4px -4px var(--palette-element-shadow) !important;
+}
+body.theme-gameboy .nes-btn:hover::after {
+  box-shadow: inset -6px -6px var(--palette-element-shadow) !important;
+}
+body.theme-gameboy .nes-btn:active:not(.is-disabled)::after {
+  box-shadow: inset 4px 4px var(--palette-element-shadow) !important;
+}
+body.theme-gameboy .nes-btn.is-primary,
+body.theme-gameboy .nes-btn.is-success {
+  background-color: var(--palette-good-bg) !important;
+  color: var(--palette-good-text) !important;
+}
+body.theme-gameboy .nes-btn.is-primary::after,
+body.theme-gameboy .nes-btn.is-success::after {
+  box-shadow: inset -4px -4px var(--palette-good-shadow) !important;
+}
+body.theme-gameboy .nes-btn.is-primary:hover::after,
+body.theme-gameboy .nes-btn.is-success:hover::after {
+  box-shadow: inset -6px -6px var(--palette-good-shadow) !important;
+}
+body.theme-gameboy .nes-btn.is-primary:active:not(.is-disabled)::after,
+body.theme-gameboy .nes-btn.is-success:active:not(.is-disabled)::after {
+  box-shadow: inset 4px 4px var(--palette-good-shadow) !important;
+}
+body.theme-gameboy .nes-btn.is-error {
+  background-color: var(--palette-bad-bg) !important;
+  color: var(--palette-bad-text) !important;
+}
+body.theme-gameboy .nes-btn.is-error::after {
+  box-shadow: inset -4px -4px var(--palette-bad-shadow) !important;
+}
+body.theme-gameboy .nes-btn.is-error:hover::after {
+  box-shadow: inset -6px -6px var(--palette-bad-shadow) !important;
+}
+body.theme-gameboy .nes-btn.is-error:active:not(.is-disabled)::after {
+  box-shadow: inset 4px 4px var(--palette-bad-shadow) !important;
 }
 
 html {
@@ -22,8 +121,8 @@ html {
 body {
   font-family: "Press Start 2P", cursive;
   font-size: 1rem;
-  background-color: #9e9e9e; /* overall grey */
-  color: #212529;
+  background-color: var(--palette-bg);
+  color: var(--palette-font);
   margin: 0;
   padding: 0;
   min-height: 100vh;
@@ -45,6 +144,7 @@ body {
 
 .nes-container {
   margin-bottom: 1rem;
+  border-color: var(--palette-frame-border);
 }
 
 .nes-container.is-rounded {
@@ -57,7 +157,7 @@ body {
 .nes-container.is-rounded.screen-container--narrow,
 .nes-container.is-rounded.screen-container--wide {
   background-color: var(--screen-container-bg);
-  box-shadow: 6px 6px 0 #212529;
+  box-shadow: 6px 6px 0 var(--palette-frame-border);
 }
 
 /* Inner content area: transparent so it matches the main frame (same as --screen-container-bg) */
@@ -107,6 +207,12 @@ body {
 
 .screen-title {
   margin: 0 0 1rem 0;
+}
+
+/* Secret theme toggle: the "o" in Mosaic; no visible change, just pointer */
+.title-theme-toggle {
+  cursor: var(--nes-pointer);
+  user-select: none;
 }
 
 .screen-intro {
@@ -299,7 +405,7 @@ input[type="number"].nes-input {
 
 /* ========== Canvas ========== */
 .pixel-canvas {
-  border: 1px solid #333;
+  border: 1px solid var(--palette-border);
   display: block;
   max-width: 100%;
   image-rendering: pixelated;
@@ -310,8 +416,8 @@ input[type="number"].nes-input {
 .normalize-choice-box {
   margin-bottom: 1rem;
   padding: 12px;
-  background: #fff3e0;
-  border: 1px solid #ffb74d;
+  background: var(--palette-good-muted-bg);
+  border: 1px solid var(--palette-good-muted-border);
   border-radius: 6px;
 }
 
@@ -324,7 +430,7 @@ input[type="number"].nes-input {
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  background: #f5f5f5;
+  background: var(--palette-element-bg);
   border-radius: 4px;
 }
 
@@ -349,7 +455,7 @@ input[type="number"].nes-input {
 
 .grid-editor-row .grid-editor-meta {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--palette-font-muted);
 }
 
 .grid-editor-row .grid-editor-cells {
@@ -377,10 +483,10 @@ input[type="number"].nes-input {
 
 .grid-preview-box {
   margin-top: 1rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--palette-border-lighter);
   border-radius: 4px;
   padding: 8px;
-  background: #fafafa;
+  background: var(--palette-element-bg);
 }
 
 .grid-preview-box .section-title {
@@ -480,14 +586,14 @@ input[type="number"].nes-input {
 /* ========== Error and empty states ========== */
 .error-box {
   margin-bottom: 1rem;
-  background: #ffebee;
-  border-color: #c62828;
-  color: #b71c1c;
+  background: var(--palette-bad-bg);
+  border-color: var(--palette-bad-border);
+  color: var(--palette-bad-text);
 }
 
 .empty-state {
   padding: 2rem;
-  border: 2px dashed #999;
+  border: 2px dashed var(--palette-border-light);
   text-align: center;
 }
 
@@ -512,7 +618,7 @@ input[type="number"].nes-input {
   width: 24px;
   height: 24px;
   border-radius: 2px;
-  border: 1px solid #666;
+  border: 1px solid var(--palette-border);
 }
 
 /* ========== Palette edit screen ========== */
@@ -532,7 +638,7 @@ input[type="number"].nes-input {
   align-items: center;
   padding: 0.15rem 0.25rem;
   gap: 0.35rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--palette-border-lighter);
   flex-wrap: wrap;
 }
 
@@ -557,7 +663,7 @@ input[type="number"].nes-input {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 4px;
-  border: 1px solid #333;
+  border: 1px solid var(--palette-border);
   flex-shrink: 0;
 }
 
@@ -575,7 +681,7 @@ input[type="number"].nes-input {
   padding: 2px;
   cursor: var(--nes-pointer);
   border-radius: 4px;
-  border: 1px solid #999;
+  border: 1px solid var(--palette-border-light);
 }
 
 .palette-edit-remove {
@@ -613,15 +719,15 @@ input[type="number"].nes-input {
 .step-size-single-badge {
   padding: 6px 12px;
   border-radius: 6px;
-  background: #e3f2fd;
-  color: #1565c0;
+  background: var(--palette-good-muted-bg);
+  color: var(--palette-good-muted-text);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  border: 1px solid #90caf9;
+  border: 1px solid var(--palette-good-muted-border);
 }
 
 .step-size-helper {
-  color: #555;
+  color: var(--palette-font-muted);
   font-size: 0.9rem;
 }
 
@@ -633,24 +739,24 @@ input[type="number"].nes-input {
 }
 
 .step-size-pill--disabled {
-  background: #e8e8e8;
-  color: #999;
+  background: var(--palette-element-bg-disabled);
+  color: var(--palette-border-light);
   cursor: default;
-  border: 1px solid #ddd;
+  border: 1px solid var(--palette-border-lightest);
 }
 
 .step-size-pill--selected {
-  background: #1565c0;
-  color: #fff;
-  border: 1px solid #1565c0;
+  background: var(--palette-good-bg);
+  color: var(--palette-good-text);
+  border: 1px solid var(--palette-good-border);
   cursor: var(--nes-pointer);
   font-weight: 600;
 }
 
 .step-size-pill--unselected {
-  background: #f0f0f0;
-  color: #333;
-  border: 1px solid #ccc;
+  background: var(--palette-element-bg);
+  color: var(--palette-font);
+  border: 1px solid var(--palette-border-lighter);
   cursor: var(--nes-pointer);
 }
 
@@ -664,7 +770,7 @@ input[type="number"].nes-input {
   flex: 1;
   min-width: 8rem;
   max-width: 20rem;
-  accent-color: #1565c0;
+  accent-color: var(--palette-good-bg);
 }
 
 .step-size-value {
@@ -711,7 +817,7 @@ input[type="number"].nes-input {
 /* Override NES.css container background for gallery entries (match rounded variant). Opaque, not see-through. */
 .nes-container.gallery-card,
 .nes-container.is-rounded.gallery-card {
-  background-color: #fafafa; /* very faint gray for all gallery entries */
+  background-color: var(--palette-element-bg);
 }
 
 .gallery-card {
@@ -808,12 +914,12 @@ input[type="number"].nes-input {
 }
 
 .gallery-preview-canvas {
-  border: 1px solid #999;
+  border: 1px solid var(--palette-border-light);
   border-radius: 2px;
   flex-shrink: 0;
   image-rendering: pixelated;
   /* Placeholder until draw runs (onLoad → drawAfterViewReady = 1–2 frames delay) */
-  background-color: #eee;
+  background-color: var(--palette-element-bg);
   image-rendering: crisp-edges;
 }
 
@@ -837,7 +943,7 @@ input[type="number"].nes-input {
   width: 14px;
   height: 14px;
   border-radius: 2px;
-  border: 1px solid #666;
+  border: 1px solid var(--palette-border);
 }
 
 .palette-strip {
@@ -852,7 +958,7 @@ input[type="number"].nes-input {
   width: 20px;
   height: 20px;
   border-radius: 2px;
-  border: 1px solid #999;
+  border: 1px solid var(--palette-border-light);
 }
 
 .dropdown-panel {
@@ -869,7 +975,7 @@ input[type="number"].nes-input {
 .progress-bar {
   margin-top: 4px;
   height: 8px;
-  background: #e0e0e0;
+  background: var(--palette-border-lightest);
   border-radius: 4px;
   overflow: hidden;
 }

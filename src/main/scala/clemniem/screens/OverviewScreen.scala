@@ -3,6 +3,7 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{NavigateNext, Screen, ScreenId}
 import clemniem.common.nescss.NesCss
+import org.scalajs.dom
 import tyrian.Html.*
 import tyrian.*
 
@@ -19,6 +20,9 @@ object OverviewScreen extends Screen {
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case OverviewMsg.GoTo(screenId) =>
       (model, Cmd.Emit(NavigateNext(screenId, None)))
+    case OverviewMsg.ToggleTheme =>
+      val run = IO(dom.document.body.classList.toggle("theme-gameboy"))
+      (model, Cmd.Run(run)(_ => OverviewMsg.NoOp))
     case OverviewMsg.NoOp =>
       (model, Cmd.None)
     case _: NavigateNext =>
@@ -29,7 +33,11 @@ object OverviewScreen extends Screen {
     div(
       `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--gameboy"
     )(
-      h1(`class` := "screen-title")(text("Pixel Mosaic Maker")),
+      h1(`class` := "screen-title")(
+        text("Pixel M"),
+        span(`class` := "title-theme-toggle", onClick(OverviewMsg.ToggleTheme))(text("o")),
+        text("saic Maker")
+      ),
       p(`class` := s"${NesCss.text} screen-intro")(
         text("Pick a step to manage your saved items or create new ones.")
       ),
@@ -52,4 +60,5 @@ object OverviewScreen extends Screen {
 
 enum OverviewMsg:
   case GoTo(screenId: ScreenId)
+  case ToggleTheme
   case NoOp
