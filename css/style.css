@@ -9,6 +9,9 @@
 /* NES pointer cursor (pixel hand) – use for all clickable elements so hover is consistent with NES.css */
 :root {
   --nes-pointer: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAzElEQVRYR+2X0Q6AIAhF5f8/2jYXZkwEjNSVvVUjDpcrGgT7FUkI2D9xRfQETwNIiWO85wfINfQUEyxBG2ArsLwC0jioGt5zFcwF4OYDPi/mBYKm4t0U8ATgRm3ThFoAqkhNgWkA0jJLvaOVSs7j3qMnSgXWBMiWPXe94QqMBMBc1VZIvaTu5u5pQewq0EqNZvIEMCmxAawK0DNkay9QmfFNAJUXfgGgUkLaE7j/h8fnASkxHTz0DGIBMCnBeeM7AArpUd3mz2x3C7wADglA8BcWMZhZAAAAAElFTkSuQmCC") 14 0, pointer;
+  /* Main frame and list/content area use same Game Boy–style purple */
+  --screen-container-bg: #8b8b9e;
+  --screen-inner-bg: transparent;
 }
 
 html {
@@ -49,6 +52,21 @@ body {
 }
 
 /* ========== Screen layout ========== */
+/* Main screen container: same visual language as buttons/gallery cards – opaque background, NES-style pop-out shadow */
+.nes-container.is-rounded.screen-container,
+.nes-container.is-rounded.screen-container--narrow,
+.nes-container.is-rounded.screen-container--wide {
+  background-color: var(--screen-container-bg);
+  box-shadow: 6px 6px 0 #212529;
+}
+
+/* Inner content area: transparent so it matches the main frame (same as --screen-container-bg) */
+.screen-container-inner {
+  background-color: var(--screen-inner-bg);
+  border-radius: 4px;
+  padding: 0.5rem 0;
+}
+
 /* Fixed width so the outer container does not resize when switching screens or title length */
 .screen-container,
 .screen-container--narrow,

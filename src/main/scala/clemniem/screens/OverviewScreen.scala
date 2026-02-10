@@ -27,13 +27,13 @@ object OverviewScreen extends Screen {
 
   def view(model: Model): Html[Msg] =
     div(
-      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container"
+      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--gameboy"
     )(
       h1(`class` := "screen-title")(text("Pixel Mosaic Maker")),
       p(`class` := s"${NesCss.text} screen-intro")(
         text("Pick a step to manage your saved items or create new ones.")
       ),
-      div(`class` := "flex-col flex-col--gap-1")(
+      div(`class` := "flex-col flex-col--gap-1 screen-container-inner")(
         ScreenId.overviewScreenIds.flatMap { id =>
           id.overviewDescription.map(desc => linkCard(id.title, id, desc))
         }*
