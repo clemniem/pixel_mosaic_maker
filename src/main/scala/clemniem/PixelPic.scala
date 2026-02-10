@@ -6,8 +6,18 @@ import clemniem.common.ImageUtils.{
   downscaleImageData,
   getFromImage,
   imageToImageData,
+  imageToImageDataMaxSize,
+  imageDataFromRaw,
   loadImageFromFile,
+  rawFromImageData,
   detectNearestNeighborScale
+}
+import clemniem.common.image.{
+  ColorDithering,
+  ColorQuantizationService,
+  DownscaleStrategy,
+  QuantizedResult,
+  SizeReductionService
 }
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
@@ -116,6 +126,74 @@ object PixelPic {
         extractPixelImageFromImageData(imgData).map(_.copy(name = fileName))
       }
     } yield pic
+
+  /** Build PixelPic from result of color quantization (e.g. from ColorQuantizationService). */
+  def fromQuantized(
+      width: Int,
+      height: Int,
+      result: QuantizedResult,
+      name: String
+  ): Option[PixelPic] = {
+    if (width * height != result.indices.length) None
+    else if (result.palette.isEmpty) None
+    else {
+    val paletteLookup = result.palette.map { case (r, g, b, a) =>
+      Pixel(r & 0xff, g & 0xff, b & 0xff, a & 0xff)
+    }.toVector
+    val counts = result.indices.groupBy(identity).view.mapValues(_.length).toMap
+    PixelPic(
+      width = width,
+      height = height,
+      paletteLookup = paletteLookup,
+      pixels = result.indices.toVector,
+      pixelCounts = counts,
+      name = name
+    ).map(sortPixelVector)
+    }
+  }
+
+  /** Full pipeline: load from data URL, validate size, downscale to target max, optionally quantize. Returns Left(error) or Right(pic). */
+  def processUploadedImage(
+      dataUrl: DataUrlBase64,
+      fileName: String,
+      downscaleStrategy: DownscaleStrategy,
+      numPaletteColors: Option[Int],
+      colorDithering: ColorDithering
+  ): IO[Either[String, PixelPic]] =
+    getFromImage(dataUrl) { img =>
+      val w = img.width
+      val h = img.height
+      if (SizeReductionService.exceedsMaxUpload(w, h))
+        Left(s"Image too large. Max ${SizeReductionService.MaxUploadWidth}×${SizeReductionService.MaxUploadHeight} px (got ${w}×${h}).")
+      else {
+        val imgData = imageToImageDataMaxSize(
+          img,
+          SizeReductionService.TargetMaxWidth,
+          SizeReductionService.TargetMaxHeight
+        )
+        val raw    = rawFromImageData(imgData)
+        val reduced = SizeReductionService.downscale(
+          raw,
+          SizeReductionService.TargetMaxWidth,
+          SizeReductionService.TargetMaxHeight,
+          downscaleStrategy
+        )
+        val name = fileName
+        val result = numPaletteColors match {
+          case Some(n) =>
+            val q = ColorQuantizationService.quantize(reduced, n, colorDithering)
+            fromQuantized(reduced.width, reduced.height, q, name)
+          case None =>
+            val imgData2 = imageDataFromRaw(reduced)
+            extractPixelImageFromImageData(imgData2).map(_.copy(name = name))
+        }
+        result.toRight("Could not process image")
+      }
+    }.attempt.map {
+      case Right(Right(pic)) => Right(pic)
+      case Right(Left(msg))  => Left(msg)
+      case Left(e)           => Left(e.getMessage)
+    }
 
   def fromDataUrl(dataUrl: DataUrlBase64): IO[Option[PixelPic]] =
     getFromImage(dataUrl)(img => extractPixelImageFromImage(img).map(_.copy(name = "fromUrl")))

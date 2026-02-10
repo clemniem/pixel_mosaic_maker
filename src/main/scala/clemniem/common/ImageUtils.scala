@@ -1,6 +1,7 @@
 package clemniem.common
 
 import cats.effect.IO
+import clemniem.common.image.RawImage
 import org.scalajs.dom
 import org.scalajs.dom.{File, FileReader, ImageData}
 import org.scalajs.dom.html.{Canvas, Image}
@@ -112,5 +113,47 @@ object ImageUtils {
     val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
     ctx.drawImage(img, 0, 0)
     ctx.getImageData(0, 0, img.width, img.height)
+  }
+
+  /** Get ImageData from a loaded Image, scaled to fit within maxW×maxH. Uses canvas drawImage scaling so
+    * we never allocate huge buffers (avoids main-thread freeze on large uploads).
+    */
+  def imageToImageDataMaxSize(img: Image, maxW: Int, maxH: Int): ImageData = {
+    val w = img.width
+    val h = img.height
+    if (w <= maxW && h <= maxH) imageToImageData(img)
+    else {
+      val scale = (maxW.toDouble / w).min(maxH.toDouble / h)
+      val nw = (w * scale).toInt.max(1).min(maxW)
+      val nh = (h * scale).toInt.max(1).min(maxH)
+      val canvas = dom.document.createElement("canvas").asInstanceOf[Canvas]
+      canvas.width = nw
+      canvas.height = nh
+      val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+      ctx.drawImage(img, 0, 0, w, h, 0, 0, nw, nh)
+      ctx.getImageData(0, 0, nw, nh)
+    }
+  }
+
+  /** Convert ImageData to DOM-free RawImage (copy of bytes). */
+  def rawFromImageData(imageData: ImageData): RawImage = {
+    val w = imageData.width
+    val h = imageData.height
+    val src = imageData.data
+    val arr = new Array[Byte](w * h * 4)
+    for (i <- arr.indices) arr(i) = (src(i) & 0xff).toByte
+    RawImage(w, h, arr)
+  }
+
+  /** Convert RawImage to ImageData (requires DOM for createImageData). */
+  def imageDataFromRaw(raw: RawImage): ImageData = {
+    val canvas = dom.document.createElement("canvas").asInstanceOf[Canvas]
+    canvas.width = raw.width
+    canvas.height = raw.height
+    val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+    val out = ctx.createImageData(raw.width, raw.height)
+    val dst = out.data
+    for (i <- raw.data.indices) dst(i) = raw.data(i) & 0xff
+    out
   }
 }
