@@ -28,6 +28,7 @@ object ScreenId {
   case object BuildConfigId       extends ScreenId { val name = "build-config";     val title = "Mosaic setup" }
   case object BuildId             extends ScreenId { val name = "build";             val title = "Building steps" }
   case object PrintInstructionsId extends ScreenId { val name = "print-instructions"; val title = "Print";              override val overviewDescription = Some("Create a printable PDF guide") }
+  case object AboutId             extends ScreenId { val name = "about";               val title = "About" }
 
   /** Screen IDs shown on the overview page as link cards, in order. */
   val overviewScreenIds: List[ScreenId] =
@@ -41,13 +42,14 @@ object ScreenId {
       if (idx >= 0) {
         if (idx + 1 < overviewScreenIds.length) overviewScreenIds(idx + 1)
         else OverviewId
-      } else
+      }       else
         current match {
           case GridConfigId   => PalettesId
           case PaletteId      => GridConfigsId
           case ImageUploadId  => BuildConfigsId
           case BuildConfigId  => BuildsId
           case BuildId        => PrintInstructionsId
+          case AboutId        => OverviewId
           case _              => OverviewId
         }
     }

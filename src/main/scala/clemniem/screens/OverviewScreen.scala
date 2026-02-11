@@ -45,7 +45,8 @@ object OverviewScreen extends Screen {
         ScreenId.overviewScreenIds.flatMap { id =>
           id.overviewDescription.map(desc => linkCard(id.title, id, desc))
         }*
-      )
+      ),
+      div(`class` := "screen-about-link", onClick(OverviewMsg.GoTo(ScreenId.AboutId)))(text("about"))
     )
 
   private def linkCard(title: String, target: ScreenId, desc: String): Html[Msg] =

@@ -2,6 +2,7 @@ package clemniem
 
 import cats.effect.IO
 import clemniem.screens.{
+  AboutScreen,
   BuildConfigGalleryScreen,
   BuildConfigScreen,
   BuildScreen,
@@ -35,6 +36,7 @@ object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
     ScreenRegistry(
       screens = List(
         OverviewScreen,
+        AboutScreen,
         GridConfigGalleryScreen,
         GridConfigScreen,
         PalettesGalleryScreen,

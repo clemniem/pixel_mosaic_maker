@@ -4,3 +4,16 @@ if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
     navigator.serviceWorker.register(new URL('./sw.js', import.meta.url).href).catch(() => {});
   });
 }
+
+/** Unregister all service workers and reload so the next load fetches fresh assets. Called from the app (Overview screen). */
+window.refreshApp = function () {
+  if (!navigator.serviceWorker) {
+    location.reload();
+    return;
+  }
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    return Promise.all(regs.map(function (r) { return r.unregister(); }));
+  }).then(function () {
+    location.reload();
+  });
+};
