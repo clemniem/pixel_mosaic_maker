@@ -19,8 +19,10 @@ import clemniem.common.{CanvasUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
+import org.scalajs.dom.window
 
 import scala.scalajs.js
+import scala.concurrent.duration.DurationInt
 
 /** Step-by-step build: one build config, iterate plates then 16×16 cells per plate. Overview + preview + step nav. */
 object BuildScreen extends Screen {
@@ -228,6 +230,9 @@ object BuildScreen extends Screen {
     case BuildScreenMsg.SetPatchBackgroundColor(hex) =>
       (model.copy(patchBackgroundColorHex = normalizedPatchBackgroundHex(hex)), drawCmd(model.copy(patchBackgroundColorHex = normalizedPatchBackgroundHex(hex))))
 
+    case BuildScreenMsg.SetStacked(value) =>
+      (model.copy(stacked = value), drawCmd(model.copy(stacked = value)))
+
     case _: NavigateNext =>
       (model, Cmd.None)
   }
@@ -298,8 +303,10 @@ object BuildScreen extends Screen {
   private def colorsByCountAsc(patch: PixelPic): Vector[(Int, Int)] =
     patch.palette.toVector.sortBy(_._2)
 
-  /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. Up to 16 colors in a 4-column grid. */
-  private val previewCols = 4
+  /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. Up to 16 colors; 2 cols on small screens, 4 otherwise. */
+  private val previewColsSmall = 2
+  private val previewColsWide  = 4
+  private val previewColsBreakpoint = 600
 
   private def normalizedPatchBackgroundHex(hex: String): String = {
     val s = hex.trim
@@ -332,49 +339,101 @@ object BuildScreen extends Screen {
               val cellH        = patchSize * cellPx
               val gap          = 8
               val gridStep     = 4
-              val n            = sortedColors.size.min(16)
-              val cols         = previewCols
-              val rows         = if (n <= 0) 0 else (n + cols - 1) / cols
-              val totalW       = if (cols <= 0) 1 else cols * cellW + (cols - 1) * gap
-              val totalH       = if (rows <= 0) 1 else rows * cellH + (rows - 1) * gap
-              canvas.width = totalW.max(1)
-              canvas.height = totalH.max(1)
-              ctx.clearRect(0, 0, canvas.width, canvas.height)
               val (bgR, bgG, bgB) = patchBackgroundRgb(model.patchBackgroundColorHex)
-              sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), i) =>
-                val px  = patch.paletteLookup(paletteIndex)
-                val col = i % cols
-                val row = i / cols
-                val ox  = col * (cellW + gap)
-                val oy  = row * (cellH + gap)
-                val imgData = ctx.createImageData(cellW, cellH)
-                val data    = imgData.data
-                for (y <- 0 until patchSize; x <- 0 until patchSize) {
-                  val idx = y * patchSize + x
-                  val (r, g, b) =
-                    if (patch.pixels(idx) == paletteIndex) (px.r, px.g, px.b)
-                    else (bgR, bgG, bgB)
-                  for (py <- 0 until cellPx; pxOff <- 0 until cellPx) {
-                    val off = ((y * cellPx + py) * cellW + (x * cellPx + pxOff)) * 4
-                    data(off) = r
-                    data(off + 1) = g
-                    data(off + 2) = b
-                    data(off + 3) = 255
+
+              if (model.stacked) {
+                /* Stacked: one cell per color, each cell shows cumulative layers (like PDF). Layer 0 = color 0 only; Layer 1 = colors 0+1; etc. */
+                val n      = sortedColors.size.min(16)
+                val cols   = if (window.innerWidth <= previewColsBreakpoint) previewColsSmall else previewColsWide
+                val rows   = if (n <= 0) 0 else (n + cols - 1) / cols
+                val totalW = if (cols <= 0) 1 else cols * cellW + (cols - 1) * gap
+                val totalH = if (rows <= 0) 1 else rows * cellH + (rows - 1) * gap
+                canvas.width = totalW.max(1)
+                canvas.height = totalH.max(1)
+                ctx.clearRect(0, 0, canvas.width, canvas.height)
+                sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), layerIdx) =>
+                  val col   = layerIdx % cols
+                  val row   = layerIdx / cols
+                  val ox    = col * (cellW + gap)
+                  val oy    = row * (cellH + gap)
+                  val colorSet = sortedColors.take(layerIdx + 1).map(_._1).toSet
+                  val imgData = ctx.createImageData(cellW, cellH)
+                  val data   = imgData.data
+                  for (y <- 0 until patchSize; x <- 0 until patchSize) {
+                    val idx = y * patchSize + x
+                    val (r, g, b) =
+                      if (colorSet.contains(patch.pixels(idx))) {
+                        val px = patch.paletteLookup(patch.pixels(idx))
+                        (px.r, px.g, px.b)
+                      } else (bgR, bgG, bgB)
+                    for (py <- 0 until cellPx; pxOff <- 0 until cellPx) {
+                      val off = ((y * cellPx + py) * cellW + (x * cellPx + pxOff)) * 4
+                      data(off) = r
+                      data(off + 1) = g
+                      data(off + 2) = b
+                      data(off + 3) = 255
+                    }
+                  }
+                  ctx.putImageData(imgData, ox, oy)
+                  ctx.strokeStyle = Color.black.rgba(0.45)
+                  ctx.lineWidth = 1
+                  for (g <- 1 until 4) {
+                    val pos = g * gridStep * cellPx
+                    ctx.beginPath()
+                    ctx.moveTo(ox + pos, oy)
+                    ctx.lineTo(ox + pos, oy + cellH)
+                    ctx.stroke()
+                    ctx.beginPath()
+                    ctx.moveTo(ox, oy + pos)
+                    ctx.lineTo(ox + cellW, oy + pos)
+                    ctx.stroke()
                   }
                 }
-                ctx.putImageData(imgData, ox, oy)
-                ctx.strokeStyle = Color.black.rgba(0.45)
-                ctx.lineWidth = 1
-                for (g <- 1 until 4) {
-                  val pos = g * gridStep * cellPx
-                  ctx.beginPath()
-                  ctx.moveTo(ox + pos, oy)
-                  ctx.lineTo(ox + pos, oy + cellH)
-                  ctx.stroke()
-                  ctx.beginPath()
-                  ctx.moveTo(ox, oy + pos)
-                  ctx.lineTo(ox + cellW, oy + pos)
-                  ctx.stroke()
+              } else {
+                /* Grid: each color in its own cell */
+                val n      = sortedColors.size.min(16)
+                val cols   = if (window.innerWidth <= previewColsBreakpoint) previewColsSmall else previewColsWide
+                val rows   = if (n <= 0) 0 else (n + cols - 1) / cols
+                val totalW = if (cols <= 0) 1 else cols * cellW + (cols - 1) * gap
+                val totalH = if (rows <= 0) 1 else rows * cellH + (rows - 1) * gap
+                canvas.width = totalW.max(1)
+                canvas.height = totalH.max(1)
+                ctx.clearRect(0, 0, canvas.width, canvas.height)
+                sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), i) =>
+                  val px  = patch.paletteLookup(paletteIndex)
+                  val col = i % cols
+                  val row = i / cols
+                  val ox  = col * (cellW + gap)
+                  val oy  = row * (cellH + gap)
+                  val imgData = ctx.createImageData(cellW, cellH)
+                  val data    = imgData.data
+                  for (y <- 0 until patchSize; x <- 0 until patchSize) {
+                    val idx = y * patchSize + x
+                    val (r, g, b) =
+                      if (patch.pixels(idx) == paletteIndex) (px.r, px.g, px.b)
+                      else (bgR, bgG, bgB)
+                    for (py <- 0 until cellPx; pxOff <- 0 until cellPx) {
+                      val off = ((y * cellPx + py) * cellW + (x * cellPx + pxOff)) * 4
+                      data(off) = r
+                      data(off + 1) = g
+                      data(off + 2) = b
+                      data(off + 3) = 255
+                    }
+                  }
+                  ctx.putImageData(imgData, ox, oy)
+                  ctx.strokeStyle = Color.black.rgba(0.45)
+                  ctx.lineWidth = 1
+                  for (g <- 1 until 4) {
+                    val pos = g * gridStep * cellPx
+                    ctx.beginPath()
+                    ctx.moveTo(ox + pos, oy)
+                    ctx.lineTo(ox + pos, oy + cellH)
+                    ctx.stroke()
+                    ctx.beginPath()
+                    ctx.moveTo(ox, oy + pos)
+                    ctx.lineTo(ox + cellW, oy + pos)
+                    ctx.stroke()
+                  }
                 }
               }
             case None =>
@@ -442,7 +501,7 @@ object BuildScreen extends Screen {
           )
         ),
         div(`class` := s"${NesCss.field} build-patch-bg-block")(
-          label(`class` := "label-block")(text("Background for unfinished areas")),
+          label(`class` := "label-block")(text("Background")),
           input(
             `type` := "color",
             `class` := "input-color",
@@ -452,13 +511,32 @@ object BuildScreen extends Screen {
         )
       ),
       div(`class` := "build-preview-row")(
-        div(`class` := "section-title")(text("This section: colors from fewest to most bricks")),
+        div(`class` := "build-preview-header")(
+          div(`class` := "section-title")(text("Step by color")),
+          div(`class` := "radio-group-inline")(
+            label(`class` := "radio-inline")(
+              input(
+                (List(`type` := "radio", Attribute("name", "preview-mode"), Attribute("value", "grid")) ++ (if (!model.stacked) List(Attribute("checked", "checked")) else Nil) :+ onClick(BuildScreenMsg.SetStacked(false)))*
+              ),
+              text(" Grid")
+            ),
+            label(`class` := "radio-inline")(
+              input(
+                (List(`type` := "radio", Attribute("name", "preview-mode"), Attribute("value", "stacked")) ++ (if (model.stacked) List(Attribute("checked", "checked")) else Nil) :+ onClick(BuildScreenMsg.SetStacked(true)))*
+              ),
+              text(" Stacked")
+            )
+          )
+        ),
         div(`class` := "build-preview-inner", onLoad(BuildScreenMsg.Draw))(
           canvas(id := previewCanvasId, width := 32, height := 32, `class` := "pixel-canvas")()
         )
       )
     )
   }
+
+  override def subscriptions(model: Model): Sub[IO, Msg] =
+    Sub.every[IO](300.millis, "build-resize").map(_ => BuildScreenMsg.Draw)
 }
 
 final case class BuildScreenModel(
@@ -468,7 +546,8 @@ final case class BuildScreenModel(
     palettes: Option[List[StoredPalette]],
     stepIndex: Int,
     pendingSave: Option[StoredBuild] = None,
-    patchBackgroundColorHex: String = "#eeeeee"
+    patchBackgroundColorHex: String = "#eeeeee",
+    stacked: Boolean = false
 ) {
   def steps: Vector[(Int, Int)] =
     buildConfig match {
@@ -497,3 +576,4 @@ enum BuildScreenMsg:
   case SaveFailed
   case Draw
   case SetPatchBackgroundColor(hex: String)
+  case SetStacked(value: Boolean)
