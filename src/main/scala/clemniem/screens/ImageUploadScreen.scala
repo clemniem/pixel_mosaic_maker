@@ -2,7 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import clemniem.{Color, NavigateNext, PixelPic, Screen, ScreenId, StorageKeys, StoredImage}
+import clemniem.{Color, NavigateNext, PixelPic, PixelPicService, Screen, ScreenId, StorageKeys, StoredImage}
 import clemniem.common.{CanvasUtils, ImageUtils, LocalStorageUtils}
 import clemniem.common.image.{
   ColorDithering,
@@ -89,7 +89,7 @@ object ImageUploadScreen extends Screen {
       case (Some(url), Some(fileName)) =>
         val runId = model.pipelineRunId
         Cmd.Run(
-          PixelPic.processUploadedImage(
+          PixelPicService.processUploadedImage(
             url,
             fileName,
             model.downscaleStrategy,
@@ -207,8 +207,8 @@ object ImageUploadScreen extends Screen {
       (model, Cmd.None)
   }
 
-  private def pillClass(selected: Boolean, base: String): String =
-    if (selected) s"$base $base--selected" else s"$base $base--unselected"
+  private def pillClass(selected: Boolean, extra: String): String =
+    if (selected) s"pill $extra pill--selected" else s"pill $extra pill--unselected"
 
   private def drawPreview(pic: PixelPic): IO[Unit] =
     CanvasUtils.drawAfterViewReady("image-upload-preview", maxRetries = 100, delayMs = 1)((canvas, ctx) => {
@@ -220,7 +220,7 @@ object ImageUploadScreen extends Screen {
 
   def view(model: Model): Html[Msg] =
     div(
-      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--upload"
+      `class` := s"${NesCss.screenContainer} screen-container--upload"
     )(
       ScreenHeader(
         screenId.title,

@@ -437,7 +437,7 @@ object BuildScreen extends Screen {
     val current = model.stepIndex
     val title   = model.currentBuild.map(_.name).orElse(model.buildConfig.map(_.name)).getOrElse("Build")
 
-    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide")(
+    div(`class` := s"${NesCss.screenContainer} screen-container--wide")(
       ScreenHeader(
         title,
         div(

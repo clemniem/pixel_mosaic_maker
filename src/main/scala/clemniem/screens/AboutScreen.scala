@@ -46,7 +46,7 @@ object AboutScreen extends Screen {
 
   def view(model: Model): Html[Msg] =
     div(
-      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide"
+      `class` := s"${NesCss.screenContainer} screen-container--wide"
     )(
       div(`class` := "screen-header")(
         h1(`class` := "screen-title")(text("About")),

@@ -119,7 +119,7 @@ object PrintInstructionsScreen extends Screen {
     val canPrint     = model.selectedStored.isDefined
 
     div(
-      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--narrow"
+      `class` := s"${NesCss.screenContainer} screen-container--narrow"
     )(
       ScreenHeader(
         screenId.title,
@@ -223,10 +223,10 @@ object PrintInstructionsScreen extends Screen {
       .getOrElse(stepSizeCandidates)
 
     def pillClass(possible: Boolean, selected: Boolean): String = {
-      val base = "step-size-pill"
-      if (!possible) s"$base step-size-pill--disabled"
-      else if (selected) s"$base step-size-pill--selected"
-      else s"$base step-size-pill--unselected"
+      val extra = "step-size-pill"
+      if (!possible) s"pill $extra pill--disabled"
+      else if (selected) s"pill $extra pill--selected"
+      else s"pill $extra pill--unselected"
     }
 
     div(`class` := "step-size-block")(

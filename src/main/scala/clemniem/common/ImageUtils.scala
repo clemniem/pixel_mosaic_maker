@@ -15,6 +15,15 @@ object ImageUtils {
   type DataUrlBase64 = String
   type FileName      = String
 
+  /** Create an offscreen canvas with the given dimensions and return (canvas, context). */
+  def createOffscreenCanvas(w: Int, h: Int): (Canvas, dom.CanvasRenderingContext2D) = {
+    val canvas = dom.document.createElement("canvas").asInstanceOf[Canvas]
+    canvas.width = w
+    canvas.height = h
+    val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+    (canvas, ctx)
+  }
+
   def loadImageFromFile(file: File): IO[(FileName, DataUrlBase64)] =
     IO.async_[(FileName, DataUrlBase64)] { cb =>
       val reader = new FileReader()
@@ -74,10 +83,7 @@ object ImageUtils {
     val src  = imageData.data
     val arr  = Array.tabulate(w * h * 4)(i => (src(i) & 0xff).toByte)
     val (nw, nh, outBytes) = downscaleToBytes(w, h, arr, factor)
-    val canvas = dom.document.createElement("canvas").asInstanceOf[Canvas]
-    canvas.width = nw
-    canvas.height = nh
-    val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+    val (_, ctx) = createOffscreenCanvas(nw, nh)
     val out = ctx.createImageData(nw, nh)
     val dst = out.data
     for (i <- outBytes.indices) dst(i) = outBytes(i) & 0xff
@@ -107,10 +113,7 @@ object ImageUtils {
 
   /** Get ImageData from a loaded Image. */
   def imageToImageData(img: Image): ImageData = {
-    val canvas = dom.document.createElement("canvas").asInstanceOf[Canvas]
-    canvas.width = img.width
-    canvas.height = img.height
-    val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+    val (_, ctx) = createOffscreenCanvas(img.width, img.height)
     ctx.drawImage(img, 0, 0)
     ctx.getImageData(0, 0, img.width, img.height)
   }
@@ -126,10 +129,7 @@ object ImageUtils {
       val scale = (maxW.toDouble / w).min(maxH.toDouble / h)
       val nw = (w * scale).toInt.max(1).min(maxW)
       val nh = (h * scale).toInt.max(1).min(maxH)
-      val canvas = dom.document.createElement("canvas").asInstanceOf[Canvas]
-      canvas.width = nw
-      canvas.height = nh
-      val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+      val (_, ctx) = createOffscreenCanvas(nw, nh)
       ctx.drawImage(img, 0, 0, w, h, 0, 0, nw, nh)
       ctx.getImageData(0, 0, nw, nh)
     }
@@ -147,10 +147,7 @@ object ImageUtils {
 
   /** Convert RawImage to ImageData (requires DOM for createImageData). */
   def imageDataFromRaw(raw: RawImage): ImageData = {
-    val canvas = dom.document.createElement("canvas").asInstanceOf[Canvas]
-    canvas.width = raw.width
-    canvas.height = raw.height
-    val ctx = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
+    val (_, ctx) = createOffscreenCanvas(raw.width, raw.height)
     val out = ctx.createImageData(raw.width, raw.height)
     val dst = out.data
     for (i <- raw.data.indices) dst(i) = raw.data(i) & 0xff

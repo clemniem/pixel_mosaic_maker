@@ -125,7 +125,7 @@ object PaletteScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val root = s"${NesCss.container} ${NesCss.containerRounded} screen-container"
+    val root = NesCss.screenContainer
     div(`class` := root)(
       ScreenHeader(
         screenId.title,

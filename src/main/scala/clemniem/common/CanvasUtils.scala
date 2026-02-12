@@ -174,20 +174,9 @@ object CanvasUtils {
       ctx.clearRect(0, 0, targetWidth, targetHeight)
     }
     else {
-      val imgData = ctx.createImageData(pic.width, pic.height)
-      val data    = imgData.data
-      for (i <- pic.pixels.indices) {
-        val px     = pic.paletteLookup(pic.pixels(i))
-        val offset = i * 4
-        data(offset) = px.r
-        data(offset + 1) = px.g
-        data(offset + 2) = px.b
-        data(offset + 3) = px.a
-      }
-      val tmp = dom.document.createElement("canvas").asInstanceOf[Canvas]
-      tmp.width = pic.width
-      tmp.height = pic.height
-      val tctx = tmp.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
+      val (tmp, tctx) = ImageUtils.createOffscreenCanvas(pic.width, pic.height)
+      val imgData     = tctx.createImageData(pic.width, pic.height)
+      pic.fillImageData(imgData)
       tctx.putImageData(imgData, 0, 0)
       ctx.imageSmoothingEnabled = false
       ctx.drawImage(tmp, 0, 0, pic.width, pic.height, dx, dy, targetWidth, targetHeight)

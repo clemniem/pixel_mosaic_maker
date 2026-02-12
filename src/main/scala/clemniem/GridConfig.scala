@@ -20,6 +20,34 @@ object GridDefMode {
   given Decoder[GridDefMode] = deriveDecoder
 }
 
+/** Shared normalization logic for row/column definitions that pad or enlarge cells to form a rectangle. */
+private object GridDefNormalize {
+
+  /** Pad each def so all have the same total dimension: add a new cell to fill the gap. */
+  def normalizeToRect[A](defs: List[A], total: A => Int, cells: A => List[Int], update: (A, List[Int]) => A): List[A] =
+    if (defs.isEmpty) defs
+    else {
+      val maxDim = defs.map(total).max.max(1)
+      defs.map { d =>
+        val gap = maxDim - total(d)
+        if (gap <= 0) d
+        else update(d, cells(d) :+ gap)
+      }
+    }
+
+  /** Normalize by enlarging the last cell of each short def (no new plates). */
+  def normalizeByEnlarge[A](defs: List[A], total: A => Int, cells: A => List[Int], update: (A, List[Int]) => A): List[A] =
+    if (defs.isEmpty) defs
+    else {
+      val maxDim = defs.map(total).max.max(1)
+      defs.map { d =>
+        val gap = maxDim - total(d)
+        if (gap <= 0 || cells(d).isEmpty) d
+        else update(d, cells(d).dropRight(1) :+ (cells(d).last + gap))
+      }
+    }
+}
+
 /** One row: height of the row and width of each cell in the row (variable number of cells allowed). */
 final case class RowDef(height: Int, cellWidths: List[Int]) {
   def totalWidth: Int = cellWidths.sum
@@ -31,30 +59,11 @@ object RowDef {
 
   /** Pad each row so all rows have the same total width (no gaps): add a new cell to fill the gap. */
   def normalizeToRectangle(rowDefs: List[RowDef]): List[RowDef] =
-    if (rowDefs.isEmpty) rowDefs
-    else {
-      val maxWidth = rowDefs.map(_.totalWidth).max.max(1)
-      rowDefs.map { row =>
-        val gap = maxWidth - row.totalWidth
-        if (gap <= 0) row
-        else row.copy(cellWidths = row.cellWidths :+ gap)
-      }
-    }
+    GridDefNormalize.normalizeToRect(rowDefs, _.totalWidth, _.cellWidths, (r, cw) => r.copy(cellWidths = cw))
 
   /** Normalize by enlarging the last cell of each short row (no new plates). */
   def normalizeByEnlarging(rowDefs: List[RowDef]): List[RowDef] =
-    if (rowDefs.isEmpty) rowDefs
-    else {
-      val maxWidth = rowDefs.map(_.totalWidth).max.max(1)
-      rowDefs.map { row =>
-        val gap = maxWidth - row.totalWidth
-        if (gap <= 0 || row.cellWidths.isEmpty) row
-        else
-          row.copy(cellWidths =
-            row.cellWidths.dropRight(1) :+ (row.cellWidths.last + gap)
-          )
-      }
-    }
+    GridDefNormalize.normalizeByEnlarge(rowDefs, _.totalWidth, _.cellWidths, (r, cw) => r.copy(cellWidths = cw))
 }
 
 /** One column: width of the column and height of each cell in the column (variable number of cells allowed). */
@@ -68,30 +77,11 @@ object ColumnDef {
 
   /** Pad each column so all columns have the same total height (no gaps): add a new cell to fill the gap. */
   def normalizeToRectangle(colDefs: List[ColumnDef]): List[ColumnDef] =
-    if (colDefs.isEmpty) colDefs
-    else {
-      val maxHeight = colDefs.map(_.totalHeight).max.max(1)
-      colDefs.map { col =>
-        val gap = maxHeight - col.totalHeight
-        if (gap <= 0) col
-        else col.copy(cellHeights = col.cellHeights :+ gap)
-      }
-    }
+    GridDefNormalize.normalizeToRect(colDefs, _.totalHeight, _.cellHeights, (c, ch) => c.copy(cellHeights = ch))
 
   /** Normalize by enlarging the last cell of each short column (no new plates). */
   def normalizeByEnlarging(colDefs: List[ColumnDef]): List[ColumnDef] =
-    if (colDefs.isEmpty) colDefs
-    else {
-      val maxHeight = colDefs.map(_.totalHeight).max.max(1)
-      colDefs.map { col =>
-        val gap = maxHeight - col.totalHeight
-        if (gap <= 0 || col.cellHeights.isEmpty) col
-        else
-          col.copy(cellHeights =
-            col.cellHeights.dropRight(1) :+ (col.cellHeights.last + gap)
-          )
-      }
-    }
+    GridDefNormalize.normalizeByEnlarge(colDefs, _.totalHeight, _.cellHeights, (c, ch) => c.copy(cellHeights = ch))
 }
 
 final case class GridConfig(cols: Int, rows: Int, parts: Array[GridPart]) {

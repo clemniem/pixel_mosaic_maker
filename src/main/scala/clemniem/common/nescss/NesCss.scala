@@ -5,6 +5,7 @@ object NesCss {
   val container        = "nes-container"
   val containerTitle   = "nes-container with-title"
   val containerRounded = "nes-container is-rounded"
+  val screenContainer  = s"$containerRounded screen-container"
   val btn              = "nes-btn"
   val btnPrimary       = "nes-btn is-primary"
   val btnError         = "nes-btn is-error"

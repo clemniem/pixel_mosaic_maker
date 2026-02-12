@@ -129,7 +129,7 @@ object GalleryLayout {
       case Some(next) => div(`class` := "flex-row", style := "gap: 0.5rem;")(backButton, next)
       case None       => backButton
     }
-    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--gameboy")(
+    div(`class` := s"${NesCss.screenContainer} screen-container--gameboy")(
       div(`class` := headerClass)(
         h1(`class` := "screen-title")(text(title)),
         headerButtons

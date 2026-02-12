@@ -2,7 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import clemniem.{Color, NavigateNext, PixelPic, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
+import clemniem.{Color, NavigateNext, PixelPic, PixelPicService, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
@@ -50,7 +50,7 @@ object PalettesGalleryScreen extends Screen {
         cleanup()
         file.foreach { f =>
           val fileName = Option(f.name).filter(_.nonEmpty)
-          PixelPic.loadPixelImageFromFile(f).unsafeRunAsync {
+          PixelPicService.loadPixelImageFromFile(f).unsafeRunAsync {
             case Right(opt) =>
               val msg = opt.fold[PalettesGalleryMsg](PalettesGalleryMsg.PaletteFromImageError("Could not decode image"))(pic =>
                 PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName))
@@ -74,18 +74,10 @@ object PalettesGalleryScreen extends Screen {
     case PalettesGalleryMsg.Delete(stored) =>
       (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
     case PalettesGalleryMsg.ConfirmDelete(id) =>
-      model.list match {
-        case Some(list) =>
-          val newList = list.filterNot(_.id == id)
-          val saveCmd = LocalStorageUtils.saveList(StorageKeys.palettes, newList)(
-            _ => PalettesGalleryMsg.CancelDelete,
-            (_, _) => PalettesGalleryMsg.CancelDelete
-          )
-          val totalPages = GalleryLayout.totalPagesFor(newList.size, pageSize)
-          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), saveCmd)
-        case None =>
-          (model.copy(pendingDeleteId = None), Cmd.None)
-      }
+      val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
+        model.list, id, StorageKeys.palettes, pageSize, model.currentPage, PalettesGalleryMsg.CancelDelete, _.id
+      )
+      (model.copy(list = newList, pendingDeleteId = None, currentPage = newPage), cmd)
     case PalettesGalleryMsg.CancelDelete =>
       (model.copy(pendingDeleteId = None), Cmd.None)
     case PalettesGalleryMsg.Back =>

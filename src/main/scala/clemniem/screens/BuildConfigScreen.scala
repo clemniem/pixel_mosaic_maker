@@ -263,7 +263,7 @@ object BuildConfigScreen extends Screen {
 
 
   def view(model: Model): Html[Msg] = {
-    div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide")(
+    div(`class` := s"${NesCss.screenContainer} screen-container--wide")(
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row")(

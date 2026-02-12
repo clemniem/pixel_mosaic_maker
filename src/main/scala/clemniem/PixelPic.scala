@@ -1,29 +1,11 @@
 package clemniem
 
-import cats.effect.IO
-import clemniem.common.ImageUtils.{
-  DataUrlBase64,
-  downscaleImageData,
-  getFromImage,
-  imageToImageData,
-  imageToImageDataMaxSize,
-  imageDataFromRaw,
-  loadImageFromFile,
-  rawFromImageData,
-  detectNearestNeighborScale
-}
-import clemniem.common.image.{
-  ColorDithering,
-  ColorQuantizationService,
-  DownscaleStrategy,
-  QuantizedResult,
-  SizeReductionService
-}
+import clemniem.common.ImageUtils.{DataUrlBase64, createOffscreenCanvas, imageToImageData}
+import clemniem.common.image.QuantizedResult
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 import org.scalajs.dom
-import org.scalajs.dom.File
-import org.scalajs.dom.html.{Canvas, Image}
+import org.scalajs.dom.html.Image
 
 import scala.collection.mutable
 
@@ -47,21 +29,25 @@ final case class PixelPic private (
   def getIndexByCount: Vector[Int] =
     palette.toVector.sortBy(_._2).map(_._1)
 
-  def toImageData(mimeType: String): DataUrlBase64 = {
-    val canvas = dom.document.createElement("canvas").asInstanceOf[Canvas]
-    canvas.width = width
-    canvas.height = height
-    val ctx     = canvas.getContext("2d").asInstanceOf[dom.CanvasRenderingContext2D]
-    val imgData = ctx.createImageData(width, height)
-    val data    = imgData.data
+  /** Fill the given ImageData buffer with RGBA pixel data from this PixelPic.
+    * The ImageData must have dimensions matching this pic's width × height.
+    */
+  def fillImageData(imgData: dom.ImageData): Unit = {
+    val data = imgData.data
     for (i <- pixels.indices) {
-      val pixel  = paletteLookup(pixels(i))
+      val px     = paletteLookup(pixels(i))
       val offset = i * 4
-      data(offset) = pixel.r.toByte
-      data(offset + 1) = pixel.g.toByte
-      data(offset + 2) = pixel.b.toByte
-      data(offset + 3) = pixel.a.toByte
+      data(offset) = px.r
+      data(offset + 1) = px.g
+      data(offset + 2) = px.b
+      data(offset + 3) = px.a
     }
+  }
+
+  def toImageData(mimeType: String): DataUrlBase64 = {
+    val (canvas, ctx) = createOffscreenCanvas(width, height)
+    val imgData       = ctx.createImageData(width, height)
+    fillImageData(imgData)
     ctx.putImageData(imgData, 0, 0)
     canvas.toDataURL(mimeType)
   }
@@ -90,6 +76,8 @@ final case class PixelPic private (
   def crop(rect: Rectangle): Option[PixelPic] =
     crop(rect.x, rect.y, rect.width, rect.height)
 
+  def withName(newName: String): PixelPic = copy(name = newName)
+
   def setPalette(newPalette: Vector[Pixel]): PixelPic =
     copy(paletteLookup = newPalette.take(paletteLookup.size))
 }
@@ -114,18 +102,6 @@ object PixelPic {
     else if (!pixels.forall(i => i >= 0 && i < paletteLookup.length)) None
     else Some(new PixelPic(width, height, paletteLookup, pixels, pixelCounts, name))
   }
-
-  /** Load from file: detect nearest-neighbor scale, downscale to pixel size, then extract. */
-  def loadPixelImageFromFile(file: File): IO[Option[PixelPic]] =
-    for {
-      (fileName, dataUrl) <- loadImageFromFile(file)
-      pic                 <- getFromImage(dataUrl) { img =>
-        val imgData0 = imageToImageData(img)
-        val scaleOpt = detectNearestNeighborScale(imgData0)
-        val imgData  = scaleOpt.fold(imgData0)(f => downscaleImageData(imgData0, f))
-        extractPixelImageFromImageData(imgData).map(_.copy(name = fileName))
-      }
-    } yield pic
 
   /** Build PixelPic from result of color quantization (e.g. from ColorQuantizationService). */
   def fromQuantized(
@@ -152,58 +128,12 @@ object PixelPic {
     }
   }
 
-  /** Full pipeline: load from data URL, validate size, downscale to target max, optionally quantize. Returns Left(error) or Right(pic). */
-  def processUploadedImage(
-      dataUrl: DataUrlBase64,
-      fileName: String,
-      downscaleStrategy: DownscaleStrategy,
-      numPaletteColors: Option[Int],
-      colorDithering: ColorDithering
-  ): IO[Either[String, PixelPic]] =
-    getFromImage(dataUrl) { img =>
-      val w = img.width
-      val h = img.height
-      if (SizeReductionService.exceedsMaxUpload(w, h))
-        Left(s"Image too large. Max ${SizeReductionService.MaxUploadWidth}×${SizeReductionService.MaxUploadHeight} px (got ${w}×${h}).")
-      else {
-        val imgData = imageToImageDataMaxSize(
-          img,
-          SizeReductionService.TargetMaxWidth,
-          SizeReductionService.TargetMaxHeight
-        )
-        val raw    = rawFromImageData(imgData)
-        val reduced = SizeReductionService.downscale(
-          raw,
-          SizeReductionService.TargetMaxWidth,
-          SizeReductionService.TargetMaxHeight,
-          downscaleStrategy
-        )
-        val name = fileName
-        val result = numPaletteColors match {
-          case Some(n) =>
-            val q = ColorQuantizationService.quantize(reduced, n, colorDithering)
-            fromQuantized(reduced.width, reduced.height, q, name)
-          case None =>
-            val imgData2 = imageDataFromRaw(reduced)
-            extractPixelImageFromImageData(imgData2).map(_.copy(name = name))
-        }
-        result.toRight("Could not process image")
-      }
-    }.attempt.map {
-      case Right(Right(pic)) => Right(pic)
-      case Right(Left(msg))  => Left(msg)
-      case Left(e)           => Left(e.getMessage)
-    }
-
-  def fromDataUrl(dataUrl: DataUrlBase64): IO[Option[PixelPic]] =
-    getFromImage(dataUrl)(img => extractPixelImageFromImage(img).map(_.copy(name = "fromUrl")))
-
-  private def extractPixelImageFromImage(img: Image): Option[PixelPic] = {
+  private[clemniem] def extractPixelImageFromImage(img: Image): Option[PixelPic] = {
     val imgData = imageToImageData(img)
     extractPixelImageFromImageData(imgData)
   }
 
-  private def extractPixelImageFromImageData(imgData: org.scalajs.dom.ImageData): Option[PixelPic] = {
+  private[clemniem] def extractPixelImageFromImageData(imgData: org.scalajs.dom.ImageData): Option[PixelPic] = {
     val w    = imgData.width
     val h    = imgData.height
     val data = imgData.data
@@ -239,7 +169,7 @@ object PixelPic {
     ).map(pp => sortPixelVector(pp))
   }
 
-  private def sortPixelVector(pp: PixelPic): PixelPic = {
+  private[clemniem] def sortPixelVector(pp: PixelPic): PixelPic = {
     val sortedPixels   = pp.paletteLookup.sortBy(_.brightness)
     val pixelToNewIdx  = sortedPixels.zipWithIndex.toMap
     val oldIndexToNew  = (0 until pp.paletteLookup.size).iterator

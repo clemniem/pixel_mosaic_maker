@@ -43,18 +43,10 @@ object GridConfigGalleryScreen extends Screen {
     case GridConfigGalleryMsg.Delete(stored) =>
       (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
     case GridConfigGalleryMsg.ConfirmDelete(id) =>
-      model.list match {
-        case Some(list) =>
-          val newList = list.filterNot(_.id == id)
-          val saveCmd = LocalStorageUtils.saveList(StorageKeys.gridConfigs, newList)(
-            _ => GridConfigGalleryMsg.CancelDelete,
-            (_, _) => GridConfigGalleryMsg.CancelDelete
-          )
-          val totalPages = GalleryLayout.totalPagesFor(newList.size, GalleryLayout.defaultPageSize)
-          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), saveCmd)
-        case None =>
-          (model.copy(pendingDeleteId = None), Cmd.None)
-      }
+      val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
+        model.list, id, StorageKeys.gridConfigs, GalleryLayout.defaultPageSize, model.currentPage, GridConfigGalleryMsg.CancelDelete, _.id
+      )
+      (model.copy(list = newList, pendingDeleteId = None, currentPage = newPage), cmd)
     case GridConfigGalleryMsg.CancelDelete =>
       (model.copy(pendingDeleteId = None), Cmd.None)
     case GridConfigGalleryMsg.CreateNew =>

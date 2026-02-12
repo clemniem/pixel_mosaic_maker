@@ -461,12 +461,12 @@ body {
 }
 
 .input-w-4 {
-  width: 4rem;
+  width: 5.5rem;
   box-sizing: border-box;
 }
 
 .input-w-3half {
-  width: 4.5rem;
+  width: 5rem;
   box-sizing: border-box;
 }
 
@@ -593,12 +593,12 @@ input[type="number"].nes-input {
   gap: 4px;
 }
 
-/* Less horizontal padding in grid editor so numbers are clearly visible */
+/* Grid editor number inputs: enough room for 3-digit values */
 .grid-editor-row input.nes-input,
 .grid-editor-row input[type="number"] {
-  padding-left: 6px;
-  padding-right: 6px;
-  font-size: 0.95rem;
+  padding-left: 4px;
+  padding-right: 2px;
+  font-size: 0.85rem;
   line-height: 1.25;
   box-sizing: border-box;
 }
@@ -895,33 +895,35 @@ input[type="number"].nes-input {
   font-size: 0.9rem;
 }
 
-.step-size-pill {
+/* Shared pill base + states (used by step-size-pill, upload-option-pill, etc.) */
+.pill {
   padding: 4px 10px;
   border-radius: 999px;
-  font-variant-numeric: tabular-nums;
   font-size: 0.9rem;
 }
-
-.step-size-pill--disabled {
-  background: var(--palette-element-bg-disabled);
-  color: var(--palette-border-light);
-  cursor: default;
-  border: 1px solid var(--palette-border-lightest);
-}
-
-.step-size-pill--selected {
+.pill--selected {
   background: var(--palette-good-bg);
   color: var(--palette-good-text);
   border: 1px solid var(--palette-good-border);
   cursor: var(--nes-pointer);
   font-weight: 600;
 }
-
-.step-size-pill--unselected {
+.pill--unselected {
   background: var(--palette-element-bg);
   color: var(--palette-font);
   border: 1px solid var(--palette-border-lighter);
   cursor: var(--nes-pointer);
+}
+.pill--disabled {
+  background: var(--palette-element-bg-disabled);
+  color: var(--palette-border-light);
+  cursor: default;
+  border: 1px solid var(--palette-border-lightest);
+}
+
+/* Step-size pill extras */
+.step-size-pill {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Upload screen: settings as rows, preview last */
@@ -955,24 +957,9 @@ input[type="number"].nes-input {
 .upload-option-row--wrap {
   flex-wrap: wrap;
 }
+/* Upload-option pill extras */
 .upload-option-pill {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.9rem;
   white-space: nowrap;
-}
-.upload-option-pill--selected {
-  background: var(--palette-good-bg);
-  color: var(--palette-good-text);
-  border: 1px solid var(--palette-good-border);
-  cursor: var(--nes-pointer);
-  font-weight: 600;
-}
-.upload-option-pill--unselected {
-  background: var(--palette-element-bg);
-  color: var(--palette-font);
-  border: 1px solid var(--palette-border-lighter);
-  cursor: var(--nes-pointer);
 }
 
 .step-size-range-wrap {

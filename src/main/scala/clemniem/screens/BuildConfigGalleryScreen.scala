@@ -73,18 +73,10 @@ object BuildConfigGalleryScreen extends Screen {
     case BuildConfigGalleryMsg.Delete(stored) =>
       (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
     case BuildConfigGalleryMsg.ConfirmDelete(id) =>
-      model.buildConfigs match {
-        case Some(list) =>
-          val newList = list.filterNot(_.id == id)
-          val saveCmd = LocalStorageUtils.saveList(StorageKeys.buildConfigs, newList)(
-            _ => BuildConfigGalleryMsg.CancelDelete,
-            (_, _) => BuildConfigGalleryMsg.CancelDelete
-          )
-          val totalPages = GalleryLayout.totalPagesFor(newList.size, GalleryLayout.defaultPageSize)
-          (model.copy(buildConfigs = Some(newList), pendingDeleteId = None, currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), saveCmd)
-        case None =>
-          (model.copy(pendingDeleteId = None), Cmd.None)
-      }
+      val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
+        model.buildConfigs, id, StorageKeys.buildConfigs, GalleryLayout.defaultPageSize, model.currentPage, BuildConfigGalleryMsg.CancelDelete, _.id
+      )
+      (model.copy(buildConfigs = newList, pendingDeleteId = None, currentPage = newPage), cmd)
     case BuildConfigGalleryMsg.CancelDelete =>
       (model.copy(pendingDeleteId = None), Cmd.None)
     case BuildConfigGalleryMsg.PreviousPage =>

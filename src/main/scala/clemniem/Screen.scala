@@ -1,8 +1,6 @@
 package clemniem
 
 import cats.effect.IO
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
-import io.circe.{Decoder, Encoder}
 import tyrian.{Cmd, Html, Sub}
 
 /** Identifies a screen in the SPA. See docs/FLOW.md for the six-step flow. */
@@ -93,20 +91,6 @@ object ScreenOutput {
 
   /** Resume a build from the builds list (has buildConfigRef + savedStepIndex). */
   final case class ResumeBuild(stored: StoredBuild) extends ScreenOutput
-}
-
-/** Stateless build definition: Palette + GridConfig + Image + Offset. */
-final case class BuildConfig(
-    grid: GridConfig,
-    imageRef: String,
-    paletteRef: String,
-    offsetX: Int,
-    offsetY: Int
-)
-
-object BuildConfig {
-  given Encoder[BuildConfig] = deriveEncoder
-  given Decoder[BuildConfig] = deriveDecoder
 }
 
 /** Root-level messages: navigation or delegation to the current screen. */

@@ -265,7 +265,7 @@ object GridConfigScreen extends Screen {
   def view(model: Model): Html[Msg] = {
     val grid = model.grid
     div(
-      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide"
+      `class` := s"${NesCss.screenContainer} screen-container--wide"
     )(
       ScreenHeader(
         screenId.title,
@@ -291,8 +291,8 @@ object GridConfigScreen extends Screen {
       p(`class` := s"${NesCss.text} field-block")(
         text("Set up how your mosaic is split into sections (like LEGO plates). You can define by rows or columns; each can have a different number of sections.")
       ),
-      div(`class` := "field-block")(
-        span(style := "margin-right: 0.5rem;")(text("Set up by:")),
+      div(`class` := "field-block flex-row")(
+        span()(text("Set up by:")),
         button(
           `class` := (if (model.mode == GridDefMode.ByRows) s"${NesCss.btn} is-primary" else NesCss.btn),
           onClick(GridConfigMsg.SetMode(GridDefMode.ByRows))
@@ -348,14 +348,15 @@ object GridConfigScreen extends Screen {
           heightInput,
           button(
             `class` := (if (row.cellWidths.length <= 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
-            onClick(GridConfigMsg.RemoveCellFromRow(rowIdx, row.cellWidths.length - 1))
-          )(text("− section")),
+            onClick(GridConfigMsg.RemoveCellFromRow(rowIdx, row.cellWidths.length - 1)),
+            title := "Remove last section"
+          )(text("−")),
           button(
             `class` := (if (anchoredRows.contains(rowIdx)) s"${NesCss.btn} is-primary" else NesCss.btn),
             onClick(GridConfigMsg.ToggleRowAnchor(rowIdx)),
             title := "When on, all sections in this row share the same width"
           )(text("≡")),
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToRow(rowIdx)))(text("+ section"))
+          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToRow(rowIdx)), title := "Add section")(text("+"))
         ),
         div(`class` := "grid-editor-row-second")(
           div(`class` := "grid-editor-cells")(cellInputs*)
@@ -392,14 +393,15 @@ object GridConfigScreen extends Screen {
           widthInput,
           button(
             `class` := (if (col.cellHeights.length <= 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
-            onClick(GridConfigMsg.RemoveCellFromColumn(colIdx, col.cellHeights.length - 1))
-          )(text("− section")),
+            onClick(GridConfigMsg.RemoveCellFromColumn(colIdx, col.cellHeights.length - 1)),
+            title := "Remove last section"
+          )(text("−")),
           button(
             `class` := (if (anchoredColumns.contains(colIdx)) s"${NesCss.btn} is-primary" else NesCss.btn),
             onClick(GridConfigMsg.ToggleColumnAnchor(colIdx)),
             title := "When on, all sections in this column share the same height"
           )(text("≡")),
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToColumn(colIdx)))(text("+ section"))
+          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToColumn(colIdx)), title := "Add section")(text("+"))
         ),
         div(`class` := "grid-editor-row-second")(
           div(`class` := "grid-editor-cells")(cellInputs*)

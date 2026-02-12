@@ -31,7 +31,7 @@ object OverviewScreen extends Screen {
 
   def view(model: Model): Html[Msg] =
     div(
-      `class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--gameboy"
+      `class` := s"${NesCss.screenContainer} screen-container--gameboy"
     )(
       h1(`class` := "screen-title")(
         text("Pixel M"),

@@ -1,6 +1,7 @@
 package clemniem.common
 
 import cats.effect.IO
+import clemniem.screens.GalleryLayout
 import io.circe.syntax.*
 import io.circe.{Decoder, Encoder}
 import tyrian.Cmd
@@ -73,6 +74,28 @@ object LocalStorageUtils {
               case Right(list)     => success(list)
             }
         }
+    }
+
+  /** Handle a gallery confirm-delete: filter the list, save it, and compute the clamped page.
+    * Returns `(newListOpt, newPage, saveCmd)` — the caller just destructures and updates its model fields.
+    */
+  def confirmDelete[A, M](
+      listOpt: Option[List[A]],
+      id: String,
+      storageKey: String,
+      pageSize: Int,
+      currentPage: Int,
+      cancelMsg: M,
+      getId: A => String
+  )(using Encoder[List[A]]): (Option[List[A]], Int, Cmd[IO, M]) =
+    listOpt match {
+      case Some(list) =>
+        val newList    = list.filterNot(a => getId(a) == id)
+        val saveCmd    = saveList(storageKey, newList)(_ => cancelMsg, (_, _) => cancelMsg)
+        val totalPages = GalleryLayout.totalPagesFor(newList.size, pageSize)
+        (Some(newList), GalleryLayout.clampPage(currentPage, totalPages), saveCmd)
+      case None =>
+        (listOpt, currentPage, Cmd.None)
     }
 
   /** Remove one key. Emits `success(key)` or `failure(msg, key)`. */
