@@ -41,18 +41,18 @@
 /* Original Game Boy (DMG) palette: #84d07d light green, #272929 dark, #c4bebb light grey, #494786 purple, #9a2257 magenta */
 body.theme-gameboy {
   --palette-bg: #272929;
-  --palette-element-bg: #c4bebb;
-  --palette-element-bg-disabled: #9a9a98;
+  --palette-element-bg: #84d07d;
+  --palette-element-bg-disabled: #5fa85a;
   --palette-bad-bg: #9a2257;
   --palette-bad-border: #9a2257;
   --palette-bad-text: #fff;
   --palette-good-bg: #494786;
   --palette-good-border: #494786;
   --palette-good-text: #fff;
-  --palette-good-muted-bg: #c4bebb;
+  --palette-good-muted-bg: #84d07d;
   --palette-good-muted-text: #494786;
   --palette-good-muted-border: #494786;
-  --palette-frame: #84d07d;
+  --palette-frame: #c4bebb;
   --palette-frame-border: #272929;
   --palette-font: #272929;
   --palette-font-muted: #494786;
@@ -61,11 +61,11 @@ body.theme-gameboy {
   --palette-border-lighter: #6a6a6a;
   --palette-border-lightest: #c4bebb;
   /* Darker shades for button 3D shadow (bevel) so it matches NES look */
-  --palette-element-shadow: #8a8885;
+  --palette-element-shadow: #5fa85a;
   --palette-good-shadow: #36356a;
   --palette-bad-shadow: #6a1840;
   /* Force frame background so it applies when theme is toggled */
-  --screen-container-bg: #84d07d;
+  --screen-container-bg: #c4bebb;
 }
 
 /* Only override buttons when Game Boy theme is active; default theme keeps original NES.css (full 3D shadow) */
