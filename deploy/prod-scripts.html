@@ -1,0 +1,15 @@
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register(new URL('./sw.js', document.baseURI).href).catch(function () {});
+      });
+    }
+    window.refreshApp = function () {
+      if (!navigator.serviceWorker) { location.reload(); return; }
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        return Promise.all(regs.map(function (r) { return r.unregister(); }));
+      }).then(function () { location.reload(); });
+    };
+  </script>
+  <script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script type="module" src="./loader.js"></script>

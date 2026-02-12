@@ -28,8 +28,8 @@ All lists (grid configs, palettes, images, build configs, builds) use **LocalSto
 ## BuildConfig vs Build
 **BuildConfig** = template (grid + image + palette + offset). **StoredBuild** = one run pointing at a config with saved step. First "Save step" creates a StoredBuild; subsequent saves update it.
 
-## Backward Compatibility (LocalStorage)
-Old JSON may lack new fields. Use custom Circe decoders with `withX.or(withoutX)` and sensible defaults. StoredBuild legacy format `(id, name)` maps to `buildConfigRef = ""`, filtered out from Resume.
+## Persistence (Circe)
+All stored entities use `deriveEncoder`/`deriveDecoder` from circe-generic. `Option` fields are optional in JSON (absent -> `None`). If backward compat is ever needed, use custom decoders with `withX.or(withoutX)`.
 
 ## Where Things Live
 | Concern | Location |

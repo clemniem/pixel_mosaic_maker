@@ -1,5 +1,5 @@
 import {
   TyrianApp
-} from './target/scala-3.6.4/pixel_mosaic_maker-fastopt/main.js';
+} from './target/scalajs-dev/main.js';
 
 TyrianApp.launch("myapp");

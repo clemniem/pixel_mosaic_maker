@@ -22,6 +22,9 @@ lazy val pixel_mosaic_maker =
       ),
       testFrameworks += new TestFramework("munit.Framework"),
       scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+      // Output to version-independent paths so JS entry points don't break on Scala version bumps.
+      Compile / fastLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "target" / "scalajs-dev",
+      Compile / fullLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "target" / "scalajs-opt",
       scalafixOnCompile := true,
       semanticdbEnabled := true,
       semanticdbVersion := scalafixSemanticdb.revision,

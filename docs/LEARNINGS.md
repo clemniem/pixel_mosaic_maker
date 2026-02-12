@@ -32,10 +32,10 @@ This document captures what was learned during development of the Pixel Mosaic M
 
 ---
 
-## 3. Backward compatibility (LocalStorage / Circe)
+## 3. Persistence (LocalStorage / Circe)
 
-- Old JSON may lack new fields. Use **custom decoders** with `withX.or(withoutX)` (e.g. `StoredPalette` without `colors`, `StoredImage` without `pixelPic`, `StoredBuildConfig` without `savedStepIndex`, `StoredBuild` without `buildConfigRef`/`savedStepIndex`). Provide sensible defaults (e.g. default palette, placeholder PixelPic, empty string / None).
-- **StoredBuild** legacy: old format was `(id, name)`; decoder maps to `buildConfigRef = ""`, `savedStepIndex = None`. Builds gallery filters these out (`buildConfigRef.nonEmpty`) so they don’t get a Resume button.
+- All stored entities use `deriveEncoder` and `deriveDecoder` from **circe-generic**. `Option` fields (e.g. `savedStepIndex: Option[Int]`) are treated as optional in JSON (absent field decodes to `None`).
+- If backward compatibility with old JSON formats is ever needed, use custom decoders with `withX.or(withoutX)` and sensible defaults. See git history for examples of the previous approach.
 
 ---
 

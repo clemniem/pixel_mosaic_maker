@@ -39,49 +39,26 @@ jobs:
       - name: Assemble deployable directory
         run: |
           mkdir -p dist/css dist/assets
-          cp target/scala-*/pixel_mosaic_maker-opt/main.js dist/
-          cp target/scala-*/pixel_mosaic_maker-opt/main.js.map dist/ 2>/dev/null || true
+          cp target/scalajs-opt/main.js dist/
+          cp target/scalajs-opt/main.js.map dist/ 2>/dev/null || true
           cp css/style.css dist/css/
           cp assets/favicon.ico assets/favicon-32x32.png assets/favicon-16x16.png assets/apple-touch-icon.png assets/android-chrome-192x192.png assets/android-chrome-512x512.png assets/site.webmanifest assets/PressStart2P-Regular.ttf assets/fontData.js dist/assets/
           cp sw.js dist/
           echo "import { TyrianApp } from './main.js';" > dist/loader.js
           echo "TyrianApp.launch(\"myapp\");" >> dist/loader.js
-          cat > dist/index.html << 'INDEX'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Pixel Mosaic Maker</title>
-            <link rel="icon" href="./assets/favicon.ico" sizes="any">
-            <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32x32.png">
-            <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16x16.png">
-            <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
-            <link rel="manifest" href="./assets/site.webmanifest">
-            <link href="https://unpkg.com/nes.css@2.3.0/css/nes.min.css" rel="stylesheet">
-            <link rel="stylesheet" href="./css/style.css">
-          </head>
-          <body>
-            <div id="myapp"></div>
-            <script src="./assets/fontData.js"></script>
-            <script>
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function () {
-                  navigator.serviceWorker.register(new URL('./sw.js', document.baseURI).href).catch(function () {});
-                });
-              }
-              window.refreshApp = function () {
-                if (!navigator.serviceWorker) { location.reload(); return; }
-                navigator.serviceWorker.getRegistrations().then(function (regs) {
-                  return Promise.all(regs.map(function (r) { return r.unregister(); }));
-                }).then(function () { location.reload(); });
-              };
-            </script>
-            <script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-            <script type="module" src="./loader.js"></script>
-          </body>
-          </html>
-          INDEX
+
+          # Copy index.html and replace dev scripts block with production scripts.
+          # This keeps <head> (favicons, CSS links, meta) in sync automatically;
+          # only the <script> tags between the SCRIPTS markers differ.
+          # Production scripts live in deploy/prod-scripts.html.
+          cp index.html dist/index.html
+          python3 -c "
+          import re, pathlib
+          idx = pathlib.Path('dist/index.html')
+          prod = pathlib.Path('deploy/prod-scripts.html').read_text().rstrip('\n')
+          html = re.sub(r'  <!-- SCRIPTS:DEV.*?<!-- SCRIPTS:END -->\n', prod + '\n', idx.read_text(), flags=re.DOTALL)
+          idx.write_text(html)
+          "
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
