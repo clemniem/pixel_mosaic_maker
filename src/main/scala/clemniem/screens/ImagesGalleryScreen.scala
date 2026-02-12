@@ -144,11 +144,13 @@ object ImagesGalleryScreen extends Screen {
           )
       ),
       div(`class` := "gallery-card-preview")(
-        PixelPreviewBox(
-          s"image-preview-${item.id}",
-          previewWidth,
-          previewHeight,
-          Some(ImagesGalleryMsg.DrawPreview(item))
+        div(`class` := "gallery-preview-wrap")(
+          PixelPreviewBox(
+            s"image-preview-${item.id}",
+            previewWidth,
+            previewHeight,
+            Some(ImagesGalleryMsg.DrawPreview(item))
+          )
         )
       )
     )
@@ -185,13 +187,14 @@ object ImagesGalleryScreen extends Screen {
     )((canvas: Canvas, ctx: CanvasRenderingContext2D) => drawPixelPicScaled(canvas, ctx, stored.pixelPic))
 
   private def drawPixelPicScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
-    ctx.fillStyle = "#eee"
-    ctx.fillRect(0, 0, previewWidth, previewHeight)
+    ctx.clearRect(0, 0, previewWidth, previewHeight)
     if (pic.width > 0 && pic.height > 0) {
-      val scale = (previewWidth.toDouble / pic.width).min(previewHeight.toDouble / pic.height)
-      val cw = (pic.width * scale).toInt.max(1)
-      val ch = (pic.height * scale).toInt.max(1)
-      CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
+      val scale  = (previewWidth.toDouble / pic.width).min(previewHeight.toDouble / pic.height)
+      val cw     = (pic.width * scale).toInt.max(1)
+      val ch     = (pic.height * scale).toInt.max(1)
+      val offsetX = (previewWidth - cw) / 2
+      val offsetY = (previewHeight - ch) / 2
+      CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch, offsetX, offsetY)
     }
   }
 

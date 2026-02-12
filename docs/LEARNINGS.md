@@ -82,6 +82,8 @@ This document captures what was learned during development of the Pixel Mosaic M
 - **Empty state:** `GalleryEmptyState` uses NES + `empty-state`; its main button uses `NesCss.btnPrimary`.
 - **Cursor (NES pointer):** NES.css uses a custom pixel-art hand cursor for `a` and `button`. Any custom clickable element (e.g. `.palette-button-inline`, `.input-color`, `.label-as-button`, `.palette-edit-picker`, `.step-size-pill--selected` / `--unselected`) should use the **same** cursor so hover is consistent. In **`css/style.css`**, a **`:root`** variable **`--nes-pointer`** holds the NES cursor value (`url("data:image/png;base64,...") 14 0, pointer`). Use **`cursor: var(--nes-pointer)`** instead of **`cursor: pointer`** for all such elements; otherwise the browser’s default pointer overrides NES’s and the hand icon looks different (e.g. on the palette button in the images gallery).
 - **Press Start 2P font (page and PDF):** Same approach as **gbcamutil**. The **page** loads the font via **`@font-face`** in **`css/style.css`** from **`assets/PressStart2P-Regular.ttf`** with **`font-display: swap`** (no font-loading script or `visibility: hidden`). The **PDF** uses **`assets/fontData.js`**, which sets **`window.pressStartBase64`** (base64 of the same TTF). **`index.html`** loads `fontData.js` before the app so the global is available. **`JsPDF.scala`** reads `pressStartBase64` and registers it with **`doc.addFileToVFS("PressStart2P.ttf", base64)`**, **`doc.addFont("PressStart2P.ttf", "PressStart", "normal")`**, **`doc.setFont("PressStart")`**. If the global is missing, the PDF still generates with the default font.
+- **Native checkbox tick and Press Start 2P:** The browser draws the checkbox checkmark using the **element’s font**. NES.css sets **`body, html { font-family: "Press Start 2P" }`**, so inputs inherit it. **Press Start 2P does not have a checkmark glyph**, so the tick can render blank. Options: (1) Use a **custom checkbox** (visually hidden input + span with CSS-drawn tick or X via `::after` / `::before`), or (2) Use **two radio buttons** (e.g. Off / On) instead of a single checkbox so the choice is explicit and NES.css radios draw the dot with CSS.
+- **NES.css radio buttons:** Use **`input.nes-radio`** plus an **immediate sibling `span`** with the label text (e.g. `input(...)(span(text("Off")))` inside a `label`). The input is **visually hidden** by NES.css; the dot is drawn with **`&:checked + span::before`**, so the **span must be the very next sibling** of the input—no wrapper div between them. Add **`NesCss.radio`** (e.g. `"nes-radio"`) in **`common/nescss/NesCss.scala`**. Keep **`name`** the same for all radios in the group; set **`checked`** only on the selected one from the model. Use **`onClick`** (and optionally **`onInput`**) on the input to update the model so the dot switches when the user selects another option. For a **stacked vertical layout**, wrap the group in a div with class **`stacked-radios`** (e.g. `display: flex; flex-direction: column; gap: 0.25rem`) and give each `label` the class **`stacked-radio-option`** with **`cursor: var(--nes-pointer)`** (or `cursor: pointer`) so the whole label is clickable and the NES dot stays aligned; see **`css/style.css`** (`.stacked-radios`, `.stacked-radio-option`) and **BuildScreen** (“Stacked” Off/On radios).
 
 ---
 
@@ -204,3 +206,34 @@ Using this file together with **docs/FLOW.md** and **README.md** should give eno
 
 - **Fixed app width:** To prevent the outer container from changing size when switching screens (e.g. Overview vs Palettes) or when the title length varies, use a **fixed width** for the app root and screen container: **`#myapp`** has `width: 42rem; max-width: 100%`. **`.screen-container`** (and `--narrow` / `--wide`) all use `width: 42rem; max-width: 100%`. So the main column is always 42rem when the viewport allows.
 - **Scrollbar layout jump:** When content becomes long (e.g. Palettes gallery), the browser shows a vertical scrollbar and the viewport width shrinks by the scrollbar width, causing a visible layout jump. Fix: **`scrollbar-gutter: stable`** on **`html`** so the browser reserves space for the scrollbar from the start. Layout then stays stable when navigating between short and long screens.
+
+---
+
+## 17. Recent learnings (form controls, gallery previews, Scala 3 varargs)
+
+- **Varargs for input/attributes in Scala 3.4+:** To pass a list of attributes to an element (e.g. `input(attr1, attr2, ...)`), use **`x*`** (splice) not **`x: _*`**; the latter is deprecated and can trigger "can be used only for last argument" when the expression is long. Build the list in a variable then pass it: e.g. `val attrs = List(...) :+ onInput(...) :+ onClick(...); input(attrs*)`.
+- **Gallery preview canvas (all galleries):** Use a fixed-size container so every card has the same preview area. In **`css/style.css`**, **`.gallery-preview-wrap`** is 120×80px, flex-shrink 0, overflow hidden. Wrap each gallery preview canvas in **`div(class := "gallery-preview-wrap")( ... canvas ... )`** (ImagesGalleryScreen, BuildConfigGalleryScreen, GridConfigGalleryScreen, BuildsGalleryScreen). No border on the preview: **`.gallery-preview-canvas`** has no border or border-radius. Use the same preview size everywhere (120×80); e.g. BuildsGalleryScreen was changed from 160×100 to 120×80 to match.
+- **Build screen step-by-color canvas:** No border on that canvas: **`.build-preview-inner .pixel-canvas { border: none; }`** in **`css/style.css`**.
+
+---
+
+## 18. NES.css radio toggle and gallery canvas centering
+
+### 18.1 Radio-button toggle (checkbox replacement)
+
+- **Why radios, not a checkbox:** Press Start 2P lacks a checkmark glyph, so browser-drawn checkbox ticks render blank under NES.css. Two NES.css radio buttons ("Off" / "On") give the same toggle semantics with reliable visual feedback (the NES pixel dot drawn via CSS `::before`).
+- **Working pattern (Tyrian + NES.css):**
+  1. Each option is a **`label.stacked-radio-option`** containing **`input.nes-radio`** followed by an **immediate sibling `span`** with the label text. The **span must be the very next sibling**—NES.css draws the dot via `input:checked + span::before`.
+  2. All radios in the group share the same **`name`** attribute (e.g. `"stacked"`).
+  3. Set **`checked := <boolean>`** from the model on each input (only one is true).
+  4. Use **`onClick(SetMsg(value))`** on the input—**not** `onInput`—so the model updates and re-renders the `checked` attributes correctly. (`onInput` alone can mis-fire or not fire at all for radios in Tyrian.)
+  5. Wrap the group in **`div.stacked-radios`** (`flex-direction: column; gap: 0.25rem`) for vertical stacking; give each label `cursor: pointer` (or `var(--nes-pointer)`) so the entire row is clickable.
+- **Reference:** BuildScreen "Stacked" Off/On (lines ~514–537), `css/style.css` (`.stacked-radios`, `.stacked-radio-option`), `NesCss.radio = "nes-radio"`.
+
+### 18.2 Gallery preview canvas: palette background + centered content
+
+- **Background:** All gallery preview canvases (`.gallery-preview-canvas` in `css/style.css`) have **`background-color: var(--palette-element-bg)`** (the same background as NES.css buttons/inputs). Draw code uses **`ctx.clearRect(0, 0, w, h)`** instead of `fillStyle = "#eee"; fillRect(...)` so the CSS background shows through wherever there is no content.
+- **Centering:** After computing scale-to-fit size `(cw, ch)`, compute offsets: `offsetX = (previewWidth - cw) / 2`, `offsetY = (previewHeight - ch) / 2`. Pass these to `CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch, offsetX, offsetY)`. Grid strokes and highlight rects also add the same offset so overlays stay aligned.
+- **`drawPixelPic` signature:** `drawPixelPic(canvas, ctx, pic, targetWidth, targetHeight, dx, dy)` — **no default args** (Scalafix `DisableSyntax.defaultArgs`); all callers pass `dx` and `dy` explicitly (`0, 0` when no centering is needed).
+- **GridConfigGalleryScreen:** Uses `ctx.save(); ctx.translate(offsetX, offsetY); ctx.scale(scale, scale); ... ctx.restore()` so the grid cells draw centered without computing pixel offsets per cell.
+- **Error text:** Centered with `ctx.textAlign = "center"` and drawn at `(previewWidth / 2, previewHeight / 2)` instead of a fixed left offset.

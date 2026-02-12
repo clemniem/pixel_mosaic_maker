@@ -16,4 +16,5 @@ object NesCss {
   val balloon          = "nes-balloon"
   val list             = "nes-list is-disc"
   val listCircle       = "nes-list is-circle"
+  val radio            = "nes-radio"
 }

@@ -124,13 +124,15 @@ object GridConfigGalleryScreen extends Screen {
 
   private def entryCard(item: StoredGridConfig, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
-      div(onLoad(GridConfigGalleryMsg.DrawPreview(item)))(
-        canvas(
-          id := s"grid-preview-${item.id}",
-          width := previewWidth,
-          height := previewHeight,
-          `class` := "gallery-preview-canvas"
-        )()
+      div(`class` := "gallery-preview-wrap")(
+        div(onLoad(GridConfigGalleryMsg.DrawPreview(item)))(
+          canvas(
+            id := s"grid-preview-${item.id}",
+            width := previewWidth,
+            height := previewHeight,
+            `class` := "gallery-preview-canvas"
+          )()
+        )
       ),
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),
@@ -173,11 +175,15 @@ object GridConfigGalleryScreen extends Screen {
     )((_: Canvas, ctx: CanvasRenderingContext2D) => drawGridScaled(ctx, stored.config))
 
   private def drawGridScaled(ctx: CanvasRenderingContext2D, grid: GridConfig): Unit = {
-    ctx.fillStyle = "#eee"
-    ctx.fillRect(0, 0, previewWidth, previewHeight)
+    ctx.clearRect(0, 0, previewWidth, previewHeight)
     if (grid.parts.nonEmpty && grid.width > 0 && grid.height > 0) {
-      val scale = (previewWidth.toDouble / grid.width).min(previewHeight.toDouble / grid.height)
+      val scale   = (previewWidth.toDouble / grid.width).min(previewHeight.toDouble / grid.height)
+      val cw      = (grid.width * scale).toInt.max(1)
+      val ch      = (grid.height * scale).toInt.max(1)
+      val offsetX = (previewWidth - cw) / 2
+      val offsetY = (previewHeight - ch) / 2
       ctx.save()
+      ctx.translate(offsetX, offsetY)
       ctx.scale(scale, scale)
       ctx.lineWidth = (1.0 / scale).max(0.5)
       grid.parts.zipWithIndex.foreach { case (part, i) =>

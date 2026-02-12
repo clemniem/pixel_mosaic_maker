@@ -27,8 +27,8 @@ object BuildsGalleryScreen extends Screen {
 
   val screenId: ScreenId = ScreenId.BuildsId
 
-  private val buildPreviewWidth  = 160
-  private val buildPreviewHeight = 100
+  private val buildPreviewWidth  = 120
+  private val buildPreviewHeight = 80
   private val patchSize          = 16
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
@@ -161,11 +161,11 @@ object BuildsGalleryScreen extends Screen {
     configOpt match {
       case None =>
         CanvasUtils.drawAfterViewReadyDelayed(s"builds-preview-${build.id}", 1, 100, 3)((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
-          ctx.fillStyle = "#eee"
-          ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
+          ctx.clearRect(0, 0, buildPreviewWidth, buildPreviewHeight)
           ctx.fillStyle = "#999"
           ctx.font = "12px \"Press Start 2P\", cursive"
-          ctx.fillText("Missing config", 8, buildPreviewHeight / 2)
+          ctx.textAlign = "center"
+          ctx.fillText("Missing config", buildPreviewWidth / 2, buildPreviewHeight / 2)
         })
       case Some(stored) =>
         val imgOpt     = images.find(_.id == stored.config.imageRef)
@@ -185,37 +185,39 @@ object BuildsGalleryScreen extends Screen {
               val pic   = clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
               val gw    = stored.config.grid.width
               val gh    = stored.config.grid.height
-              val scale = (buildPreviewWidth.toDouble / gw).min(buildPreviewHeight.toDouble / gh).min(1.0)
-              ctx.fillStyle = "#eee"
-              ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
+              val scale   = (buildPreviewWidth.toDouble / gw).min(buildPreviewHeight.toDouble / gh).min(1.0)
+              val cw      = (gw * scale).toInt.max(1)
+              val ch      = (gh * scale).toInt.max(1)
+              val offsetX = (buildPreviewWidth - cw) / 2
+              val offsetY = (buildPreviewHeight - ch) / 2
+              ctx.clearRect(0, 0, buildPreviewWidth, buildPreviewHeight)
               pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
                 case Some(cropped) =>
-                  val cw = (cropped.width * scale).toInt.max(1)
-                  val ch = (cropped.height * scale).toInt.max(1)
-                  CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
+                  CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch, offsetX, offsetY)
                   ctx.strokeStyle = Color.errorStroke.rgba(0.6)
                   ctx.lineWidth = 1
                   stored.config.grid.parts.foreach { part =>
-                    ctx.strokeRect(part.x * scale, part.y * scale, (part.width * scale).max(1), (part.height * scale).max(1))
+                    ctx.strokeRect(offsetX + part.x * scale, offsetY + part.y * scale, (part.width * scale).max(1), (part.height * scale).max(1))
                   }
                   currentStep.foreach { case (sx, sy) =>
                     val rx = sx - stored.config.offsetX
                     val ry = sy - stored.config.offsetY
                     ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
                     ctx.lineWidth = 2
-                    ctx.strokeRect(rx * scale, ry * scale, (patchSize * scale).max(1), (patchSize * scale).max(1))
+                    ctx.strokeRect(offsetX + rx * scale, offsetY + ry * scale, (patchSize * scale).max(1), (patchSize * scale).max(1))
                   }
                 case None =>
                   ctx.fillStyle = "#999"
                   ctx.font = "12px \"Press Start 2P\", cursive"
-                  ctx.fillText("Grid out of bounds", 8, buildPreviewHeight / 2)
+                  ctx.textAlign = "center"
+                  ctx.fillText("Grid out of bounds", buildPreviewWidth / 2, buildPreviewHeight / 2)
               }
             case _ =>
-              ctx.fillStyle = "#eee"
-              ctx.fillRect(0, 0, buildPreviewWidth, buildPreviewHeight)
+              ctx.clearRect(0, 0, buildPreviewWidth, buildPreviewHeight)
               ctx.fillStyle = "#999"
               ctx.font = "12px \"Press Start 2P\", cursive"
-              ctx.fillText("Missing image/palette", 8, buildPreviewHeight / 2)
+              ctx.textAlign = "center"
+              ctx.fillText("Missing image/palette", buildPreviewWidth / 2, buildPreviewHeight / 2)
           }
         })
     }
@@ -291,13 +293,15 @@ object BuildsGalleryScreen extends Screen {
     val progressPct = if (totalSteps <= 0) 0.0 else ((currentStep + 1).toDouble / totalSteps * 100).min(100.0)
 
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card gallery-card--start")(
-      div(onLoad(BuildsGalleryMsg.DrawBuildPreview(item)))(
-        canvas(
-          id := s"builds-preview-${item.id}",
-          width := buildPreviewWidth,
-          height := buildPreviewHeight,
-          `class` := "gallery-preview-canvas"
-        )()
+      div(`class` := "gallery-preview-wrap")(
+        div(onLoad(BuildsGalleryMsg.DrawBuildPreview(item)))(
+          canvas(
+            id := s"builds-preview-${item.id}",
+            width := buildPreviewWidth,
+            height := buildPreviewHeight,
+            `class` := "gallery-preview-canvas"
+          )()
+        )
       ),
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),

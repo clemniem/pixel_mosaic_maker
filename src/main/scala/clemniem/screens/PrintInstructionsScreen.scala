@@ -300,7 +300,7 @@ object PrintInstructionsScreen extends Screen {
     canvas.width = cw
     canvas.height = ch
     ctx.clearRect(0, 0, cw, ch)
-    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
+    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch, 0, 0)
     ctx.strokeStyle = Color.errorStroke.rgba(0.8)
     ctx.lineWidth = 1
     val ox  = (offsetX * scale).toInt

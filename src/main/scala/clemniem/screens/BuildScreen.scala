@@ -264,7 +264,7 @@ object BuildScreen extends Screen {
               canvas.width = cw
               canvas.height = ch
               ctx.clearRect(0, 0, cw, ch)
-              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
+              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch, 0, 0)
               ctx.strokeStyle = Color.errorStroke.rgba(0.6)
               ctx.lineWidth = 1
               val gsx = scale
@@ -508,25 +508,38 @@ object BuildScreen extends Screen {
             value := normalizedPatchBackgroundHex(model.patchBackgroundColorHex),
             onInput(hex => BuildScreenMsg.SetPatchBackgroundColor(hex))
           )
+        ),
+        div(`class` := s"${NesCss.field} build-stacked-block")(
+          label(`class` := "label-block")(text("Stacked")),
+          div(`class` := "stacked-radios")(
+            label(`class` := "stacked-radio-option")(
+              input(
+                `type`  := "radio",
+                `class` := NesCss.radio,
+                name    := "stacked",
+                value   := "off",
+                checked := !model.stacked,
+                onClick(BuildScreenMsg.SetStacked(false))
+              ),
+              span(text("Off"))
+            ),
+            label(`class` := "stacked-radio-option")(
+              input(
+                `type`  := "radio",
+                `class` := NesCss.radio,
+                name    := "stacked",
+                value   := "on",
+                checked := model.stacked,
+                onClick(BuildScreenMsg.SetStacked(true))
+              ),
+              span(text("On"))
+            )
+          )
         )
       ),
       div(`class` := "build-preview-row")(
         div(`class` := "build-preview-header")(
-          div(`class` := "section-title")(text("Step by color")),
-          div(`class` := "radio-group-inline")(
-            label(`class` := "radio-inline")(
-              input(
-                (List(`type` := "radio", Attribute("name", "preview-mode"), Attribute("value", "grid")) ++ (if (!model.stacked) List(Attribute("checked", "checked")) else Nil) :+ onClick(BuildScreenMsg.SetStacked(false)))*
-              ),
-              text(" Grid")
-            ),
-            label(`class` := "radio-inline")(
-              input(
-                (List(`type` := "radio", Attribute("name", "preview-mode"), Attribute("value", "stacked")) ++ (if (model.stacked) List(Attribute("checked", "checked")) else Nil) :+ onClick(BuildScreenMsg.SetStacked(true)))*
-              ),
-              text(" Stacked")
-            )
-          )
+          div(`class` := "section-title")(text("Step by color"))
         ),
         div(`class` := "build-preview-inner", onLoad(BuildScreenMsg.Draw))(
           canvas(id := previewCanvasId, width := 32, height := 32, `class` := "pixel-canvas")()

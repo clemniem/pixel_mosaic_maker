@@ -652,6 +652,7 @@ input[type="number"].nes-input {
 /* Build preview: display size is set in JS to fit container with square pixels */
 .build-preview-inner .pixel-canvas {
   min-height: 0;
+  border: none;
 }
 
 .build-overview-row {
@@ -674,6 +675,25 @@ input[type="number"].nes-input {
   margin-bottom: 0;
 }
 
+.build-stacked-block {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.stacked-radios {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* NES.css .nes-radio expects input + span; keep layout so ::before dot aligns */
+.stacked-radio-option {
+  cursor: pointer;
+}
+
 .build-preview-row {
   margin-top: 0;
   display: flex;
@@ -691,21 +711,6 @@ input[type="number"].nes-input {
 
 .build-preview-header .section-title {
   margin-bottom: 0;
-}
-
-.radio-group-inline {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.radio-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  user-select: none;
 }
 
 .build-preview-row .build-preview-inner {
@@ -1121,14 +1126,23 @@ input[type="number"].nes-input {
   margin-right: 8px;
 }
 
+/* Fixed-size container for all gallery previews so cards align neatly */
+.gallery-preview-wrap {
+  width: 120px;
+  height: 80px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
 .gallery-preview-canvas {
-  border: 1px solid var(--palette-border-light);
-  border-radius: 2px;
   flex-shrink: 0;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
   /* Placeholder until draw runs (onLoad → drawAfterViewReady = 1–2 frames delay) */
   background-color: var(--palette-element-bg);
-  image-rendering: crisp-edges;
 }
 
 .palette-button-inline {

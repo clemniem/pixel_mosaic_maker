@@ -90,18 +90,20 @@ object CanvasUtils {
 
   /** Draw a PixelPic onto the canvas, scaled to targetWidth×targetHeight. Uses an offscreen buffer and
     * imageSmoothingEnabled = false for crisp pixel art. If pic is empty, clears the canvas.
+    * @param dx x offset (e.g. for centering: (canvasWidth - targetWidth) / 2)
+    * @param dy y offset (e.g. for centering: (canvasHeight - targetHeight) / 2)
     */
   def drawPixelPic(
       canvas: Canvas,
       ctx: CanvasRenderingContext2D,
       pic: PixelPic,
       targetWidth: Int,
-      targetHeight: Int
+      targetHeight: Int,
+      dx: Int,
+      dy: Int
   ): Unit = {
     if (targetWidth <= 0 || targetHeight <= 0) ()
     else if (pic.width <= 0 || pic.height <= 0) {
-      canvas.width = targetWidth
-      canvas.height = targetHeight
       ctx.clearRect(0, 0, targetWidth, targetHeight)
     }
     else {
@@ -121,7 +123,7 @@ object CanvasUtils {
       val tctx = tmp.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
       tctx.putImageData(imgData, 0, 0)
       ctx.imageSmoothingEnabled = false
-      ctx.drawImage(tmp, 0, 0, pic.width, pic.height, 0, 0, targetWidth, targetHeight)
+      ctx.drawImage(tmp, 0, 0, pic.width, pic.height, dx, dy, targetWidth, targetHeight)
     }
   }
 }

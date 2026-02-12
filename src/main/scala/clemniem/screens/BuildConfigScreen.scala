@@ -214,7 +214,7 @@ object BuildConfigScreen extends Screen {
               canvas.width = cw
               canvas.height = ch
               ctx.clearRect(0, 0, cw, ch)
-              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
+              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch, 0, 0)
               ctx.strokeStyle = Color.errorStroke.rgba(0.8)
               ctx.lineWidth = 1
               val gsx = scale
@@ -250,7 +250,7 @@ object BuildConfigScreen extends Screen {
     canvas.width = cw
     canvas.height = ch
     ctx.clearRect(0, 0, cw, ch)
-    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
+    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch, 0, 0)
     ctx.strokeStyle = Color.errorStroke.rgba(0.8)
     ctx.lineWidth = 1
     val ox  = (offsetX * scale).toInt
@@ -269,7 +269,7 @@ object BuildConfigScreen extends Screen {
     canvas.width = cw
     canvas.height = ch
     ctx.clearRect(0, 0, cw, ch)
-    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch)
+    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch, 0, 0)
   }
 
   /** Max (offsetX, offsetY) so that the grid stays inside the image; (0, 0) if no image/grid or grid larger than image. */

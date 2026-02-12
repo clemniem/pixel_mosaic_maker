@@ -146,33 +146,33 @@ object BuildConfigGalleryScreen extends Screen {
           val gh = stored.config.grid.height
           pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
             case Some(cropped) =>
-              val scale = (previewWidth.toDouble / cropped.width).min(previewHeight.toDouble / cropped.height).min(1.0)
-              val cw = (cropped.width * scale).toInt.max(1)
-              val ch = (cropped.height * scale).toInt.max(1)
-              /* Keep canvas at fixed previewWidth×previewHeight to avoid layout shift; draw scaled into it */
-              ctx.fillStyle = "#eee"
-              ctx.fillRect(0, 0, previewWidth, previewHeight)
-              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch)
+              val scale   = (previewWidth.toDouble / cropped.width).min(previewHeight.toDouble / cropped.height).min(1.0)
+              val cw      = (cropped.width * scale).toInt.max(1)
+              val ch      = (cropped.height * scale).toInt.max(1)
+              val offsetX = (previewWidth - cw) / 2
+              val offsetY = (previewHeight - ch) / 2
+              ctx.clearRect(0, 0, previewWidth, previewHeight)
+              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch, offsetX, offsetY)
               ctx.strokeStyle = Color.errorStroke.rgba(0.7)
               ctx.lineWidth = 1
               val gsx = scale
               val gsy = scale
               stored.config.grid.parts.foreach { part =>
-                ctx.strokeRect(part.x * gsx, part.y * gsy, (part.width * gsx).max(1), (part.height * gsy).max(1))
+                ctx.strokeRect(offsetX + part.x * gsx, offsetY + part.y * gsy, (part.width * gsx).max(1), (part.height * gsy).max(1))
               }
             case None =>
-              ctx.fillStyle = "#eee"
-              ctx.fillRect(0, 0, previewWidth, previewHeight)
+              ctx.clearRect(0, 0, previewWidth, previewHeight)
               ctx.fillStyle = "#999"
               ctx.font = "12px \"Press Start 2P\", cursive"
-              ctx.fillText("Grid out of bounds", 8, previewHeight / 2)
+              ctx.textAlign = "center"
+              ctx.fillText("Grid out of bounds", previewWidth / 2, previewHeight / 2)
           }
         case _ =>
-          ctx.fillStyle = "#eee"
-          ctx.fillRect(0, 0, previewWidth, previewHeight)
+          ctx.clearRect(0, 0, previewWidth, previewHeight)
           ctx.fillStyle = "#999"
           ctx.font = "12px \"Press Start 2P\", cursive"
-          ctx.fillText("Missing image/palette", 8, previewHeight / 2)
+          ctx.textAlign = "center"
+          ctx.fillText("Missing image/palette", previewWidth / 2, previewHeight / 2)
       }
     })
 
@@ -215,13 +215,15 @@ object BuildConfigGalleryScreen extends Screen {
 
   private def entryCard(item: StoredBuildConfig, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(
-      div(onLoad(BuildConfigGalleryMsg.DrawPreview(item)))(
-        canvas(
-          id := s"buildconfig-preview-${item.id}",
-          width := previewWidth,
-          height := previewHeight,
-          `class` := "gallery-preview-canvas"
-        )()
+      div(`class` := "gallery-preview-wrap")(
+        div(onLoad(BuildConfigGalleryMsg.DrawPreview(item)))(
+          canvas(
+            id := s"buildconfig-preview-${item.id}",
+            width := previewWidth,
+            height := previewHeight,
+            `class` := "gallery-preview-canvas"
+          )()
+        )
       ),
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),

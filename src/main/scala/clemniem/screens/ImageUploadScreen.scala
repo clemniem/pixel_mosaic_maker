@@ -215,7 +215,7 @@ object ImageUploadScreen extends Screen {
       canvas.width = pic.width
       canvas.height = pic.height
       ctx.clearRect(0, 0, pic.width, pic.height)
-      clemniem.common.CanvasUtils.drawPixelPic(canvas, ctx, pic, pic.width, pic.height)
+      clemniem.common.CanvasUtils.drawPixelPic(canvas, ctx, pic, pic.width, pic.height, 0, 0)
     })
 
   def view(model: Model): Html[Msg] =
