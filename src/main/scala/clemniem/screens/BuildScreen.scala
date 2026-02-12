@@ -276,22 +276,10 @@ object BuildScreen extends Screen {
                 ctx.strokeRect(rx * fit.scale, ry * fit.scale, (patchSize * fit.scale).max(1), (patchSize * fit.scale).max(1))
               }
             case None =>
-              canvas.width = 400
-              canvas.height = 200
-              ctx.fillStyle = "#eee"
-              ctx.fillRect(0, 0, 400, 200)
-              ctx.fillStyle = "#999"
-              ctx.font = "14px \"Press Start 2P\", cursive"
-              ctx.fillText("Grid region out of bounds", 12, 100)
+              CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Grid region out of bounds")
           }
         case _ =>
-          canvas.width = 400
-          canvas.height = 200
-          ctx.fillStyle = "#eee"
-          ctx.fillRect(0, 0, 400, 200)
-          ctx.fillStyle = "#999"
-          ctx.font = "14px \"Press Start 2P\", cursive"
-          ctx.fillText("Loading…", 12, 100)
+          CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Loading…")
       }
     })
 

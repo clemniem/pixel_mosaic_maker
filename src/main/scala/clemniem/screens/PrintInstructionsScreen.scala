@@ -15,8 +15,6 @@ import clemniem.{
 import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
 import clemniem.common.nescss.NesCss
 import clemniem.StorageKeys
-import org.scalajs.dom.CanvasRenderingContext2D
-import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
 import tyrian.*
 
@@ -280,43 +278,13 @@ object PrintInstructionsScreen extends Screen {
         fullPicForStored(stored, images, palettes).map(pic => (stored, pic))
       ) match {
         case Some((stored, pic)) =>
-          drawFullImageWithGrid(canvas, ctx, pic, stored.config.grid, stored.config.offsetX, stored.config.offsetY)
+          CanvasUtils.drawFullImageWithGrid(canvas, ctx, pic, stored.config.grid, stored.config.offsetX, stored.config.offsetY, 400)
         case None =>
-          drawPlaceholder(canvas, ctx, 400, 200, "Select a mosaic setup for preview")
+          CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Select a mosaic setup for preview")
       }
     })
 
-  private def drawFullImageWithGrid(
-      canvas: Canvas,
-      ctx: CanvasRenderingContext2D,
-      pic: PixelPic,
-      grid: GridConfig,
-      offsetX: Int,
-      offsetY: Int
-  ): Unit = {
-    val fit = CanvasUtils.scaleToFit(pic.width, pic.height, 400, 400, 1.0)
-    canvas.width = fit.width
-    canvas.height = fit.height
-    ctx.clearRect(0, 0, fit.width, fit.height)
-    CanvasUtils.drawPixelPic(canvas, ctx, pic, fit.width, fit.height, 0, 0)
-    ctx.strokeStyle = Color.errorStroke.rgba(0.8)
-    ctx.lineWidth = 1
-    val ox = (offsetX * fit.scale).toInt
-    val oy = (offsetY * fit.scale).toInt
-    grid.parts.foreach { part =>
-      ctx.strokeRect(ox + part.x * fit.scale, oy + part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
-    }
-  }
 
-  private def drawPlaceholder(canvas: Canvas, ctx: CanvasRenderingContext2D, w: Int, h: Int, text: String): Unit = {
-    canvas.width = w
-    canvas.height = h
-    ctx.fillStyle = "#eee"
-    ctx.fillRect(0, 0, w, h)
-    ctx.fillStyle = "#999"
-    ctx.font = "14px \"Press Start 2P\", cursive"
-    ctx.fillText(text, 12, h / 2)
-  }
 
   private def mosaicPicAndGridForStored(
       stored: StoredBuildConfig,

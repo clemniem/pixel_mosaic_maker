@@ -4,7 +4,6 @@ import cats.effect.IO
 import clemniem.{
   BuildConfig,
   Color,
-  GridConfig,
   NavigateNext,
   PixelPic,
   Screen,
@@ -189,11 +188,11 @@ object BuildConfigScreen extends Screen {
       val gridOpt = model.selectedGridId.flatMap(id => model.gridConfigs.flatMap(_.find(_.id == id)))
       (picOpt, gridOpt) match {
         case (Some(pic), Some(storedGrid)) =>
-          drawFullImageWithGrid(canvas, ctx, pic, storedGrid.config, model.offsetX, model.offsetY)
+          CanvasUtils.drawFullImageWithGrid(canvas, ctx, pic, storedGrid.config, model.offsetX, model.offsetY, 400)
         case (Some(pic), None) =>
           drawFullImageOnly(canvas, ctx, pic)
         case _ =>
-          drawPlaceholder(canvas, ctx, 400, 200, "Select an image and colors for preview")
+          CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Select an image and colors for preview")
       }
     })
 
@@ -219,10 +218,10 @@ object BuildConfigScreen extends Screen {
                 ctx.strokeRect(part.x * fit.scale, part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
               }
             case None =>
-              drawPlaceholder(canvas, ctx, 300, 200, "Layout area is outside the image")
+              CanvasUtils.drawPlaceholder(canvas, ctx, 300, 200, "Layout area is outside the image")
           }
         case _ =>
-          drawPlaceholder(canvas, ctx, 300, 200, "Select image, colors and layout for preview")
+          CanvasUtils.drawPlaceholder(canvas, ctx, 300, 200, "Select image, colors and layout for preview")
       }
     })
 
@@ -232,27 +231,6 @@ object BuildConfigScreen extends Screen {
       palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
     } yield clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
 
-  private def drawFullImageWithGrid(
-      canvas: Canvas,
-      ctx: CanvasRenderingContext2D,
-      pic: PixelPic,
-      grid: GridConfig,
-      offsetX: Int,
-      offsetY: Int
-  ): Unit = {
-    val fit = CanvasUtils.scaleToFit(pic.width, pic.height, 400, 400, 1.0)
-    canvas.width = fit.width
-    canvas.height = fit.height
-    ctx.clearRect(0, 0, fit.width, fit.height)
-    CanvasUtils.drawPixelPic(canvas, ctx, pic, fit.width, fit.height, 0, 0)
-    ctx.strokeStyle = Color.errorStroke.rgba(0.8)
-    ctx.lineWidth = 1
-    val ox = (offsetX * fit.scale).toInt
-    val oy = (offsetY * fit.scale).toInt
-    grid.parts.foreach { part =>
-      ctx.strokeRect(ox + part.x * fit.scale, oy + part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
-    }
-  }
 
   private def drawFullImageOnly(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
     val fit = CanvasUtils.scaleToFit(pic.width, pic.height, 400, 400, 1.0)
@@ -283,15 +261,6 @@ object BuildConfigScreen extends Screen {
     )
   }
 
-  private def drawPlaceholder(canvas: Canvas, ctx: CanvasRenderingContext2D, w: Int, h: Int, text: String): Unit = {
-    canvas.width = w
-    canvas.height = h
-    ctx.fillStyle = "#eee"
-    ctx.fillRect(0, 0, w, h)
-    ctx.fillStyle = "#999"
-    ctx.font = "14px \"Press Start 2P\", cursive"
-    ctx.fillText(text, 12, h / 2)
-  }
 
   def view(model: Model): Html[Msg] = {
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} screen-container screen-container--wide")(

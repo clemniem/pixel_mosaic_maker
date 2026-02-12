@@ -2,6 +2,8 @@ package clemniem.common
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import clemniem.Color
+import clemniem.GridConfig
 import clemniem.PixelPic
 import org.scalajs.dom
 import org.scalajs.dom.html.Canvas
@@ -99,6 +101,41 @@ object CanvasUtils {
     val cw    = (srcW * scale).toInt.max(1)
     val ch    = (srcH * scale).toInt.max(1)
     ScaledFit(scale, cw, ch, (destW - cw) / 2, (destH - ch) / 2)
+  }
+
+  /** Resize the canvas and draw a placeholder with centred text (editor screens). */
+  def drawPlaceholder(canvas: Canvas, ctx: CanvasRenderingContext2D, w: Int, h: Int, text: String): Unit = {
+    canvas.width = w
+    canvas.height = h
+    ctx.fillStyle = "#eee"
+    ctx.fillRect(0, 0, w, h)
+    ctx.fillStyle = "#999"
+    ctx.font = "14px \"Press Start 2P\", cursive"
+    ctx.fillText(text, 12, h / 2)
+  }
+
+  /** Scale a full image to fit maxDim×maxDim, draw it, then overlay grid part strokes offset by (offsetX, offsetY). */
+  def drawFullImageWithGrid(
+      canvas: Canvas,
+      ctx: CanvasRenderingContext2D,
+      pic: PixelPic,
+      grid: GridConfig,
+      offsetX: Int,
+      offsetY: Int,
+      maxDim: Int
+  ): Unit = {
+    val fit = scaleToFit(pic.width, pic.height, maxDim, maxDim, 1.0)
+    canvas.width = fit.width
+    canvas.height = fit.height
+    ctx.clearRect(0, 0, fit.width, fit.height)
+    drawPixelPic(canvas, ctx, pic, fit.width, fit.height, 0, 0)
+    ctx.strokeStyle = Color.errorStroke.rgba(0.8)
+    ctx.lineWidth = 1
+    val ox = (offsetX * fit.scale).toInt
+    val oy = (offsetY * fit.scale).toInt
+    grid.parts.foreach { part =>
+      ctx.strokeRect(ox + part.x * fit.scale, oy + part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
+    }
   }
 
   /** Clear the canvas and draw centered error/placeholder text in the gallery preview style. */
