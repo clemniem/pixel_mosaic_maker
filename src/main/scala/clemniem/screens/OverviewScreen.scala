@@ -2,6 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{NavigateNext, Screen, ScreenId}
+import clemniem.common.CmdUtils
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
 import tyrian.Html.*
@@ -22,7 +23,7 @@ object OverviewScreen extends Screen {
       (model, Cmd.Emit(NavigateNext(screenId, None)))
     case OverviewMsg.ToggleTheme =>
       val run = IO(dom.document.body.classList.toggle("theme-gameboy"))
-      (model, Cmd.Run(run)(_ => OverviewMsg.NoOp))
+      (model, CmdUtils.fireAndForget(run.void, OverviewMsg.NoOp, _ => OverviewMsg.NoOp))
     case OverviewMsg.NoOp =>
       (model, Cmd.None)
     case _: NavigateNext =>

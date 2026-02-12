@@ -3,7 +3,7 @@ package clemniem.screens
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import clemniem.{Color, NavigateNext, PixelPic, PixelPicService, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
-import clemniem.common.LocalStorageUtils
+import clemniem.common.{CmdUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
 import org.scalajs.dom.html.Input
@@ -103,7 +103,7 @@ object PalettesGalleryScreen extends Screen {
     case PalettesGalleryMsg.PaletteFromImageSaved =>
       (model, Cmd.None)
     case PalettesGalleryMsg.RequestPaletteFromImage =>
-      (model, Cmd.Run(openFilePickerForPalette(), (m: PalettesGalleryMsg) => m))
+      (model, CmdUtils.run(openFilePickerForPalette(), identity[PalettesGalleryMsg], e => PalettesGalleryMsg.PaletteFromImageError(e.getMessage)))
     case PalettesGalleryMsg.PreviousPage =>
       (model.copy(currentPage = (model.currentPage - 1).max(1)), Cmd.None)
     case PalettesGalleryMsg.NextPage =>

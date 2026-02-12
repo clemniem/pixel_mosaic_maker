@@ -3,7 +3,7 @@ package clemniem.screens
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import clemniem.{Color, NavigateNext, PixelPic, PixelPicService, Screen, ScreenId, StorageKeys, StoredImage}
-import clemniem.common.{CanvasUtils, ImageUtils, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, CmdUtils, ImageUtils, LocalStorageUtils}
 import clemniem.common.image.{
   ColorDithering,
   DownscaleAverage,
@@ -53,9 +53,10 @@ object ImageUploadScreen extends Screen {
       colorDithering = NoColorDithering,
       pipelineRunId = 0L
     )
-    val cmd = Cmd.Run(
+    val cmd = CmdUtils.run(
       waitForFileSelection(),
-      (msg: ImageUploadMsg) => msg
+      identity[ImageUploadMsg],
+      e => ImageUploadMsg.ImageDecodedError(e.getMessage)
     )
     (model, cmd)
   }
@@ -88,7 +89,7 @@ object ImageUploadScreen extends Screen {
     (model.sourceDataUrl, model.sourceFileName) match {
       case (Some(url), Some(fileName)) =>
         val runId = model.pipelineRunId
-        Cmd.Run(
+        CmdUtils.run(
           PixelPicService.processUploadedImage(
             url,
             fileName,
@@ -101,7 +102,8 @@ object ImageUploadScreen extends Screen {
               pic => ImageUploadMsg.ImageDecoded(pic, Some(fileName), runId)
             )
           ),
-          (m: ImageUploadMsg) => m
+          identity[ImageUploadMsg],
+          e => ImageUploadMsg.ImageDecodedError(e.getMessage, Some(runId))
         )
       case _ =>
         Cmd.None
@@ -133,9 +135,10 @@ object ImageUploadScreen extends Screen {
           else
             model.name
         val nextModel = model.copy(pixelPic = Some(pic), name = name, error = None, loading = false)
-        val drawCmd   = Cmd.Run(
-          CanvasUtils.runAfterFrames(3)(drawPreview(pic)).as(ImageUploadMsg.NoOp),
-          (m: ImageUploadMsg) => m
+        val drawCmd = CmdUtils.fireAndForget(
+          CanvasUtils.runAfterFrames(3)(drawPreview(pic)),
+          ImageUploadMsg.NoOp,
+          _ => ImageUploadMsg.NoOp
         )
         (nextModel, drawCmd)
       }

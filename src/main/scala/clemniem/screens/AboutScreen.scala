@@ -2,6 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{NavigateNext, Screen, ScreenId}
+import clemniem.common.CmdUtils
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
 import tyrian.Html.*
@@ -24,7 +25,7 @@ object AboutScreen extends Screen {
     case AboutMsg.ShowRefreshConfirm =>
       (true, Cmd.None)
     case AboutMsg.ConfirmRefresh =>
-      (model, Cmd.Run(refreshAppFromSW)(_ => AboutMsg.NoOp))
+      (model, CmdUtils.fireAndForget(refreshAppFromSW, AboutMsg.NoOp, _ => AboutMsg.NoOp))
     case AboutMsg.CancelRefresh =>
       (false, Cmd.None)
     case AboutMsg.Back =>
