@@ -34,6 +34,14 @@ object CanvasUtils {
     if (n <= 0) io
     else runAfterNextFrame(runAfterFrames(n - 1)(io))
 
+  /** Standard gallery preview size (all galleries use 120×80). */
+  val galleryPreviewWidth: Int  = 120
+  val galleryPreviewHeight: Int = 80
+
+  /** Draw on a gallery-preview canvas: waits 1 frame, retries 100× every 3 ms. */
+  def drawGalleryPreview(id: String)(draw: (Canvas, CanvasRenderingContext2D) => Unit): IO[Unit] =
+    drawAfterViewReadyDelayed(id, 1, 100, 3)(draw)
+
   /** Like [[drawAfterViewReady]] but waits for `framesToWait` frames before retrying. Use for canvases in lists
     * (e.g. gallery previews) where the element may appear later than the first frame.
     */

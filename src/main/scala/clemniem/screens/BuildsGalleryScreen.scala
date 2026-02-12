@@ -27,8 +27,8 @@ object BuildsGalleryScreen extends Screen {
 
   val screenId: ScreenId = ScreenId.BuildsId
 
-  private val buildPreviewWidth  = 120
-  private val buildPreviewHeight = 80
+  private val buildPreviewWidth  = CanvasUtils.galleryPreviewWidth
+  private val buildPreviewHeight = CanvasUtils.galleryPreviewHeight
   private val patchSize          = 16
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
@@ -160,25 +160,18 @@ object BuildsGalleryScreen extends Screen {
     val configOpt = configs.find(_.id == build.buildConfigRef)
     configOpt match {
       case None =>
-        CanvasUtils.drawAfterViewReadyDelayed(s"builds-preview-${build.id}", 1, 100, 3)((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
+        CanvasUtils.drawGalleryPreview(s"builds-preview-${build.id}")((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
           CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Missing config")
         })
       case Some(stored) =>
-        val imgOpt     = images.find(_.id == stored.config.imageRef)
-        val paletteOpt = palettes.find(_.id == stored.config.paletteRef)
         val steps      = BuildScreen.stepsForConfig(stored.config)
         val stepIndex  = build.savedStepIndex.getOrElse(0).max(0).min(if (steps.isEmpty) 0 else steps.length - 1)
         val currentStep = if (steps.isEmpty) None else Some(steps(stepIndex))
+        val picOpt = clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
 
-        CanvasUtils.drawAfterViewReadyDelayed(
-          id = s"builds-preview-${build.id}",
-          framesToWait = 1,
-          maxRetries = 100,
-          delayMs = 3
-        )((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
-          (imgOpt, paletteOpt) match {
-            case (Some(img), Some(palette)) =>
-              val pic   = clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
+        CanvasUtils.drawGalleryPreview(s"builds-preview-${build.id}")((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
+          picOpt match {
+            case Some(pic) =>
               val gw    = stored.config.grid.width
               val gh    = stored.config.grid.height
               val fit = CanvasUtils.scaleToFit(gw, gh, buildPreviewWidth, buildPreviewHeight, 1.0)

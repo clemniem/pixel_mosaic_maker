@@ -153,8 +153,8 @@ object GridConfigGalleryScreen extends Screen {
       )
     )
 
-  private val previewWidth  = 120
-  private val previewHeight = 80
+  private val previewWidth  = CanvasUtils.galleryPreviewWidth
+  private val previewHeight = CanvasUtils.galleryPreviewHeight
 
   private def drawPreviewsForCurrentPage(model: Model): IO[Unit] =
     model.list match {
@@ -167,12 +167,7 @@ object GridConfigGalleryScreen extends Screen {
     }
 
   private def drawPreview(stored: StoredGridConfig): IO[Unit] =
-    CanvasUtils.drawAfterViewReadyDelayed(
-      id = s"grid-preview-${stored.id}",
-      framesToWait = 1,
-      maxRetries = 100,
-      delayMs = 3
-    )((_: Canvas, ctx: CanvasRenderingContext2D) => drawGridScaled(ctx, stored.config))
+    CanvasUtils.drawGalleryPreview(s"grid-preview-${stored.id}")((_: Canvas, ctx: CanvasRenderingContext2D) => drawGridScaled(ctx, stored.config))
 
   private def drawGridScaled(ctx: CanvasRenderingContext2D, grid: GridConfig): Unit = {
     ctx.clearRect(0, 0, previewWidth, previewHeight)

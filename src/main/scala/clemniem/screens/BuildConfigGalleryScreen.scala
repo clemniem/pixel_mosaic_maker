@@ -27,8 +27,8 @@ object BuildConfigGalleryScreen extends Screen {
 
   val screenId: ScreenId = ScreenId.BuildConfigsId
 
-  private val previewWidth  = 120
-  private val previewHeight = 80
+  private val previewWidth  = CanvasUtils.galleryPreviewWidth
+  private val previewHeight = CanvasUtils.galleryPreviewHeight
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val model = BuildConfigGalleryModel(None, None, None, None, currentPage = 1)
@@ -131,17 +131,9 @@ object BuildConfigGalleryScreen extends Screen {
       images: List[StoredImage],
       palettes: List[StoredPalette]
   ): IO[Unit] =
-    CanvasUtils.drawAfterViewReadyDelayed(
-      id = s"buildconfig-preview-${stored.id}",
-      framesToWait = 1,
-      maxRetries = 100,
-      delayMs = 3
-    )((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
-      val imgOpt     = images.find(_.id == stored.config.imageRef)
-      val paletteOpt = palettes.find(_.id == stored.config.paletteRef)
-      (imgOpt, paletteOpt) match {
-        case (Some(img), Some(palette)) =>
-          val pic = clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
+    CanvasUtils.drawGalleryPreview(s"buildconfig-preview-${stored.id}")((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
+      clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes) match {
+        case Some(pic) =>
           val gw = stored.config.grid.width
           val gh = stored.config.grid.height
           pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {

@@ -61,6 +61,13 @@ object Color {
         Color(0, 0, 0)
     } catch { case _: NumberFormatException => Color(0, 0, 0) }
 
+  /** Normalize a hex string to #rrggbb for use in `<input type="color">`. Returns `default` if invalid. */
+  def normalizeHex(hex: String, default: String): String = {
+    val s        = hex.trim
+    val withHash = if (s.startsWith("#")) s else "#" + s
+    if (withHash.length == 7) withHash else default
+  }
+
   given Encoder[Color] = deriveEncoder
   given Decoder[Color] = deriveDecoder
 }

@@ -228,7 +228,7 @@ object BuildScreen extends Screen {
       (model, drawCmd(model))
 
     case BuildScreenMsg.SetPatchBackgroundColor(hex) =>
-      (model.copy(patchBackgroundColorHex = normalizedPatchBackgroundHex(hex)), drawCmd(model.copy(patchBackgroundColorHex = normalizedPatchBackgroundHex(hex))))
+      (model.copy(patchBackgroundColorHex = Color.normalizeHex(hex, defaultPatchBackground)), drawCmd(model.copy(patchBackgroundColorHex = Color.normalizeHex(hex, defaultPatchBackground))))
 
     case BuildScreenMsg.SetStacked(value) =>
       (model.copy(stacked = value), drawCmd(model.copy(stacked = value)))
@@ -292,14 +292,9 @@ object BuildScreen extends Screen {
   private val previewColsWide  = 4
   private val previewColsBreakpoint = 600
 
-  private def normalizedPatchBackgroundHex(hex: String): String = {
-    val s = hex.trim
-    val withHash = if (s.startsWith("#")) s else "#" + s
-    if (withHash.length == 7) withHash else defaultPatchBackground
-  }
 
   private def patchBackgroundRgb(hex: String): (Int, Int, Int) = {
-    val h = normalizedPatchBackgroundHex(hex)
+    val h = Color.normalizeHex(hex, defaultPatchBackground)
     def parse(s: String): Int = {
       val n = java.lang.Integer.parseInt(s, 16)
       if (n >= 0 && n <= 255) n else 238
@@ -489,7 +484,7 @@ object BuildScreen extends Screen {
           input(
             `type` := "color",
             `class` := "input-color",
-            value := normalizedPatchBackgroundHex(model.patchBackgroundColorHex),
+            value := Color.normalizeHex(model.patchBackgroundColorHex, defaultPatchBackground),
             onInput(hex => BuildScreenMsg.SetPatchBackgroundColor(hex))
           )
         ),

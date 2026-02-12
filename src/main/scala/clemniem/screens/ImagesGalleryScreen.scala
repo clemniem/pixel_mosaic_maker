@@ -16,8 +16,8 @@ object ImagesGalleryScreen extends Screen {
 
   val screenId: ScreenId = ScreenId.ImagesId
 
-  private val previewWidth  = 120
-  private val previewHeight = 80
+  private val previewWidth  = CanvasUtils.galleryPreviewWidth
+  private val previewHeight = CanvasUtils.galleryPreviewHeight
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val cmd = LocalStorageUtils.loadList(StorageKeys.images)(
@@ -179,12 +179,7 @@ object ImagesGalleryScreen extends Screen {
     }
 
   private def drawPreview(stored: StoredImage): IO[Unit] =
-    CanvasUtils.drawAfterViewReadyDelayed(
-      id = s"image-preview-${stored.id}",
-      framesToWait = 1,
-      maxRetries = 100,
-      delayMs = 3
-    )((canvas: Canvas, ctx: CanvasRenderingContext2D) => drawPixelPicScaled(canvas, ctx, stored.pixelPic))
+    CanvasUtils.drawGalleryPreview(s"image-preview-${stored.id}")((canvas: Canvas, ctx: CanvasRenderingContext2D) => drawPixelPicScaled(canvas, ctx, stored.pixelPic))
 
   private def drawPixelPicScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
     ctx.clearRect(0, 0, previewWidth, previewHeight)

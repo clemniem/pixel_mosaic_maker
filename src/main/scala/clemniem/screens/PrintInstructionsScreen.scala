@@ -187,7 +187,7 @@ object PrintInstructionsScreen extends Screen {
           input(
             `type` := "color",
             `class` := "input-color",
-            value := normalizedHexForPicker(model.pageBackgroundColorHex),
+            value := Color.normalizeHex(model.pageBackgroundColorHex, PdfUtils.defaultPageBackgroundColor.toHex),
             onInput(hex => PrintInstructionsMsg.SetPageBackgroundColor(hex))
           ),
           input(
@@ -252,30 +252,15 @@ object PrintInstructionsScreen extends Screen {
     )
   }
 
-  /** Hex string for the color picker (must be #rrggbb). */
-  private def normalizedHexForPicker(hex: String): String = {
-    val s = hex.trim
-    val withHash = if (s.startsWith("#")) s else "#" + s
-    if (withHash.length == 7) withHash else PdfUtils.defaultPageBackgroundColor.toHex
-  }
 
   /** Full image with palette applied (for overview canvas). */
-  private def fullPicForStored(
-      stored: StoredBuildConfig,
-      images: List[StoredImage],
-      palettes: List[StoredPalette]
-  ): Option[PixelPic] =
-    for {
-      img     <- images.find(_.id == stored.config.imageRef)
-      palette <- palettes.find(_.id == stored.config.paletteRef)
-    } yield clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
 
   private def drawOverview(model: Model): IO[Unit] =
     CanvasUtils.drawAfterViewReady(overviewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
       val images   = model.images.getOrElse(Nil)
       val palettes = model.palettes.getOrElse(Nil)
       model.selectedStored.flatMap(stored =>
-        fullPicForStored(stored, images, palettes).map(pic => (stored, pic))
+        clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes).map(pic => (stored, pic))
       ) match {
         case Some((stored, pic)) =>
           CanvasUtils.drawFullImageWithGrid(canvas, ctx, pic, stored.config.grid, stored.config.offsetX, stored.config.offsetY, 400)
@@ -292,12 +277,8 @@ object PrintInstructionsScreen extends Screen {
       palettes: List[StoredPalette]
   ): Option[(PixelPic, GridConfig)] =
     for {
-      img     <- images.find(_.id == stored.config.imageRef)
-      palette <- palettes.find(_.id == stored.config.paletteRef)
-      pic     = clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
-      gw      = stored.config.grid.width
-      gh      = stored.config.grid.height
-      cropped <- pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh)
+      pic     <- clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
+      cropped <- pic.crop(stored.config.offsetX, stored.config.offsetY, stored.config.grid.width, stored.config.grid.height)
     } yield (cropped, stored.config.grid)
 }
 
