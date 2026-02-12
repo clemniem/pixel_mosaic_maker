@@ -146,19 +146,13 @@ object BuildConfigGalleryScreen extends Screen {
           val gh = stored.config.grid.height
           pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
             case Some(cropped) =>
-              val scale   = (previewWidth.toDouble / cropped.width).min(previewHeight.toDouble / cropped.height).min(1.0)
-              val cw      = (cropped.width * scale).toInt.max(1)
-              val ch      = (cropped.height * scale).toInt.max(1)
-              val offsetX = (previewWidth - cw) / 2
-              val offsetY = (previewHeight - ch) / 2
+              val fit = CanvasUtils.scaleToFit(cropped.width, cropped.height, previewWidth, previewHeight, 1.0)
               ctx.clearRect(0, 0, previewWidth, previewHeight)
-              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch, offsetX, offsetY)
+              CanvasUtils.drawPixelPic(canvas, ctx, cropped, fit.width, fit.height, fit.offsetX, fit.offsetY)
               ctx.strokeStyle = Color.errorStroke.rgba(0.7)
               ctx.lineWidth = 1
-              val gsx = scale
-              val gsy = scale
               stored.config.grid.parts.foreach { part =>
-                ctx.strokeRect(offsetX + part.x * gsx, offsetY + part.y * gsy, (part.width * gsx).max(1), (part.height * gsy).max(1))
+                ctx.strokeRect(fit.offsetX + part.x * fit.scale, fit.offsetY + part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
               }
             case None =>
               CanvasUtils.drawCenteredErrorText(ctx, previewWidth, previewHeight, "Grid out of bounds")

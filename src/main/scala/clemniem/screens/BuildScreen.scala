@@ -258,26 +258,22 @@ object BuildScreen extends Screen {
           val gh = stored.config.grid.height
           pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
             case Some(cropped) =>
-              val scale = (400.0 / (cropped.width.max(cropped.height))).min(1.0)
-              val cw   = (cropped.width * scale).toInt.max(1)
-              val ch   = (cropped.height * scale).toInt.max(1)
-              canvas.width = cw
-              canvas.height = ch
-              ctx.clearRect(0, 0, cw, ch)
-              CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch, 0, 0)
+              val fit = CanvasUtils.scaleToFit(cropped.width, cropped.height, 400, 400, 1.0)
+              canvas.width = fit.width
+              canvas.height = fit.height
+              ctx.clearRect(0, 0, fit.width, fit.height)
+              CanvasUtils.drawPixelPic(canvas, ctx, cropped, fit.width, fit.height, 0, 0)
               ctx.strokeStyle = Color.errorStroke.rgba(0.6)
               ctx.lineWidth = 1
-              val gsx = scale
-              val gsy = scale
               stored.config.grid.parts.foreach { part =>
-                ctx.strokeRect(part.x * gsx, part.y * gsy, (part.width * gsx).max(1), (part.height * gsy).max(1))
+                ctx.strokeRect(part.x * fit.scale, part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
               }
               model.currentStep.foreach { case (sx, sy) =>
                 val rx = sx - stored.config.offsetX
                 val ry = sy - stored.config.offsetY
                 ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
                 ctx.lineWidth = 2
-                ctx.strokeRect(rx * scale, ry * scale, (patchSize * scale).max(1), (patchSize * scale).max(1))
+                ctx.strokeRect(rx * fit.scale, ry * fit.scale, (patchSize * fit.scale).max(1), (patchSize * fit.scale).max(1))
               }
             case None =>
               canvas.width = 400

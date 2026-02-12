@@ -88,6 +88,19 @@ object CanvasUtils {
     loop(maxRetries)
   }
 
+  /** Result of scaling a source rectangle to fit inside a destination rectangle. */
+  case class ScaledFit(scale: Double, width: Int, height: Int, offsetX: Int, offsetY: Int)
+
+  /** Compute scale factor, scaled dimensions, and centering offsets for fitting srcW×srcH inside destW×destH.
+    * @param maxScale upper bound on scale (e.g. 1.0 to avoid upscaling; Double.MaxValue for no limit)
+    */
+  def scaleToFit(srcW: Int, srcH: Int, destW: Int, destH: Int, maxScale: Double): ScaledFit = {
+    val scale = (destW.toDouble / srcW).min(destH.toDouble / srcH).min(maxScale)
+    val cw    = (srcW * scale).toInt.max(1)
+    val ch    = (srcH * scale).toInt.max(1)
+    ScaledFit(scale, cw, ch, (destW - cw) / 2, (destH - ch) / 2)
+  }
+
   /** Clear the canvas and draw centered error/placeholder text in the gallery preview style. */
   def drawCenteredErrorText(ctx: CanvasRenderingContext2D, width: Int, height: Int, message: String): Unit = {
     ctx.clearRect(0, 0, width, height)

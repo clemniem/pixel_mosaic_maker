@@ -294,21 +294,17 @@ object PrintInstructionsScreen extends Screen {
       offsetX: Int,
       offsetY: Int
   ): Unit = {
-    val scale = (400.0 / (pic.width.max(pic.height))).min(1.0)
-    val cw    = (pic.width * scale).toInt.max(1)
-    val ch    = (pic.height * scale).toInt.max(1)
-    canvas.width = cw
-    canvas.height = ch
-    ctx.clearRect(0, 0, cw, ch)
-    CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch, 0, 0)
+    val fit = CanvasUtils.scaleToFit(pic.width, pic.height, 400, 400, 1.0)
+    canvas.width = fit.width
+    canvas.height = fit.height
+    ctx.clearRect(0, 0, fit.width, fit.height)
+    CanvasUtils.drawPixelPic(canvas, ctx, pic, fit.width, fit.height, 0, 0)
     ctx.strokeStyle = Color.errorStroke.rgba(0.8)
     ctx.lineWidth = 1
-    val ox  = (offsetX * scale).toInt
-    val oy  = (offsetY * scale).toInt
-    val gsx = scale
-    val gsy = scale
+    val ox = (offsetX * fit.scale).toInt
+    val oy = (offsetY * fit.scale).toInt
     grid.parts.foreach { part =>
-      ctx.strokeRect(ox + part.x * gsx, oy + part.y * gsy, (part.width * gsx).max(1), (part.height * gsy).max(1))
+      ctx.strokeRect(ox + part.x * fit.scale, oy + part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
     }
   }
 

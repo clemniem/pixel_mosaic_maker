@@ -189,12 +189,8 @@ object ImagesGalleryScreen extends Screen {
   private def drawPixelPicScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
     ctx.clearRect(0, 0, previewWidth, previewHeight)
     if (pic.width > 0 && pic.height > 0) {
-      val scale  = (previewWidth.toDouble / pic.width).min(previewHeight.toDouble / pic.height)
-      val cw     = (pic.width * scale).toInt.max(1)
-      val ch     = (pic.height * scale).toInt.max(1)
-      val offsetX = (previewWidth - cw) / 2
-      val offsetY = (previewHeight - ch) / 2
-      CanvasUtils.drawPixelPic(canvas, ctx, pic, cw, ch, offsetX, offsetY)
+      val fit = CanvasUtils.scaleToFit(pic.width, pic.height, previewWidth, previewHeight, Double.MaxValue)
+      CanvasUtils.drawPixelPic(canvas, ctx, pic, fit.width, fit.height, fit.offsetX, fit.offsetY)
     }
   }
 

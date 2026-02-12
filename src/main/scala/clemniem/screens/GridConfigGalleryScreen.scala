@@ -177,15 +177,11 @@ object GridConfigGalleryScreen extends Screen {
   private def drawGridScaled(ctx: CanvasRenderingContext2D, grid: GridConfig): Unit = {
     ctx.clearRect(0, 0, previewWidth, previewHeight)
     if (grid.parts.nonEmpty && grid.width > 0 && grid.height > 0) {
-      val scale   = (previewWidth.toDouble / grid.width).min(previewHeight.toDouble / grid.height)
-      val cw      = (grid.width * scale).toInt.max(1)
-      val ch      = (grid.height * scale).toInt.max(1)
-      val offsetX = (previewWidth - cw) / 2
-      val offsetY = (previewHeight - ch) / 2
+      val fit = CanvasUtils.scaleToFit(grid.width, grid.height, previewWidth, previewHeight, Double.MaxValue)
       ctx.save()
-      ctx.translate(offsetX, offsetY)
-      ctx.scale(scale, scale)
-      ctx.lineWidth = (1.0 / scale).max(0.5)
+      ctx.translate(fit.offsetX, fit.offsetY)
+      ctx.scale(fit.scale, fit.scale)
+      ctx.lineWidth = (1.0 / fit.scale).max(0.5)
       grid.parts.zipWithIndex.foreach { case (part, i) =>
         ctx.fillStyle = if (i % 2 == 0) "#e0e0e0" else "#c8c8c8"
         ctx.fillRect(part.x, part.y, part.width, part.height)

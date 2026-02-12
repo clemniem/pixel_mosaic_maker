@@ -181,26 +181,22 @@ object BuildsGalleryScreen extends Screen {
               val pic   = clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
               val gw    = stored.config.grid.width
               val gh    = stored.config.grid.height
-              val scale   = (buildPreviewWidth.toDouble / gw).min(buildPreviewHeight.toDouble / gh).min(1.0)
-              val cw      = (gw * scale).toInt.max(1)
-              val ch      = (gh * scale).toInt.max(1)
-              val offsetX = (buildPreviewWidth - cw) / 2
-              val offsetY = (buildPreviewHeight - ch) / 2
+              val fit = CanvasUtils.scaleToFit(gw, gh, buildPreviewWidth, buildPreviewHeight, 1.0)
               ctx.clearRect(0, 0, buildPreviewWidth, buildPreviewHeight)
               pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
                 case Some(cropped) =>
-                  CanvasUtils.drawPixelPic(canvas, ctx, cropped, cw, ch, offsetX, offsetY)
+                  CanvasUtils.drawPixelPic(canvas, ctx, cropped, fit.width, fit.height, fit.offsetX, fit.offsetY)
                   ctx.strokeStyle = Color.errorStroke.rgba(0.6)
                   ctx.lineWidth = 1
                   stored.config.grid.parts.foreach { part =>
-                    ctx.strokeRect(offsetX + part.x * scale, offsetY + part.y * scale, (part.width * scale).max(1), (part.height * scale).max(1))
+                    ctx.strokeRect(fit.offsetX + part.x * fit.scale, fit.offsetY + part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
                   }
                   currentStep.foreach { case (sx, sy) =>
                     val rx = sx - stored.config.offsetX
                     val ry = sy - stored.config.offsetY
                     ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
                     ctx.lineWidth = 2
-                    ctx.strokeRect(offsetX + rx * scale, offsetY + ry * scale, (patchSize * scale).max(1), (patchSize * scale).max(1))
+                    ctx.strokeRect(fit.offsetX + rx * fit.scale, fit.offsetY + ry * fit.scale, (patchSize * fit.scale).max(1), (patchSize * fit.scale).max(1))
                   }
                 case None =>
                   CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Grid out of bounds")
