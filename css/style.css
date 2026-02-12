@@ -461,12 +461,12 @@ body {
 }
 
 .input-w-4 {
-  width: 5.5rem;
+  width: 4.75rem;
   box-sizing: border-box;
 }
 
 .input-w-3half {
-  width: 5rem;
+  width: 4.25rem;
   box-sizing: border-box;
 }
 
@@ -557,9 +557,7 @@ input[type="number"].nes-input {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px;
-  background: var(--palette-element-bg);
-  border-radius: 4px;
+  background-color: #fafafa;
 }
 
 .grid-editor-row-first {
@@ -611,10 +609,7 @@ input[type="number"].nes-input {
 
 .grid-preview-box {
   margin-top: 1rem;
-  border: 1px solid var(--palette-border-lighter);
-  border-radius: 4px;
-  padding: 8px;
-  background: var(--palette-element-bg);
+  background-color: #fafafa;
 }
 
 .grid-preview-box .section-title {
@@ -1115,13 +1110,11 @@ input[type="number"].nes-input {
 
 /* Fixed-size container for all gallery previews so cards align neatly */
 .gallery-preview-wrap {
-  width: 120px;
-  height: 80px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  padding: 4px;
 }
 
 .gallery-preview-canvas {

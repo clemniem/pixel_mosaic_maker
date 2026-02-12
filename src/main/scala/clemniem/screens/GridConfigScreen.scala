@@ -306,7 +306,7 @@ object GridConfigScreen extends Screen {
         if (model.mode == GridDefMode.ByRows) rowsEditor(model.rowDefs, model.anchoredRows)
         else columnsEditor(model.columnDefs, model.anchoredColumns)
       ),
-      div(`class` := "grid-preview-box")(
+      div(`class` := s"${NesCss.containerRounded} grid-preview-box")(
         p(`class` := "section-title")(
           text(s"Preview · ${grid.width}×${grid.height} pixels · ${grid.parts.length} section(s)")
         ),
@@ -342,7 +342,7 @@ object GridConfigScreen extends Screen {
           `class` := s"${NesCss.input} input-w-3half"
         )
       }
-      div(`class` := "grid-editor-row")(
+      div(`class` := s"${NesCss.containerRounded} grid-editor-row")(
         div(`class` := "grid-editor-row-first")(
           button(`class` := NesCss.btn, onClick(GridConfigMsg.RemoveRow(rowIdx)))(text("− row")),
           heightInput,
@@ -387,7 +387,7 @@ object GridConfigScreen extends Screen {
           `class` := s"${NesCss.input} input-w-3half"
         )
       }
-      div(`class` := "grid-editor-row")(
+      div(`class` := s"${NesCss.containerRounded} grid-editor-row")(
         div(`class` := "grid-editor-row-first")(
           button(`class` := NesCss.btn, onClick(GridConfigMsg.RemoveColumn(colIdx)))(text("− col")),
           widthInput,
