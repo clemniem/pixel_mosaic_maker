@@ -65,8 +65,8 @@ object PalettesGalleryScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case PalettesGalleryMsg.Loaded(list) =>
-      val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
-      (model.copy(list = Some(list), currentPage = model.currentPage.min(maxPage).max(1)), Cmd.None)
+      val totalPages = GalleryLayout.totalPagesFor(list.size, pageSize)
+      (model.copy(list = Some(list), currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), Cmd.None)
     case PalettesGalleryMsg.CreateNew =>
       (model, Cmd.Emit(NavigateNext(ScreenId.PaletteId, None)))
     case PalettesGalleryMsg.Edit(stored) =>
@@ -81,8 +81,8 @@ object PalettesGalleryScreen extends Screen {
             _ => PalettesGalleryMsg.CancelDelete,
             (_, _) => PalettesGalleryMsg.CancelDelete
           )
-          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / pageSize) + 1
-          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
+          val totalPages = GalleryLayout.totalPagesFor(newList.size, pageSize)
+          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
@@ -117,8 +117,8 @@ object PalettesGalleryScreen extends Screen {
     case PalettesGalleryMsg.NextPage =>
       model.list match {
         case Some(list) =>
-          val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
-          (model.copy(currentPage = (model.currentPage + 1).min(maxPage)), Cmd.None)
+          val totalPages = GalleryLayout.totalPagesFor(list.size, pageSize)
+          (model.copy(currentPage = (model.currentPage + 1).min(totalPages)), Cmd.None)
         case None => (model, Cmd.None)
       }
     case _: NavigateNext =>
@@ -126,8 +126,8 @@ object PalettesGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
+    val backBtn = GalleryLayout.backButton(PalettesGalleryMsg.Back, "Overview")
+    val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
     model.list match {
       case None =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false, Some(nextBtn))
@@ -160,20 +160,16 @@ object PalettesGalleryScreen extends Screen {
       currentPage: Int,
       addAction: Html[Msg],
       entryCard: StoredPalette => Html[Msg]
-  ): Html[Msg] = {
-    val totalPages = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
-    val page       = currentPage.min(totalPages).max(1)
-    val start      = (page - 1) * pageSize
-    val slice      = list.slice(start, start + pageSize)
-    GalleryLayout.listWithAddActionAndPagination(
+  ): Html[Msg] =
+    GalleryLayout.paginatedListWith(
+      list,
+      currentPage,
+      pageSize,
       addAction,
-      slice.map(entryCard),
-      page,
-      totalPages,
+      entryCard,
       PalettesGalleryMsg.PreviousPage,
       PalettesGalleryMsg.NextPage
     )
-  }
 
   private def entryCard(item: StoredPalette, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card gallery-card--palette")(

@@ -36,8 +36,8 @@ object GridConfigGalleryScreen extends Screen {
               list.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
             )
           )
-      val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
-      (model.copy(list = Some(list), currentPage = model.currentPage.min(maxPage).max(1)), drawPreviews)
+      val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
+      (model.copy(list = Some(list), currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), drawPreviews)
     case GridConfigGalleryMsg.Edit(stored) =>
       (model, Cmd.Emit(NavigateNext(ScreenId.GridConfigId, Some(ScreenOutput.EditGridConfig(stored)))))
     case GridConfigGalleryMsg.Delete(stored) =>
@@ -50,8 +50,8 @@ object GridConfigGalleryScreen extends Screen {
             _ => GridConfigGalleryMsg.CancelDelete,
             (_, _) => GridConfigGalleryMsg.CancelDelete
           )
-          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / GalleryLayout.defaultPageSize) + 1
-          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
+          val totalPages = GalleryLayout.totalPagesFor(newList.size, GalleryLayout.defaultPageSize)
+          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
@@ -70,8 +70,8 @@ object GridConfigGalleryScreen extends Screen {
     case GridConfigGalleryMsg.NextPage =>
       model.list match {
         case Some(list) =>
-          val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
-          val next    = model.copy(currentPage = (model.currentPage + 1).min(maxPage))
+          val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
+          val next       = model.copy(currentPage = (model.currentPage + 1).min(totalPages))
           val cmd = if (list.isEmpty) Cmd.None
           else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
           (next, cmd)
@@ -86,8 +86,8 @@ object GridConfigGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(GridConfigGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
+    val backBtn = GalleryLayout.backButton(GridConfigGalleryMsg.Back, "Overview")
+    val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
     model.list match {
       case None =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = true, Some(nextBtn))
@@ -111,21 +111,16 @@ object GridConfigGalleryScreen extends Screen {
       currentPage: Int,
       addAction: Html[Msg],
       entryCard: StoredGridConfig => Html[Msg]
-  ): Html[Msg] = {
-    val pageSize   = GalleryLayout.defaultPageSize
-    val totalPages = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
-    val page       = currentPage.min(totalPages).max(1)
-    val start      = (page - 1) * pageSize
-    val slice      = list.slice(start, start + pageSize)
-    GalleryLayout.listWithAddActionAndPagination(
+  ): Html[Msg] =
+    GalleryLayout.paginatedListWith(
+      list,
+      currentPage,
+      GalleryLayout.defaultPageSize,
       addAction,
-      slice.map(entryCard),
-      page,
-      totalPages,
+      entryCard,
       GridConfigGalleryMsg.PreviousPage,
       GridConfigGalleryMsg.NextPage
     )
-  }
 
   private def entryCard(item: StoredGridConfig, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(

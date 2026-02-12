@@ -50,7 +50,7 @@ object AboutScreen extends Screen {
     )(
       div(`class` := "screen-header")(
         h1(`class` := "screen-title")(text("About")),
-        button(`class` := NesCss.btn, onClick(AboutMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
+        GalleryLayout.backButton(AboutMsg.Back, "Overview")
       ),
       div(`class` := "about-content")(
         p(`class` := NesCss.text)(text("Pixel Mosaic Maker turns pixel art into printable mosaic instructions.")),

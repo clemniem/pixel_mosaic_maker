@@ -52,8 +52,8 @@ object BuildConfigGalleryScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case BuildConfigGalleryMsg.LoadedBuildConfigs(list) =>
-      val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
-      val next = model.copy(buildConfigs = Some(list), currentPage = model.currentPage.min(maxPage).max(1))
+      val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
+      val next       = model.copy(buildConfigs = Some(list), currentPage = GalleryLayout.clampPage(model.currentPage, totalPages))
       val cmd  = if (next.canDrawPreviews) Cmd.SideEffect(drawAllPreviews(next)) else Cmd.None
       (next, cmd)
     case BuildConfigGalleryMsg.LoadedImages(list) =>
@@ -80,8 +80,8 @@ object BuildConfigGalleryScreen extends Screen {
             _ => BuildConfigGalleryMsg.CancelDelete,
             (_, _) => BuildConfigGalleryMsg.CancelDelete
           )
-          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / GalleryLayout.defaultPageSize) + 1
-          (model.copy(buildConfigs = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
+          val totalPages = GalleryLayout.totalPagesFor(newList.size, GalleryLayout.defaultPageSize)
+          (model.copy(buildConfigs = Some(newList), pendingDeleteId = None, currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
@@ -94,8 +94,8 @@ object BuildConfigGalleryScreen extends Screen {
     case BuildConfigGalleryMsg.NextPage =>
       model.buildConfigs match {
         case Some(list) =>
-          val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
-          val next    = model.copy(currentPage = (model.currentPage + 1).min(maxPage))
+          val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
+          val next       = model.copy(currentPage = (model.currentPage + 1).min(totalPages))
           val cmd     = if (next.canDrawPreviews) Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next))) else Cmd.None
           (next, cmd)
         case None => (model, Cmd.None)
@@ -177,8 +177,8 @@ object BuildConfigGalleryScreen extends Screen {
     })
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(BuildConfigGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
+    val backBtn = GalleryLayout.backButton(BuildConfigGalleryMsg.Back, "Overview")
+    val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
     model.buildConfigs match {
       case None =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false, Some(nextBtn))
@@ -202,21 +202,16 @@ object BuildConfigGalleryScreen extends Screen {
       currentPage: Int,
       addAction: Html[Msg],
       entryCard: StoredBuildConfig => Html[Msg]
-  ): Html[Msg] = {
-    val pageSize   = GalleryLayout.defaultPageSize
-    val totalPages = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
-    val page       = currentPage.min(totalPages).max(1)
-    val start      = (page - 1) * pageSize
-    val slice      = list.slice(start, start + pageSize)
-    GalleryLayout.listWithAddActionAndPagination(
+  ): Html[Msg] =
+    GalleryLayout.paginatedListWith(
+      list,
+      currentPage,
+      GalleryLayout.defaultPageSize,
       addAction,
-      slice.map(entryCard),
-      page,
-      totalPages,
+      entryCard,
       BuildConfigGalleryMsg.PreviousPage,
       BuildConfigGalleryMsg.NextPage
     )
-  }
 
   private def entryCard(item: StoredBuildConfig, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(

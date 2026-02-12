@@ -15,6 +15,45 @@ object GalleryLayout {
   def nextButtonLabel[Msg](label: String, arrow: String): Html[Msg] =
     span(text(label + " "), span(`class` := "btn-arrow")(text(arrow)))
 
+  /** Full back button (← label). Use for screen headers. */
+  def backButton[Msg](msg: Msg, label: String): Html[Msg] =
+    button(`class` := NesCss.btn, onClick(msg))(backButtonLabel("←", label))
+
+  /** Full next button (Next →). Use for gallery screens that navigate to next in overview order. */
+  def nextButton[Msg](msg: Msg): Html[Msg] =
+    button(`class` := NesCss.btn, onClick(msg))(nextButtonLabel("Next", "→"))
+
+  /** Total number of pages for a given list size and page size. */
+  def totalPagesFor(size: Int, pageSize: Int): Int =
+    if (size <= 0) 1 else ((size - 1) / pageSize) + 1
+
+  /** Clamp current page to valid range [1, totalPages]. */
+  def clampPage(current: Int, totalPages: Int): Int =
+    current.min(totalPages).max(1)
+
+  /** Slice of list for the given page, plus clamped page and total pages. Use with listWithAddActionAndPagination. */
+  def sliceForPage[A](list: List[A], currentPage: Int, pageSize: Int): (List[A], Int, Int) = {
+    val total = totalPagesFor(list.size, pageSize)
+    val page  = clampPage(currentPage, total)
+    val start = (page - 1) * pageSize
+    val slice = list.slice(start, start + pageSize)
+    (slice, page, total)
+  }
+
+  /** Paginated gallery list from full list: computes slice and builds list with add action and pagination. */
+  def paginatedListWith[A, Msg](
+      list: List[A],
+      currentPage: Int,
+      pageSize: Int,
+      addAction: Html[Msg],
+      entryCard: A => Html[Msg],
+      onPreviousPage: Msg,
+      onNextPage: Msg
+  ): Html[Msg] = {
+    val (slice, page, totalPages) = sliceForPage(list, currentPage, pageSize)
+    listWithAddActionAndPagination(addAction, slice.map(entryCard), page, totalPages, onPreviousPage, onNextPage)
+  }
+
   /** Reusable row for gallery card actions (Edit, Delete, etc.). Buttons are styled small via .gallery-actions. */
   def galleryActionsRow[Msg](buttons: Html[Msg]*): Html[Msg] =
     div(`class` := "gallery-actions")(buttons*)

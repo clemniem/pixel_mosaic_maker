@@ -38,8 +38,8 @@ object ImagesGalleryScreen extends Screen {
               list.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
             )
           )
-      val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
-      val page   = model.currentPage.min(maxPage).max(1)
+      val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
+      val page       = GalleryLayout.clampPage(model.currentPage, totalPages)
       (model.copy(list = Some(list), currentPage = page), drawPreviews)
     case ImagesGalleryMsg.CreateNew =>
       (model, Cmd.Emit(NavigateNext(ScreenId.ImageUploadId, None)))
@@ -52,13 +52,14 @@ object ImagesGalleryScreen extends Screen {
     case ImagesGalleryMsg.ConfirmDelete(id) =>
       model.list match {
         case Some(list) =>
-          val newList = list.filterNot(_.id == id)
-          val saveCmd = LocalStorageUtils.saveList(StorageKeys.images, newList)(
+          val newList    = list.filterNot(_.id == id)
+          val saveCmd    = LocalStorageUtils.saveList(StorageKeys.images, newList)(
             _ => ImagesGalleryMsg.CancelDelete,
             (_, _) => ImagesGalleryMsg.CancelDelete
           )
-          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / GalleryLayout.defaultPageSize) + 1
-          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
+          val totalPages = GalleryLayout.totalPagesFor(newList.size, GalleryLayout.defaultPageSize)
+          val page       = GalleryLayout.clampPage(model.currentPage, totalPages)
+          (model.copy(list = Some(newList), pendingDeleteId = None, currentPage = page), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
@@ -75,8 +76,8 @@ object ImagesGalleryScreen extends Screen {
     case ImagesGalleryMsg.NextPage =>
       model.list match {
         case Some(list) =>
-          val maxPage = if (list.isEmpty) 1 else ((list.size - 1) / GalleryLayout.defaultPageSize) + 1
-          val next    = model.copy(currentPage = (model.currentPage + 1).min(maxPage))
+          val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
+          val next       = model.copy(currentPage = (model.currentPage + 1).min(totalPages))
           val cmd = if (list.isEmpty) Cmd.None
           else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
           (next, cmd)
@@ -87,8 +88,8 @@ object ImagesGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(ImagesGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
+    val backBtn = GalleryLayout.backButton(ImagesGalleryMsg.Back, "Overview")
+    val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
     model.list match {
       case None =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = true, Some(nextBtn))
@@ -112,21 +113,16 @@ object ImagesGalleryScreen extends Screen {
       currentPage: Int,
       addAction: Html[Msg],
       entryCard: StoredImage => Html[Msg]
-  ): Html[Msg] = {
-    val pageSize   = GalleryLayout.defaultPageSize
-    val totalPages = if (list.isEmpty) 1 else ((list.size - 1) / pageSize) + 1
-    val page       = currentPage.min(totalPages).max(1)
-    val start      = (page - 1) * pageSize
-    val slice      = list.slice(start, start + pageSize)
-    GalleryLayout.listWithAddActionAndPagination(
+  ): Html[Msg] =
+    GalleryLayout.paginatedListWith(
+      list,
+      currentPage,
+      GalleryLayout.defaultPageSize,
       addAction,
-      slice.map(entryCard),
-      page,
-      totalPages,
+      entryCard,
       ImagesGalleryMsg.PreviousPage,
       ImagesGalleryMsg.NextPage
     )
-  }
 
   private def entryCard(item: StoredImage, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card")(

@@ -225,7 +225,7 @@ object ImageUploadScreen extends Screen {
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
-          button(`class` := NesCss.btn, onClick(ImageUploadMsg.Back))(GalleryLayout.backButtonLabel("←", "Images")),
+          GalleryLayout.backButton(ImageUploadMsg.Back, "Images"),
           label(
             `for` := fileInputId,
             `class` := s"${NesCss.btnPrimary} label-as-button"

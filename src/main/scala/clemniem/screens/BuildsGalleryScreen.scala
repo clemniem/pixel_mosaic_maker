@@ -58,9 +58,9 @@ object BuildsGalleryScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case BuildsGalleryMsg.LoadedBuilds(list) =>
-      val valid  = list.filter(_.buildConfigRef.nonEmpty)
-      val maxPage = if (valid.isEmpty) 1 else ((valid.size - 1) / GalleryLayout.defaultPageSize) + 1
-      val next   = model.copy(builds = Some(valid), currentPage = model.currentPage.min(maxPage).max(1))
+      val valid      = list.filter(_.buildConfigRef.nonEmpty)
+      val totalPages = GalleryLayout.totalPagesFor(valid.size, GalleryLayout.defaultPageSize)
+      val next       = model.copy(builds = Some(valid), currentPage = GalleryLayout.clampPage(model.currentPage, totalPages))
       val cmd    = if (next.canDrawPreviews) Cmd.SideEffect(drawAllBuildPreviews(next)) else Cmd.None
       (next, cmd)
     case BuildsGalleryMsg.LoadedBuildConfigs(list) =>
@@ -99,13 +99,13 @@ object BuildsGalleryScreen extends Screen {
     case BuildsGalleryMsg.ConfirmDelete(id) =>
       model.builds match {
         case Some(list) =>
-          val newList = list.filterNot(_.id == id)
-          val saveCmd = LocalStorageUtils.saveList(StorageKeys.builds, newList)(
+          val newList    = list.filterNot(_.id == id)
+          val saveCmd   = LocalStorageUtils.saveList(StorageKeys.builds, newList)(
             _ => BuildsGalleryMsg.CancelDelete,
             (_, _) => BuildsGalleryMsg.CancelDelete
           )
-          val maxPage = if (newList.isEmpty) 1 else ((newList.size - 1) / GalleryLayout.defaultPageSize) + 1
-          (model.copy(builds = Some(newList), pendingDeleteId = None, currentPage = model.currentPage.min(maxPage).max(1)), saveCmd)
+          val totalPages = GalleryLayout.totalPagesFor(newList.size, GalleryLayout.defaultPageSize)
+          (model.copy(builds = Some(newList), pendingDeleteId = None, currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), saveCmd)
         case None =>
           (model.copy(pendingDeleteId = None), Cmd.None)
       }
@@ -118,8 +118,8 @@ object BuildsGalleryScreen extends Screen {
     case BuildsGalleryMsg.NextPage =>
       model.builds match {
         case Some(builds) =>
-          val maxPage = if (builds.isEmpty) 1 else ((builds.size - 1) / GalleryLayout.defaultPageSize) + 1
-          val next    = model.copy(currentPage = (model.currentPage + 1).min(maxPage))
+          val totalPages = GalleryLayout.totalPagesFor(builds.size, GalleryLayout.defaultPageSize)
+          val next       = model.copy(currentPage = (model.currentPage + 1).min(totalPages))
           val cmd     = if (next.canDrawPreviews) Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next))) else Cmd.None
           (next, cmd)
         case None => (model, Cmd.None)
@@ -222,8 +222,8 @@ object BuildsGalleryScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn  = button(`class` := NesCss.btn, onClick(BuildsGalleryMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview"))
-    val nextBtn  = button(`class` := NesCss.btn, onClick(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None)))(GalleryLayout.nextButtonLabel("Next", "→"))
+    val backBtn = GalleryLayout.backButton(BuildsGalleryMsg.Back, "Overview")
+    val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
     (model.builds, model.buildConfigs) match {
       case (None, _) | (_, None) =>
         GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false, Some(nextBtn))
@@ -271,21 +271,16 @@ object BuildsGalleryScreen extends Screen {
       currentPage: Int,
       addAction: Html[Msg],
       entryCard: StoredBuild => Html[Msg]
-  ): Html[Msg] = {
-    val pageSize   = GalleryLayout.defaultPageSize
-    val totalPages = if (builds.isEmpty) 1 else ((builds.size - 1) / pageSize) + 1
-    val page       = currentPage.min(totalPages).max(1)
-    val start      = (page - 1) * pageSize
-    val slice      = builds.slice(start, start + pageSize)
-    GalleryLayout.listWithAddActionAndPagination(
+  ): Html[Msg] =
+    GalleryLayout.paginatedListWith(
+      builds,
+      currentPage,
+      GalleryLayout.defaultPageSize,
       addAction,
-      slice.map(entryCard),
-      page,
-      totalPages,
+      entryCard,
       BuildsGalleryMsg.PreviousPage,
       BuildsGalleryMsg.NextPage
     )
-  }
 
   private def entryCard(item: StoredBuild, configs: List[StoredBuildConfig], confirmingDelete: Boolean): Html[Msg] = {
     val configOpt   = configs.find(_.id == item.buildConfigRef)

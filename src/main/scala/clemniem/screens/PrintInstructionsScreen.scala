@@ -126,7 +126,7 @@ object PrintInstructionsScreen extends Screen {
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
-          button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.Back))(GalleryLayout.backButtonLabel("←", "Overview")),
+          GalleryLayout.backButton(PrintInstructionsMsg.Back, "Overview"),
           button(
             `class` := (if (canPrint) NesCss.btnPrimary else s"${NesCss.btn} btn-disabled"),
             onClick(PrintInstructionsMsg.PrintPdf)
