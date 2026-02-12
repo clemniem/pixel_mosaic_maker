@@ -88,6 +88,15 @@ object CanvasUtils {
     loop(maxRetries)
   }
 
+  /** Clear the canvas and draw centered error/placeholder text in the gallery preview style. */
+  def drawCenteredErrorText(ctx: CanvasRenderingContext2D, width: Int, height: Int, message: String): Unit = {
+    ctx.clearRect(0, 0, width, height)
+    ctx.fillStyle = "#999"
+    ctx.font = "12px \"Press Start 2P\", cursive"
+    ctx.textAlign = "center"
+    ctx.fillText(message, width / 2, height / 2)
+  }
+
   /** Draw a PixelPic onto the canvas, scaled to targetWidth×targetHeight. Uses an offscreen buffer and
     * imageSmoothingEnabled = false for crisp pixel art. If pic is empty, clears the canvas.
     * @param dx x offset (e.g. for centering: (canvasWidth - targetWidth) / 2)

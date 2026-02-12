@@ -161,11 +161,7 @@ object BuildsGalleryScreen extends Screen {
     configOpt match {
       case None =>
         CanvasUtils.drawAfterViewReadyDelayed(s"builds-preview-${build.id}", 1, 100, 3)((canvas: Canvas, ctx: CanvasRenderingContext2D) => {
-          ctx.clearRect(0, 0, buildPreviewWidth, buildPreviewHeight)
-          ctx.fillStyle = "#999"
-          ctx.font = "12px \"Press Start 2P\", cursive"
-          ctx.textAlign = "center"
-          ctx.fillText("Missing config", buildPreviewWidth / 2, buildPreviewHeight / 2)
+          CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Missing config")
         })
       case Some(stored) =>
         val imgOpt     = images.find(_.id == stored.config.imageRef)
@@ -207,17 +203,10 @@ object BuildsGalleryScreen extends Screen {
                     ctx.strokeRect(offsetX + rx * scale, offsetY + ry * scale, (patchSize * scale).max(1), (patchSize * scale).max(1))
                   }
                 case None =>
-                  ctx.fillStyle = "#999"
-                  ctx.font = "12px \"Press Start 2P\", cursive"
-                  ctx.textAlign = "center"
-                  ctx.fillText("Grid out of bounds", buildPreviewWidth / 2, buildPreviewHeight / 2)
+                  CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Grid out of bounds")
               }
             case _ =>
-              ctx.clearRect(0, 0, buildPreviewWidth, buildPreviewHeight)
-              ctx.fillStyle = "#999"
-              ctx.font = "12px \"Press Start 2P\", cursive"
-              ctx.textAlign = "center"
-              ctx.fillText("Missing image/palette", buildPreviewWidth / 2, buildPreviewHeight / 2)
+              CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Missing image/palette")
           }
         })
     }

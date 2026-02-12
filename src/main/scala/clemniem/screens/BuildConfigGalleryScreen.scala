@@ -161,18 +161,10 @@ object BuildConfigGalleryScreen extends Screen {
                 ctx.strokeRect(offsetX + part.x * gsx, offsetY + part.y * gsy, (part.width * gsx).max(1), (part.height * gsy).max(1))
               }
             case None =>
-              ctx.clearRect(0, 0, previewWidth, previewHeight)
-              ctx.fillStyle = "#999"
-              ctx.font = "12px \"Press Start 2P\", cursive"
-              ctx.textAlign = "center"
-              ctx.fillText("Grid out of bounds", previewWidth / 2, previewHeight / 2)
+              CanvasUtils.drawCenteredErrorText(ctx, previewWidth, previewHeight, "Grid out of bounds")
           }
         case _ =>
-          ctx.clearRect(0, 0, previewWidth, previewHeight)
-          ctx.fillStyle = "#999"
-          ctx.font = "12px \"Press Start 2P\", cursive"
-          ctx.textAlign = "center"
-          ctx.fillText("Missing image/palette", previewWidth / 2, previewHeight / 2)
+          CanvasUtils.drawCenteredErrorText(ctx, previewWidth, previewHeight, "Missing image/palette")
       }
     })
 

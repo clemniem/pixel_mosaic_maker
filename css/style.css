@@ -336,7 +336,7 @@ body {
 }
 
 .about-link:hover {
-  color: var(--palette-good-muted-fg);
+  color: var(--palette-good-muted-text);
 }
 
 .about-refresh-confirm {
@@ -461,7 +461,7 @@ body {
 }
 
 .input-w-4 {
-  width: 5rem;
+  width: 4rem;
   box-sizing: border-box;
 }
 
