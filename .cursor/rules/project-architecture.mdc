@@ -1,0 +1,44 @@
+---
+description: Project architecture, stack, navigation, persistence, and key data types
+alwaysApply: true
+---
+
+# Pixel Mosaic Maker Architecture
+
+## Stack
+Scala 3 + Scala.js + **Tyrian** (Elm-style SPA) + **Circe** (JSON) + **Cats Effect IO**. Parcel for local dev, GitHub Pages for deploy.
+
+## Entry Point
+`PixelMosaicMaker` (`PixelMosaicMaker.scala`) is a `TyrianIOApp`. Root model: `RootModel(registry, currentScreenId, currentModel: Any)`. Screens are type-erased; each has `Model`, `Msg`, `init`, `update`, `view`, `wrapMsg`.
+
+## Navigation
+Screens emit `NavigateNext(screenId, Some(ScreenOutput))`. Root calls target screen's `init(Some(output))` and replaces `currentModel`. No URL routing (`Routing.none`).
+
+## Persistence
+All lists (grid configs, palettes, images, build configs, builds) use **LocalStorage** via `LocalStorageUtils` (`loadList`/`saveList` with `StorageKeys` in `StoredEntities.scala`).
+
+## Key Data Types
+| Type | File | Purpose |
+|------|------|---------|
+| `PixelPic` | `PixelPic.scala` | Width, height, palette (Vector[Pixel]), pixels (indices). Has `crop`, `setPalette`, `toImageData`. |
+| `GridConfig` | `GridConfig.scala` | cols, rows, parts: Array[GridPart]. |
+| `BuildConfig` | `Screen.scala` | grid, imageRef, paletteRef, offsetX, offsetY (stateless template). |
+| `StoredBuild` | `StoredEntities.scala` | id, name, buildConfigRef, savedStepIndex. A "build run". |
+
+## BuildConfig vs Build
+**BuildConfig** = template (grid + image + palette + offset). **StoredBuild** = one run pointing at a config with saved step. First "Save step" creates a StoredBuild; subsequent saves update it.
+
+## Backward Compatibility (LocalStorage)
+Old JSON may lack new fields. Use custom Circe decoders with `withX.or(withoutX)` and sensible defaults. StoredBuild legacy format `(id, name)` maps to `buildConfigRef = ""`, filtered out from Resume.
+
+## Where Things Live
+| Concern | Location |
+|---------|----------|
+| Screen IDs, ScreenOutput, BuildConfig | `Screen.scala` |
+| Stored entities, StorageKeys, Circe decoders | `StoredEntities.scala` |
+| Canvas helpers, drawPixelPic | `common/CanvasUtils.scala` |
+| NES.css class names | `common/nescss/NesCss.scala` |
+| Layout, gallery cards, theming | `css/style.css` |
+| PDF instructions | `common/pdf/Instruction.scala`, `common/pdf/JsPDF.scala`, `common/PdfUtils.scala` |
+| Gallery empty state | `screens/GalleryEmptyState.scala` |
+| Shared screen header | `screens/ScreenHeader.scala` |

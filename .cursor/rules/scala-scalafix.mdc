@@ -1,0 +1,24 @@
+---
+description: Scalafix linting rules enforced on compile
+globs: "**/*.scala"
+alwaysApply: false
+---
+
+# Scalafix Rules
+
+Scalafix runs as part of `sbt compile`. All code must pass before committing.
+
+## Prohibited Syntax
+- **No `return`:** Use if/else or pattern match instead of early return.
+- **No `null`:** Use `Option` with `.filter` / `.getOrElse`.
+- **No `var` / `while`:** Use immutable vals, for-comprehensions, `.fold`, `.forall`.
+- **No default arguments:** Pass all arguments explicitly at call sites.
+
+## Unused Parameters
+Do **not** use `@unused`. If a parameter is never needed, **remove it** from the method and update all call sites. If sometimes needed, make it `Option` (e.g. `Option[Canvas]` with `None` default passed explicitly).
+
+## Varargs (Scala 3.4+)
+Use `x*` (splice), not `x: _*` (deprecated). Build attribute lists in a variable then pass: `val attrs = List(...); input(attrs*)`.
+
+## Workflow
+After changes: run `sbt compile` then `sbt test`. Fix all reported issues before committing.

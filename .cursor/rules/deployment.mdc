@@ -1,0 +1,30 @@
+---
+description: GitHub Pages deployment, service worker, and production build
+globs: "{.github/**/*.yml,sw.js,sw-register.js}"
+alwaysApply: false
+---
+
+# Deployment (GitHub Pages)
+
+## Publishing Source
+In repo Settings -> Pages, Source = **GitHub Actions** (not "Deploy from a branch"). Uses `actions/upload-pages-artifact` + `actions/deploy-pages`. Do **not** use `peaceiris/actions-gh-pages`.
+
+## Build
+`sbt fullLinkJS` outputs to `target/scala-<ver>/pixel_mosaic_maker-opt/` (`main.js`). Workflow assembles `dist/`: main.js, loader.js, generated index.html, CSS, assets.
+
+## Deploy index.html is Generated
+The workflow **generates** `dist/index.html` via heredoc -- it does **not** copy the repo's `index.html`. Any change to the local `index.html` (new scripts, links) must be replicated in the workflow heredoc.
+
+## jsPDF in Production
+Deploy index.html loads jsPDF from **CDN** (unpkg `jspdf.umd.min.js`) and sets `window.jspdf = { jsPDF: window.jsPDF }` before loading the app. Local dev uses npm package via `export-wrapper.js`.
+
+## Module Kind
+`build.sbt` must use `ModuleKind.ESModule` (not CommonJS). Production loader uses `import { TyrianApp } from './main.js'` which requires real ES module exports.
+
+## Service Worker
+- `sw-register.js`: Only registers when `location.hostname !== 'localhost'` (avoids MIME/404 on local dev).
+- `sw.js`: Caches HTML, CSS, fetches. Uses `self.skipWaiting()` on install.
+- **Cache busting:** If users see stale content after deploy, bump `CACHE_NAME` version in `sw.js` (e.g. `v3` -> `v4`). On activate, old caches are deleted.
+
+## Workflow Requirements
+Deploy job needs permissions: `contents: read`, `pages: write`, `id-token: write`. Use concurrency group `"pages"` to avoid overlapping deploys.

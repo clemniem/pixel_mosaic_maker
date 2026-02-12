@@ -1,0 +1,33 @@
+---
+description: Gallery and screen patterns - layout, headers, pagination, empty state
+globs: "**/screens/*.scala"
+alwaysApply: false
+---
+
+# Gallery & Screen Patterns
+
+## Screen Structure
+Root = `NesCss.container` + `NesCss.containerRounded` + `screen-container`. Header = `screen-header` + `screen-title`, back button = `NesCss.btn`.
+
+## ScreenHeader
+Use `ScreenHeader(title, buttonRow, nameRow, shortHeader)` for editor/creation screens. No default args; pass `None` and `false` explicitly. Use `ScreenHeader.nameRowInput(nameValue, setMsg, inputId, extraRowClass)` for entity name input.
+
+## Gallery Empty State
+Use `GalleryEmptyState(emptyText, buttonLabel, createMsg)` when list is empty. Button uses `NesCss.btnPrimary`.
+
+## Gallery List + Pagination
+- Load list in `init`; view shows entry cards plus "+ Create" or "Upload" button at the **top**.
+- Model includes `currentPage: Int`. Msgs include `PreviousPage` / `NextPage`.
+- Use `GalleryLayout.listWithAddActionAndPagination(addAction, entriesForPage, currentPage, totalPages, onPrev, onNext)`.
+- CSS: `.gallery-list-entries` has `max-height: 60vh; overflow-y: auto`.
+
+## Delete Pattern
+Set `pendingDeleteId` -> show "Delete name?" with Yes (`NesCss.btnError`) / Cancel (`NesCss.btn`). On confirm, delete from list and save to LocalStorage. Recompute `maxPage` and clamp `currentPage`.
+
+## Gallery Preview Canvas
+Use `div(class := "gallery-preview-wrap")` (120x80px, flex-shrink 0). Use `ctx.clearRect` (not fillRect) so CSS `background-color: var(--palette-element-bg)` shows through. Center content with offsets: `offsetX = (w - cw) / 2, offsetY = (h - ch) / 2`.
+
+## New Screen Checklist
+1. Add `ScreenId`, implement `Screen` (init, update, view), register in `ScreenRegistry`.
+2. New stored entity -> case class in `StoredEntities.scala` + backward-compatible Circe decoder.
+3. Navigation payload -> `ScreenOutput` case class, pass via `NavigateNext`.

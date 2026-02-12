@@ -1,0 +1,28 @@
+---
+description: NES.css styling conventions, cursor, font, theming, and layout
+globs: "{**/css/*.css,**/*.scala}"
+alwaysApply: false
+---
+
+# NES.css Styling
+
+## NesCss Object
+Central class-name strings in `common/nescss/NesCss.scala`: `container`, `containerRounded`, `btn`, `btnPrimary`, `btnError`, `text`, `input`, `radio`. Always use these constants, not raw strings.
+
+## Custom Cursor
+NES.css uses a pixel-art hand cursor for `a` and `button`. For any custom clickable element, use `cursor: var(--nes-pointer)` (defined in `:root` in `css/style.css`) -- **not** `cursor: pointer`.
+
+## Press Start 2P Font
+- **Page:** Loaded via `@font-face` in `css/style.css` from `assets/PressStart2P-Regular.ttf` with `font-display: swap`.
+- **PDF:** Uses `assets/fontData.js` which sets `window.pressStartBase64`. Loaded in `index.html` before app.
+- **Caveat:** Font lacks checkmark glyph; native checkboxes render blank ticks. Use NES.css radio buttons (Off/On) instead of checkboxes.
+
+## NES.css Radio Buttons
+`input.nes-radio` + **immediate sibling `span`** with label text (NES.css draws dot via `input:checked + span::before`). Use `onClick` (not `onInput`) to update model. Wrap group in `div.stacked-radios`; each `label.stacked-radio-option` gets `cursor: var(--nes-pointer)`.
+
+## Layout Stability
+- `#myapp` and `.screen-container` use `width: 42rem; max-width: 100%` to prevent layout jumps between screens.
+- `html { scrollbar-gutter: stable }` prevents scrollbar-induced layout shift.
+
+## Theming
+CSS variables in `css/style.css` control theming (e.g. `--palette-element-bg`, `--palette-frame`, `--screen-container-bg`). Theme variants (e.g. `body.theme-gameboy`) override these variables.

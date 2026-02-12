@@ -1,0 +1,31 @@
+---
+description: Tyrian and Scala.js UI quirks and patterns
+globs: "**/*.scala"
+alwaysApply: false
+---
+
+# Tyrian / Scala.js UI Patterns
+
+## Disabled Attribute
+Tyrian may not support `disabled := true` on buttons reliably. Use conditional **style** (`cursor: not-allowed; opacity: 0.6`) or conditional CSS class (`btn-disabled`) instead.
+
+## Reserved Scala Keywords as HTML Attributes
+Use backticks: `` `class` := "..." ``, `` `type` := "number" ``.
+
+## onLoad Attribute
+`onLoad` takes a single message and must go on the **parent** element:
+```scala
+div(onLoad(DrawMsg))(canvas()())  // correct
+// NOT: onLoad(DrawMsg)(canvas()())  -- fails with "does not take more parameters"
+```
+
+## Number Inputs
+Use `min := "0"`, `max := value.toString` for range. Set `value := model.value.toString` and `onInput` that parses and dispatches.
+
+## Canvas Drawing
+Use `CanvasUtils.drawAfterViewReady(id, maxRetries, delayMs)(draw)` or `drawAfterViewReadyDelayed` for list canvases. Never draw before canvas is in the DOM.
+
+`drawPixelPic(canvas, ctx, pic, targetWidth, targetHeight, dx, dy)` -- **no default args**; all callers pass `dx` and `dy` explicitly (`0, 0` when no centering needed).
+
+## jsPDF Global Access
+Never reference global `jsPDF` (uppercase) from Scala -- use `selectDynamic("jspdf")` (lowercase). Get constructor via dynamic key: `val ctorKey = "js" + "PDF"`. Use `js.Dynamic.newInstance(ctor)(args)` for constructors. Do not assign `js.Dynamic.global` to a variable.
