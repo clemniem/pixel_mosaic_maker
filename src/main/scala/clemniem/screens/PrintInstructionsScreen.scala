@@ -3,7 +3,7 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{
   Color,
-  GridConfig,
+  Layout,
   NavigateNext,
   PixelPic,
   Screen,
@@ -18,10 +18,10 @@ import clemniem.StorageKeys
 import tyrian.Html.*
 import tyrian.*
 
-/** Fixed step size options (px). Only those that divide every plate width/height are shown. Default 16 if available else smallest. */
+/** Fixed step size options (px). Only those that divide every section width/height are shown. Default 16 if available else smallest. */
 private val stepSizeCandidates = List(12, 16, 20, 24, 28, 32)
 
-private def availableStepSizesForGrid(grid: GridConfig): List[Int] =
+private def availableStepSizesForGrid(grid: Layout): List[Int] =
   stepSizeCandidates.filter(s => grid.parts.forall(p => p.width % s == 0 && p.height % s == 0))
 
 private def defaultStepSizeForAvailable(available: List[Int]): Int =
@@ -275,7 +275,7 @@ object PrintInstructionsScreen extends Screen {
       stored: StoredBuildConfig,
       images: List[StoredImage],
       palettes: List[StoredPalette]
-  ): Option[(PixelPic, GridConfig)] =
+  ): Option[(PixelPic, Layout)] =
     for {
       pic     <- clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
       cropped <- pic.crop(stored.config.offsetX, stored.config.offsetY, stored.config.grid.width, stored.config.grid.height)

@@ -1,6 +1,6 @@
 package clemniem.common
 
-import clemniem.{GridConfig, GridPart}
+import clemniem.{Layout, GridPart}
 import io.circe.parser.decode
 import io.circe.syntax.*
 import munit.FunSuite
@@ -26,10 +26,10 @@ class LocalStorageUtilsSpec extends FunSuite {
     assertEquals(decoded.toOption.get, part)
   }
 
-  test("GridConfig round-trips through JSON (same format as LocalStorageUtils)") {
-    val config = GridConfig.make(List(48, 16, 48), List(48, 32, 48))
+  test("Layout round-trips through JSON (same format as LocalStorageUtils)") {
+    val config = Layout.make(List(48, 16, 48), List(48, 32, 48))
     val json = config.asJson.noSpacesSortKeys
-    val decoded = decode[GridConfig](json)
+    val decoded = decode[Layout](json)
     assert(decoded.isRight)
     val back = decoded.toOption.get
     assertEquals(back.cols, config.cols)
@@ -43,12 +43,12 @@ class LocalStorageUtilsSpec extends FunSuite {
     }
   }
 
-  test("List[GridConfig] round-trips through JSON (saveList/loadList format)") {
-    val config1 = GridConfig.make(List(48, 16), List(48, 32))
-    val config2 = GridConfig.make(List(16, 16, 16), List(16, 16, 16))
+  test("List[Layout] round-trips through JSON (saveList/loadList format)") {
+    val config1 = Layout.make(List(48, 16), List(48, 32))
+    val config2 = Layout.make(List(16, 16, 16), List(16, 16, 16))
     val list   = List(config1, config2)
     val json   = list.asJson.noSpacesSortKeys
-    val decoded = decode[List[GridConfig]](json)
+    val decoded = decode[List[Layout]](json)
     assert(decoded.isRight)
     val back = decoded.toOption.get
     assertEquals(back.length, 2)
@@ -59,23 +59,23 @@ class LocalStorageUtilsSpec extends FunSuite {
   }
 
   test("Empty list round-trips") {
-    val list   = List.empty[GridConfig]
+    val list   = List.empty[Layout]
     val json   = list.asJson.noSpacesSortKeys
-    val decoded = decode[List[GridConfig]](json)
+    val decoded = decode[List[Layout]](json)
     assert(decoded.isRight)
     assertEquals(decoded.toOption.get, Nil)
   }
 
-  test("Invalid JSON for GridConfig returns Left with message") {
+  test("Invalid JSON for Layout returns Left with message") {
     val invalid = """{"cols": 2, "rows": 2}"""
-    val decoded = decode[GridConfig](invalid)
+    val decoded = decode[Layout](invalid)
     assert(decoded.isLeft)
     assert(decoded.left.toOption.get.getMessage.nonEmpty)
   }
 
-  test("Invalid JSON for List[GridConfig] returns Left") {
+  test("Invalid JSON for List[Layout] returns Left") {
     val invalid = """not json"""
-    val decoded = decode[List[GridConfig]](invalid)
+    val decoded = decode[List[Layout]](invalid)
     assert(decoded.isLeft)
   }
 }

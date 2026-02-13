@@ -2,17 +2,17 @@ package clemniem
 
 import munit.FunSuite
 
-class GridConfigSpec extends FunSuite {
+class LayoutSpec extends FunSuite {
 
   test("fromRowDefs: empty list gives empty grid") {
-    val g = GridConfig.fromRowDefs(Nil)
+    val g = Layout.fromRowDefs(Nil)
     assertEquals(g.parts.length, 0)
     assertEquals(g.width, 0)
     assertEquals(g.height, 0)
   }
 
   test("fromRowDefs: one row one cell") {
-    val g = GridConfig.fromRowDefs(List(RowDef(16, List(48))))
+    val g = Layout.fromRowDefs(List(RowDef(16, List(48))))
     assertEquals(g.parts.length, 1)
     assertEquals(g.parts(0), GridPart(0, 0, 48, 16))
     assertEquals(g.width, 48)
@@ -20,7 +20,7 @@ class GridConfigSpec extends FunSuite {
   }
 
   test("fromRowDefs: two rows with variable cells per row") {
-    val g = GridConfig.fromRowDefs(
+    val g = Layout.fromRowDefs(
       List(
         RowDef(16, List(48, 32)),
         RowDef(32, List(80))
@@ -35,14 +35,14 @@ class GridConfigSpec extends FunSuite {
   }
 
   test("fromColumnDefs: empty list gives empty grid") {
-    val g = GridConfig.fromColumnDefs(Nil)
+    val g = Layout.fromColumnDefs(Nil)
     assertEquals(g.parts.length, 0)
     assertEquals(g.width, 0)
     assertEquals(g.height, 0)
   }
 
   test("fromColumnDefs: one column one cell") {
-    val g = GridConfig.fromColumnDefs(List(ColumnDef(48, List(16))))
+    val g = Layout.fromColumnDefs(List(ColumnDef(48, List(16))))
     assertEquals(g.parts.length, 1)
     assertEquals(g.parts(0), GridPart(0, 0, 48, 16))
     assertEquals(g.width, 48)
@@ -50,7 +50,7 @@ class GridConfigSpec extends FunSuite {
   }
 
   test("fromColumnDefs: two columns with variable cells per column") {
-    val g = GridConfig.fromColumnDefs(
+    val g = Layout.fromColumnDefs(
       List(
         ColumnDef(48, List(16, 16)),
         ColumnDef(32, List(32))
@@ -65,7 +65,7 @@ class GridConfigSpec extends FunSuite {
   }
 
   test("make (uniform grid) still works and width/height from bounding box") {
-    val g = GridConfig.make(List(48, 16, 48), List(48, 32, 48))
+    val g = Layout.make(List(48, 16, 48), List(48, 32, 48))
     assertEquals(g.cols, 3)
     assertEquals(g.rows, 3)
     assertEquals(g.parts.length, 9)
@@ -83,7 +83,7 @@ class GridConfigSpec extends FunSuite {
     assertEquals(norm(0).totalWidth, 80)
     assertEquals(norm(1).cellWidths, List(40, 40))
     assertEquals(norm(1).totalWidth, 80)
-    val g = GridConfig.fromRowDefs(norm)
+    val g = Layout.fromRowDefs(norm)
     assertEquals(g.width, 80)
     assertEquals(g.height, 48)
     assertEquals(g.parts.length, 4)
@@ -99,7 +99,7 @@ class GridConfigSpec extends FunSuite {
     assertEquals(norm(0).totalHeight, 32)
     assertEquals(norm(1).cellHeights, List(24, 8))
     assertEquals(norm(1).totalHeight, 32)
-    val g = GridConfig.fromColumnDefs(norm)
+    val g = Layout.fromColumnDefs(norm)
     assertEquals(g.width, 80)
     assertEquals(g.height, 32)
     assertEquals(g.parts.length, 4)

@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{ColumnDef, GridConfig, GridDefMode, NavigateNext, RowDef, Screen, ScreenId, ScreenOutput, StoredGridConfig, StorageKeys}
+import clemniem.{ColumnDef, Layout, GridDefMode, NavigateNext, RowDef, Screen, ScreenId, ScreenOutput, StoredLayout, StorageKeys}
 import clemniem.common.CanvasUtils
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
@@ -10,12 +10,12 @@ import tyrian.*
 
 import scala.scalajs.js
 
-/** Step 1: Define grid of plates (Lego-style). Define by rows (height + widths per row) or by columns (width + heights per column). */
-object GridConfigScreen extends Screen {
-  type Model = GridConfigModel
-  type Msg   = GridConfigMsg | NavigateNext
+/** Step 1: Define layout of sections. Define by rows (height + widths per row) or by columns (width + heights per column). */
+object LayoutScreen extends Screen {
+  type Model = LayoutModel
+  type Msg   = LayoutMsg | NavigateNext
 
-  val screenId: ScreenId = ScreenId.GridConfigId
+  val screenId: ScreenId = ScreenId.LayoutId
 
   private val defaultRowHeight = 16
   private val defaultCellWidth = 32
@@ -24,7 +24,7 @@ object GridConfigScreen extends Screen {
   private def clampSize(n: Int): Int = math.max(1, math.min(500, n))
 
   /** Infer row definitions from a saved grid (for old saves that only have config, not rowDefs). */
-  private def inferRowDefsFromConfig(config: GridConfig): List[RowDef] =
+  private def inferRowDefsFromConfig(config: Layout): List[RowDef] =
     if (config.parts.isEmpty) List(RowDef(defaultRowHeight, List(defaultCellWidth)))
     else {
       val byRow = config.parts.groupBy(_.y).toList.sortBy(_._1).map(_._2.toList.sortBy(_.x))
@@ -36,7 +36,7 @@ object GridConfigScreen extends Screen {
     }
 
   /** Infer column definitions from a saved grid (for old saves that only have config, not columnDefs). */
-  private def inferColumnDefsFromConfig(config: GridConfig): List[ColumnDef] =
+  private def inferColumnDefsFromConfig(config: Layout): List[ColumnDef] =
     if (config.parts.isEmpty) List(ColumnDef(defaultColWidth, List(defaultCellHeight)))
     else {
       val byCol = config.parts.groupBy(_.x).toList.sortBy(_._1).map(_._2.toList.sortBy(_.y))
@@ -49,13 +49,13 @@ object GridConfigScreen extends Screen {
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val model = previous match {
-      case Some(ScreenOutput.EditGridConfig(stored)) =>
+      case Some(ScreenOutput.EditLayout(stored)) =>
         val mode = stored.mode.getOrElse(GridDefMode.ByRows)
         val rowDefs =
           stored.rowDefs.filter(_.nonEmpty).getOrElse(inferRowDefsFromConfig(stored.config))
         val columnDefs =
           stored.columnDefs.filter(_.nonEmpty).getOrElse(inferColumnDefsFromConfig(stored.config))
-        GridConfigModel(
+        LayoutModel(
           mode = mode,
           rowDefs = rowDefs,
           columnDefs = columnDefs,
@@ -63,7 +63,7 @@ object GridConfigScreen extends Screen {
           editingId = Some(stored.id)
         )
       case _ =>
-        GridConfigModel(
+        LayoutModel(
           mode = GridDefMode.ByRows,
           rowDefs = List(RowDef(defaultRowHeight, List(defaultCellWidth))),
           columnDefs = List(ColumnDef(defaultColWidth, List(defaultCellHeight))),
@@ -75,11 +75,11 @@ object GridConfigScreen extends Screen {
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
-    case GridConfigMsg.SetMode(mode) =>
+    case LayoutMsg.SetMode(mode) =>
       val next = model.copy(mode = mode)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.AddRow =>
+    case LayoutMsg.AddRow =>
       val newRow = model.rowDefs.lastOption match {
         case Some(prev) => RowDef(prev.height, prev.cellWidths)
         case None       => RowDef(defaultRowHeight, List(defaultCellWidth))
@@ -87,19 +87,19 @@ object GridConfigScreen extends Screen {
       val next = model.copy(rowDefs = model.rowDefs :+ newRow)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.RemoveRow(idx) =>
+    case LayoutMsg.RemoveRow(idx) =>
       val next = model.copy(
         rowDefs = model.rowDefs.patch(idx, Nil, 1),
         anchoredRows = model.anchoredRows.filter(_ != idx).map(i => if (i > idx) i - 1 else i)
       )
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.SetRowHeight(rowIdx, raw) =>
+    case LayoutMsg.SetRowHeight(rowIdx, raw) =>
       val h = raw.toIntOption.map(clampSize).getOrElse(defaultRowHeight)
       val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, model.rowDefs(rowIdx).copy(height = h)))
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.SetRowCellWidth(rowIdx, cellIdx, raw) =>
+    case LayoutMsg.SetRowCellWidth(rowIdx, cellIdx, raw) =>
       val w = raw.toIntOption.map(clampSize).getOrElse(defaultCellWidth)
       val row = model.rowDefs(rowIdx)
       val ws =
@@ -110,12 +110,12 @@ object GridConfigScreen extends Screen {
       val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = ws)))
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.AddCellToRow(rowIdx) =>
+    case LayoutMsg.AddCellToRow(rowIdx) =>
       val row = model.rowDefs(rowIdx)
       val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = row.cellWidths :+ defaultCellWidth)))
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.RemoveCellFromRow(rowIdx, cellIdx) =>
+    case LayoutMsg.RemoveCellFromRow(rowIdx, cellIdx) =>
       val row = model.rowDefs(rowIdx)
       if (row.cellWidths.length <= 1) (model, Cmd.None)
       else {
@@ -124,13 +124,13 @@ object GridConfigScreen extends Screen {
         (next, Cmd.SideEffect(drawGrid(next.grid)))
       }
 
-    case GridConfigMsg.ToggleRowAnchor(rowIdx) =>
+    case LayoutMsg.ToggleRowAnchor(rowIdx) =>
       val next = model.copy(
         anchoredRows = if (model.anchoredRows.contains(rowIdx)) model.anchoredRows - rowIdx else model.anchoredRows + rowIdx
       )
       (next, Cmd.None)
 
-    case GridConfigMsg.AddColumn =>
+    case LayoutMsg.AddColumn =>
       val newCol = model.columnDefs.lastOption match {
         case Some(prev) => ColumnDef(prev.width, prev.cellHeights)
         case None       => ColumnDef(defaultColWidth, List(defaultCellHeight))
@@ -138,20 +138,20 @@ object GridConfigScreen extends Screen {
       val next = model.copy(columnDefs = model.columnDefs :+ newCol)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.RemoveColumn(idx) =>
+    case LayoutMsg.RemoveColumn(idx) =>
       val next = model.copy(
         columnDefs = model.columnDefs.patch(idx, Nil, 1),
         anchoredColumns = model.anchoredColumns.filter(_ != idx).map(i => if (i > idx) i - 1 else i)
       )
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.SetColumnWidth(colIdx, raw) =>
+    case LayoutMsg.SetColumnWidth(colIdx, raw) =>
       val w = raw.toIntOption.map(clampSize).getOrElse(defaultColWidth)
       val col = model.columnDefs(colIdx)
       val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(width = w)))
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.SetColumnCellHeight(colIdx, cellIdx, raw) =>
+    case LayoutMsg.SetColumnCellHeight(colIdx, cellIdx, raw) =>
       val h = raw.toIntOption.map(clampSize).getOrElse(defaultCellHeight)
       val col = model.columnDefs(colIdx)
       val hs =
@@ -162,12 +162,12 @@ object GridConfigScreen extends Screen {
       val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = hs)))
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.AddCellToColumn(colIdx) =>
+    case LayoutMsg.AddCellToColumn(colIdx) =>
       val col = model.columnDefs(colIdx)
       val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = col.cellHeights :+ defaultCellHeight)))
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.RemoveCellFromColumn(colIdx, cellIdx) =>
+    case LayoutMsg.RemoveCellFromColumn(colIdx, cellIdx) =>
       val col = model.columnDefs(colIdx)
       if (col.cellHeights.length <= 1) (model, Cmd.None)
       else {
@@ -176,35 +176,35 @@ object GridConfigScreen extends Screen {
         (next, Cmd.SideEffect(drawGrid(next.grid)))
       }
 
-    case GridConfigMsg.ToggleColumnAnchor(colIdx) =>
+    case LayoutMsg.ToggleColumnAnchor(colIdx) =>
       val next = model.copy(
         anchoredColumns = if (model.anchoredColumns.contains(colIdx)) model.anchoredColumns - colIdx else model.anchoredColumns + colIdx
       )
       (next, Cmd.None)
 
-    case GridConfigMsg.DrawGrid =>
+    case LayoutMsg.DrawGrid =>
       (model, Cmd.SideEffect(drawGrid(model.grid)))
 
-    case GridConfigMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.GridConfigsId, None)))
+    case LayoutMsg.Back =>
+      (model, Cmd.Emit(NavigateNext(ScreenId.LayoutsId, None)))
 
-    case GridConfigMsg.SetName(name) =>
+    case LayoutMsg.SetName(name) =>
       (model.copy(name = name), Cmd.None)
 
-    case GridConfigMsg.Save =>
+    case LayoutMsg.Save =>
       if (model.pendingNormalizeChoice) (model, Cmd.None)
       else if (!model.isNormalized)
         (model.copy(pendingNormalizeChoice = true), Cmd.None)
       else {
-        val cmd = LocalStorageUtils.loadList(StorageKeys.gridConfigs)(
-          GridConfigMsg.LoadedForSave.apply,
-          _ => GridConfigMsg.LoadedForSave(Nil),
-          (_, _) => GridConfigMsg.LoadedForSave(Nil)
+        val cmd = LocalStorageUtils.loadList(StorageKeys.layouts)(
+          LayoutMsg.LoadedForSave.apply,
+          _ => LayoutMsg.LoadedForSave(Nil),
+          (_, _) => LayoutMsg.LoadedForSave(Nil)
         )
         (model, cmd)
       }
 
-    case GridConfigMsg.NormalizeWithEnlarging =>
+    case LayoutMsg.NormalizeWithEnlarging =>
       val next = model.copy(
         rowDefs =
           if (model.mode == GridDefMode.ByRows) RowDef.normalizeByEnlarging(model.rowDefs)
@@ -216,7 +216,7 @@ object GridConfigScreen extends Screen {
       )
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.NormalizeWithNewPlates =>
+    case LayoutMsg.NormalizeWithNewSections =>
       val next = model.copy(
         rowDefs =
           if (model.mode == GridDefMode.ByRows) RowDef.normalizeToRectangle(model.rowDefs)
@@ -228,13 +228,13 @@ object GridConfigScreen extends Screen {
       )
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case GridConfigMsg.CancelNormalizeChoice =>
+    case LayoutMsg.CancelNormalizeChoice =>
       (model.copy(pendingNormalizeChoice = false), Cmd.None)
 
-    case GridConfigMsg.LoadedForSave(list) =>
+    case LayoutMsg.LoadedForSave(list) =>
       val normalizedConfig = model.normalizedGrid
       val id                = model.editingId.getOrElse("grid-" + js.Date.now().toLong)
-      val stored            = StoredGridConfig(
+      val stored            = StoredLayout(
         id = id,
         name = model.name,
         config = normalizedConfig,
@@ -246,16 +246,16 @@ object GridConfigScreen extends Screen {
         case Some(editId) => list.filterNot(_.id == editId) :+ stored
         case None         => list :+ stored
       }
-      val saveCmd = LocalStorageUtils.saveList(StorageKeys.gridConfigs, newList)(
-        _ => NavigateNext(ScreenId.GridConfigsId, None),
-        (msg, _) => GridConfigMsg.SaveFailed(msg)
+      val saveCmd = LocalStorageUtils.saveList(StorageKeys.layouts, newList)(
+        _ => NavigateNext(ScreenId.LayoutsId, None),
+        (msg, _) => LayoutMsg.SaveFailed(msg)
       )
       (model, saveCmd)
 
-    case GridConfigMsg.SaveFailed(_) =>
+    case LayoutMsg.SaveFailed(_) =>
       (model, Cmd.None)
 
-    case GridConfigMsg.NoOp =>
+    case LayoutMsg.NoOp =>
       (model, Cmd.None)
 
     case _: NavigateNext =>
@@ -270,10 +270,10 @@ object GridConfigScreen extends Screen {
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row")(
-          GalleryLayout.backButton(GridConfigMsg.Back, "Layouts"),
-          button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.Save))(text("Save"))
+          GalleryLayout.backButton(LayoutMsg.Back, "Layouts"),
+          button(`class` := NesCss.btnPrimary, onClick(LayoutMsg.Save))(text("Save"))
         ),
-        Some(ScreenHeader.nameRowInput(model.name, GridConfigMsg.SetName.apply, None, "")),
+        Some(ScreenHeader.nameRowInput(model.name, LayoutMsg.SetName.apply, None, "")),
         false
       ),
       div(
@@ -283,23 +283,23 @@ object GridConfigScreen extends Screen {
           text("Your layout doesn't line up (rows or columns have different lengths). Choose how to fix it, then Save.")
         ),
         div(`class` := "flex-row")(
-          button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.NormalizeWithEnlarging))(text("Stretch existing sections")),
-          button(`class` := NesCss.btnSuccess, onClick(GridConfigMsg.NormalizeWithNewPlates))(text("Add new sections to fill gaps")),
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.CancelNormalizeChoice))(text("Cancel"))
+          button(`class` := NesCss.btnPrimary, onClick(LayoutMsg.NormalizeWithEnlarging))(text("Stretch existing sections")),
+          button(`class` := NesCss.btnSuccess, onClick(LayoutMsg.NormalizeWithNewSections))(text("Add new sections to fill gaps")),
+          button(`class` := NesCss.btn, onClick(LayoutMsg.CancelNormalizeChoice))(text("Cancel"))
         )
       ),
       p(`class` := s"${NesCss.text} field-block")(
-        text("Set up how your mosaic is split into sections (like LEGO plates). You can define by rows or columns; each can have a different number of sections.")
+        text("Set up how your mosaic is split into sections (like LEGO baseplates). You can define by rows or columns; each can have a different number of sections.")
       ),
       div(`class` := "field-block flex-row")(
         span()(text("Set up by:")),
         button(
           `class` := (if (model.mode == GridDefMode.ByRows) s"${NesCss.btn} is-primary" else NesCss.btn),
-          onClick(GridConfigMsg.SetMode(GridDefMode.ByRows))
+          onClick(LayoutMsg.SetMode(GridDefMode.ByRows))
         )(text("Rows")),
         button(
           `class` := (if (model.mode == GridDefMode.ByColumns) s"${NesCss.btn} is-primary" else NesCss.btn),
-          onClick(GridConfigMsg.SetMode(GridDefMode.ByColumns))
+          onClick(LayoutMsg.SetMode(GridDefMode.ByColumns))
         )(text("Columns"))
       ),
       div(`class` := "field-block")(
@@ -310,7 +310,7 @@ object GridConfigScreen extends Screen {
         p(`class` := "section-title")(
           text(s"Preview · ${grid.width}×${grid.height} pixels · ${grid.parts.length} section(s)")
         ),
-        div(onLoad(GridConfigMsg.DrawGrid))(
+        div(onLoad(LayoutMsg.DrawGrid))(
           canvas(
             id := "grid-canvas",
             width := grid.width,
@@ -329,7 +329,7 @@ object GridConfigScreen extends Screen {
         min := "1",
         max := "500",
         value := row.height.toString,
-        onInput(s => GridConfigMsg.SetRowHeight(rowIdx, s)),
+        onInput(s => LayoutMsg.SetRowHeight(rowIdx, s)),
         `class` := s"${NesCss.input} input-w-4"
       )
       val cellInputs = row.cellWidths.zipWithIndex.map { case (w, cellIdx) =>
@@ -338,32 +338,32 @@ object GridConfigScreen extends Screen {
           min := "1",
           max := "500",
           value := w.toString,
-          onInput(s => GridConfigMsg.SetRowCellWidth(rowIdx, cellIdx, s)),
+          onInput(s => LayoutMsg.SetRowCellWidth(rowIdx, cellIdx, s)),
           `class` := s"${NesCss.input} input-w-3half"
         )
       }
       div(`class` := s"${NesCss.containerRounded} grid-editor-row")(
         div(`class` := "grid-editor-row-first")(
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.RemoveRow(rowIdx)))(text("− row")),
+          button(`class` := NesCss.btn, onClick(LayoutMsg.RemoveRow(rowIdx)))(text("− row")),
           heightInput,
           button(
             `class` := (if (row.cellWidths.length <= 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
-            onClick(GridConfigMsg.RemoveCellFromRow(rowIdx, row.cellWidths.length - 1)),
+            onClick(LayoutMsg.RemoveCellFromRow(rowIdx, row.cellWidths.length - 1)),
             title := "Remove last section"
           )(text("−")),
           button(
             `class` := (if (anchoredRows.contains(rowIdx)) s"${NesCss.btn} is-primary" else NesCss.btn),
-            onClick(GridConfigMsg.ToggleRowAnchor(rowIdx)),
+            onClick(LayoutMsg.ToggleRowAnchor(rowIdx)),
             title := "When on, all sections in this row share the same width"
           )(text("≡")),
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToRow(rowIdx)), title := "Add section")(text("+"))
+          button(`class` := NesCss.btn, onClick(LayoutMsg.AddCellToRow(rowIdx)), title := "Add section")(text("+"))
         ),
         div(`class` := "grid-editor-row-second")(
           div(`class` := "grid-editor-cells")(cellInputs*)
         )
       )
     }
-    val addRowBtn = button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.AddRow))(text("+ Add row"))
+    val addRowBtn = button(`class` := NesCss.btnPrimary, onClick(LayoutMsg.AddRow))(text("+ Add row"))
     div(`class` := "grid-editor-list")((rowElems :+ addRowBtn)*)
   }
 
@@ -374,7 +374,7 @@ object GridConfigScreen extends Screen {
         min := "1",
         max := "500",
         value := col.width.toString,
-        onInput(s => GridConfigMsg.SetColumnWidth(colIdx, s)),
+        onInput(s => LayoutMsg.SetColumnWidth(colIdx, s)),
         `class` := s"${NesCss.input} input-w-4"
       )
       val cellInputs = col.cellHeights.zipWithIndex.map { case (h, cellIdx) =>
@@ -383,37 +383,37 @@ object GridConfigScreen extends Screen {
           min := "1",
           max := "500",
           value := h.toString,
-          onInput(s => GridConfigMsg.SetColumnCellHeight(colIdx, cellIdx, s)),
+          onInput(s => LayoutMsg.SetColumnCellHeight(colIdx, cellIdx, s)),
           `class` := s"${NesCss.input} input-w-3half"
         )
       }
       div(`class` := s"${NesCss.containerRounded} grid-editor-row")(
         div(`class` := "grid-editor-row-first")(
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.RemoveColumn(colIdx)))(text("− col")),
+          button(`class` := NesCss.btn, onClick(LayoutMsg.RemoveColumn(colIdx)))(text("− col")),
           widthInput,
           button(
             `class` := (if (col.cellHeights.length <= 1) s"${NesCss.btn} btn-disabled" else NesCss.btn),
-            onClick(GridConfigMsg.RemoveCellFromColumn(colIdx, col.cellHeights.length - 1)),
+            onClick(LayoutMsg.RemoveCellFromColumn(colIdx, col.cellHeights.length - 1)),
             title := "Remove last section"
           )(text("−")),
           button(
             `class` := (if (anchoredColumns.contains(colIdx)) s"${NesCss.btn} is-primary" else NesCss.btn),
-            onClick(GridConfigMsg.ToggleColumnAnchor(colIdx)),
+            onClick(LayoutMsg.ToggleColumnAnchor(colIdx)),
             title := "When on, all sections in this column share the same height"
           )(text("≡")),
-          button(`class` := NesCss.btn, onClick(GridConfigMsg.AddCellToColumn(colIdx)), title := "Add section")(text("+"))
+          button(`class` := NesCss.btn, onClick(LayoutMsg.AddCellToColumn(colIdx)), title := "Add section")(text("+"))
         ),
         div(`class` := "grid-editor-row-second")(
           div(`class` := "grid-editor-cells")(cellInputs*)
         )
       )
     }
-    val addColBtn = button(`class` := NesCss.btnPrimary, onClick(GridConfigMsg.AddColumn))(text("+ Add column"))
+    val addColBtn = button(`class` := NesCss.btnPrimary, onClick(LayoutMsg.AddColumn))(text("+ Add column"))
     div(`class` := "grid-editor-list")((colElems :+ addColBtn)*)
   }
 
   /** Draw grid on canvas after the view has been applied (next frame + retries). Use for all updates. */
-  def drawGrid(grid: GridConfig): IO[Unit] =
+  def drawGrid(grid: Layout): IO[Unit] =
     CanvasUtils.drawAfterViewReady("grid-canvas", maxRetries = 100, delayMs = 1)((canvas, ctx) => {
       canvas.width = grid.width
       canvas.height = grid.height
@@ -428,7 +428,7 @@ object GridConfigScreen extends Screen {
     })
 }
 
-final case class GridConfigModel(
+final case class LayoutModel(
     mode: GridDefMode,
     rowDefs: List[RowDef],
     columnDefs: List[ColumnDef],
@@ -438,10 +438,10 @@ final case class GridConfigModel(
     anchoredRows: Set[Int] = Set.empty,
     anchoredColumns: Set[Int] = Set.empty
 ) {
-  def grid: GridConfig =
+  def grid: Layout =
     mode match
-      case GridDefMode.ByRows    => GridConfig.fromRowDefs(rowDefs)
-      case GridDefMode.ByColumns => GridConfig.fromColumnDefs(columnDefs)
+      case GridDefMode.ByRows    => Layout.fromRowDefs(rowDefs)
+      case GridDefMode.ByColumns => Layout.fromColumnDefs(columnDefs)
 
   /** True if grid is a full rectangle (all rows same total width, or all columns same total height). */
   def isNormalized: Boolean =
@@ -454,13 +454,13 @@ final case class GridConfigModel(
           columnDefs.map(_.totalHeight).distinct.size == 1
 
   /** Grid built from row/column defs normalized to a rectangle (no gaps at end of any row or column). */
-  def normalizedGrid: GridConfig =
+  def normalizedGrid: Layout =
     mode match
-      case GridDefMode.ByRows    => GridConfig.fromRowDefs(RowDef.normalizeToRectangle(rowDefs))
-      case GridDefMode.ByColumns => GridConfig.fromColumnDefs(ColumnDef.normalizeToRectangle(columnDefs))
+      case GridDefMode.ByRows    => Layout.fromRowDefs(RowDef.normalizeToRectangle(rowDefs))
+      case GridDefMode.ByColumns => Layout.fromColumnDefs(ColumnDef.normalizeToRectangle(columnDefs))
 }
 
-enum GridConfigMsg:
+enum LayoutMsg:
   case SetMode(mode: GridDefMode)
   case AddRow
   case RemoveRow(idx: Int)
@@ -479,10 +479,10 @@ enum GridConfigMsg:
   case DrawGrid
   case SetName(name: String)
   case Save
-  case LoadedForSave(list: List[StoredGridConfig])
+  case LoadedForSave(list: List[StoredLayout])
   case SaveFailed(message: String)
   case NormalizeWithEnlarging
-  case NormalizeWithNewPlates
+  case NormalizeWithNewSections
   case CancelNormalizeChoice
   case Back
   case NoOp

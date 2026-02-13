@@ -56,10 +56,10 @@ object AboutScreen extends Screen {
       div(`class` := "about-content")(
         p(`class` := NesCss.text)(text("Pixel Mosaic Maker turns pixel art into printable mosaic instructions.")),
         p(`class` := NesCss.text)(text("Use Game Boy Camera photos or other low-res images.")),
-        p(`class` := NesCss.text)(text("Get step-by-step guides to recreate the image with physical tiles or bricks (e.g. Lego plates, perler beads).")),
+        p(`class` := NesCss.text)(text("Get step-by-step guides to recreate the image with physical tiles or bricks (e.g. Lego sections, perler beads).")),
         p(`class` := NesCss.text)(text("You define a grid and upload images.")),
         p(`class` := NesCss.text)(text("You create palettes and build configs, then run a build.")),
-        p(`class` := NesCss.text)(text("You get a PDF book: cover, overview, per-plate chapters with swatches, and layer-by-layer patch pages.")),
+        p(`class` := NesCss.text)(text("You get a PDF book: cover, overview, per-section chapters with swatches, and layer-by-layer patch pages.")),
         p(`class` := NesCss.text)(text("Everything runs in the browser.")),
         p(`class` := NesCss.text)(text("Data is stored in LocalStorage. No server or account required.")),
         h2(`class` := "about-heading")(text("Libraries & tools")),

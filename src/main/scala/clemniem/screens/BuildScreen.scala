@@ -24,7 +24,7 @@ import org.scalajs.dom.window
 import scala.scalajs.js
 import scala.concurrent.duration.DurationInt
 
-/** Step-by-step build: one build config, iterate plates then 16×16 cells per plate. Overview + preview + step nav. */
+/** Step-by-step build: one build config, iterate sections then 16×16 cells per section. Overview + preview + step nav. */
 object BuildScreen extends Screen {
   type Model = BuildScreenModel
   type Msg   = BuildScreenMsg | NavigateNext

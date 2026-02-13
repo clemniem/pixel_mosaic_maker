@@ -11,8 +11,9 @@ import tyrian.cmds.LocalStorage
   * Use these to persist multiple outputs per type (e.g. 3 grid configs, 3 palettes, 3 images).
   *
   * Keying strategies:
-  * - One item per key: e.g. `"gridConfig/abc-123"` → single [[GridConfig]]; use [[save]]/[[load]].
-  * - List under one key: e.g. `"gridConfigs"` → `List[StoredGridConfig]`; use [[saveList]]/[[loadList]].
+  * - One item per key: e.g. `"layout/abc-123"` → single [[Layout]]; use [[save]]/[[load]].
+  * - List under one key: e.g. `"gridConfigs"` → `List[StoredLayout]`; use [[saveList]]/[[loadList]].
+  *   (Key string kept for backward compatibility with existing LocalStorage data.)
   */
 object LocalStorageUtils {
 

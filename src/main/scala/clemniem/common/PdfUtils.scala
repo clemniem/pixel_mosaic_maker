@@ -1,14 +1,14 @@
 package clemniem.common
 
 import cats.effect.IO
-import clemniem.{Color, GridConfig, GridPart, Pixel, PixelPic}
+import clemniem.{Color, Layout, GridPart, Pixel, PixelPic}
 import clemniem.common.pdf.{Instruction, JsPDF, PdfLayout, PdfLayoutConfig}
 import clemniem.common.pdf.PdfLayoutConfig.SwatchBlock
 
 /** Request for the book PDF: title, optional mosaic (pic + grid), step size, page background color, printer margin (mm; stays white), and optional layout config. */
 final case class PrintBookRequest(
     title: String,
-    mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)],
+    mosaicPicAndGridOpt: Option[(PixelPic, Layout)],
     stepSizePx: Int = 16,
     pageBackgroundColor: Color = PdfUtils.defaultPageBackgroundColor,
     printerMarginMm: Double = 3.0,
@@ -55,7 +55,7 @@ object PdfUtils {
       y0: Double,
       imageW: Double,
       imageH: Double,
-      grid: GridConfig,
+      grid: Layout,
       mosaicWidthPx: Int,
       mosaicHeightPx: Int,
       lineWidthMm: Double
@@ -88,7 +88,7 @@ object PdfUtils {
       smallOverviewH: Double,
       greyRectsMm: List[(Double, Double, Double, Double)],
       highlightedRectMm: (Double, Double, Double, Double),
-      grid: GridConfig
+      grid: Layout
   ): List[Instruction] = {
     val (_, _, fullRgbFlat) = pixelPicToRgbFlat(fullPic)
     val gridInstr   = List(Instruction.DrawPixelGrid(smallX0, smallY0, smallOverviewW, smallOverviewH, fullPic.width, fullPic.height, fullRgbFlat))
@@ -164,7 +164,7 @@ object PdfUtils {
 
   private def runPrintBookPdf(
       title: String,
-      mosaicPicAndGridOpt: Option[(PixelPic, GridConfig)],
+      mosaicPicAndGridOpt: Option[(PixelPic, Layout)],
       stepSizePx: Int,
       pageBackgroundColor: Color,
       printerMarginMm: Double,
@@ -240,7 +240,7 @@ object PdfUtils {
   /** One page after the empty page: color list top-left, image right (top-aligned). If grid has parts, draw exploded view with gaps; else single image. No title. */
   private def fullOverviewPageInstructions(
       fullPic: PixelPic,
-      grid: GridConfig,
+      grid: Layout,
       marginLR: Double,
       marginTB: Double,
       availableW: Double,
@@ -286,7 +286,7 @@ object PdfUtils {
   /** Exploded overview: one DrawPixelGrid per grid part, gapMm between parts; dimension markings (architecture-style) on top and right. align: "left" | "center" | "right". */
   private def explodedOverviewInstructions(
       fullPic: PixelPic,
-      grid: GridConfig,
+      grid: Layout,
       areaX: Double,
       areaY: Double,
       areaW: Double,
@@ -327,7 +327,7 @@ object PdfUtils {
   /** Returns exploded grid instructions and layout (baseX, baseY, scale, totalWmm, colOffsetPx, rowOffsetPx, colWidthsPx, rowHeightsPx, uniqueXs, uniqueYs). align: "left" | "center" | "right". */
   private def explodedOverviewLayoutAndGrid(
       fullPic: PixelPic,
-      grid: GridConfig,
+      grid: Layout,
       areaX: Double,
       areaY: Double,
       areaW: Double,
@@ -378,10 +378,10 @@ object PdfUtils {
     (gridInstrs ++ frameInstrs, baseX, baseY, scale, totalWmm, colOffsetPx, rowOffsetPx, colWidthsPx, rowHeightsPx, uniqueXs, uniqueYs)
   }
 
-  /** All chapters: one chapter per plate (overview page + sections per step). */
+  /** All chapters: one chapter per section (overview page + steps per section). */
   private def allChaptersInstructions(
       fullPic: PixelPic,
-      grid: GridConfig,
+      grid: Layout,
       marginLR: Double,
       marginTB: Double,
       availableW: Double,
@@ -391,16 +391,16 @@ object PdfUtils {
   ): List[Instruction] = {
     val parts = grid.parts
     parts.indices.toList.flatMap { idx =>
-      chapterInstructionsForPlate(idx + 1, parts(idx), fullPic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, config)
+      chapterInstructionsForSection(idx + 1, parts(idx), fullPic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, config)
     }
   }
 
-  /** One chapter (one plate): overview page (left = colors + small grid overview, right = exploded plate with dimensions) + sections per build step. No title. */
-  private def chapterInstructionsForPlate(
-      plateIndex: Int,
+  /** One chapter (one section): overview page (left = colors + small grid overview, right = exploded section with dimensions) + steps per section. No title. */
+  private def chapterInstructionsForSection(
+      sectionIndex: Int,
       part: GridPart,
       fullPic: PixelPic,
-      grid: GridConfig,
+      grid: Layout,
       marginLR: Double,
       marginTB: Double,
       availableW: Double,
@@ -411,12 +411,12 @@ object PdfUtils {
     val co  = config.chapterOverview
     val sw  = co.swatch
     val parts = grid.parts
-    val platePicOpt = fullPic.crop(part.x, part.y, part.width, part.height)
-    if (platePicOpt.isEmpty) Nil
+    val sectionPicOpt = fullPic.crop(part.x, part.y, part.width, part.height)
+    if (sectionPicOpt.isEmpty) Nil
     else {
-      val platePic = platePicOpt.get
+      val sectionPic = sectionPicOpt.get
       val contentTopY = marginTB + co.contentTopOffsetFromTopMm + pixelCountTopExtraMm
-      val colorRows = platePic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
+      val colorRows = sectionPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
         val px = fullPic.paletteLookup(idx)
         (px.r, px.g, px.b, count)
       }
@@ -434,22 +434,22 @@ object PdfUtils {
       val rightAreaW = areaW * co.explodedAreaScaleFactor
       val rightAreaH = areaH * co.explodedAreaScaleFactor
       val rightAreaX = areaX + areaW - rightAreaW
-      val nColsStepPlate = platePic.width / stepSizePx
-      val nRowsStepPlate = platePic.height / stepSizePx
-      val stepGridForPlate =
-        if (nColsStepPlate >= 1 && nRowsStepPlate >= 1) {
-          val stepParts = (0 until nRowsStepPlate).flatMap { cy =>
-            (0 until nColsStepPlate).map { cx =>
+      val nColsStepSection = sectionPic.width / stepSizePx
+      val nRowsStepSection = sectionPic.height / stepSizePx
+      val stepGridForSection =
+        if (nColsStepSection >= 1 && nRowsStepSection >= 1) {
+          val stepParts = (0 until nRowsStepSection).flatMap { cy =>
+            (0 until nColsStepSection).map { cx =>
               GridPart(cx * stepSizePx, cy * stepSizePx, stepSizePx, stepSizePx)
             }
           }
-          GridConfig(nColsStepPlate, nRowsStepPlate, stepParts.toArray)
+          Layout(nColsStepSection, nRowsStepSection, stepParts.toArray)
         } else {
-          GridConfig(1, 1, Array(GridPart(0, 0, platePic.width, platePic.height)))
+          Layout(1, 1, Array(GridPart(0, 0, sectionPic.width, sectionPic.height)))
         }
-      val explodedInstrs = explodedOverviewInstructions(platePic, stepGridForPlate, rightAreaX, areaY, rightAreaW, rightAreaH, co.explodedGapMm, co.explodedDimensionGapMm, co.explodedDimensionFontSizePt, co.explodedDimensionLineWidthMm, "right")
-      val allPlatesDivisible = parts.forall(p => p.width % stepSizePx == 0 && p.height % stepSizePx == 0)
-      val divisibilityNote = if (allPlatesDivisible) Nil else {
+      val explodedInstrs = explodedOverviewInstructions(sectionPic, stepGridForSection, rightAreaX, areaY, rightAreaW, rightAreaH, co.explodedGapMm, co.explodedDimensionGapMm, co.explodedDimensionFontSizePt, co.explodedDimensionLineWidthMm, "right")
+      val allSectionsDivisible = parts.forall(p => p.width % stepSizePx == 0 && p.height % stepSizePx == 0)
+      val divisibilityNote = if (allSectionsDivisible) Nil else {
         val noteY = gridOverviewY + smallOverviewH + 4.0
         List(
           Instruction.FontSize(co.divisibilityNoteFontSizePt),
@@ -458,22 +458,22 @@ object PdfUtils {
       }
       val chapterOverviewPage = List(Instruction.AddPage) ++ colorCountInstrs ++ smallOverviewInstrs ++ divisibilityNote ++ explodedInstrs
 
-      val thisPlateDivisible = platePic.width % stepSizePx == 0 && platePic.height % stepSizePx == 0
-      val sectionInstrs = if (!thisPlateDivisible) {
-        val msg = s"Section $plateIndex: size (${platePic.width}×${platePic.height}) doesn't work with the step size ($stepSizePx). Step-by-step pages are skipped for it."
+      val thisSectionDivisible = sectionPic.width % stepSizePx == 0 && sectionPic.height % stepSizePx == 0
+      val sectionInstrs = if (!thisSectionDivisible) {
+        val msg = s"Section $sectionIndex: size (${sectionPic.width}×${sectionPic.height}) doesn't work with the step size ($stepSizePx). Step-by-step pages are skipped for it."
         List(Instruction.AddPage, Instruction.FontSize(co.nonDivisibleMessageFontSizePt), Instruction.Text(marginLR, marginTB + co.nonDivisibleMessageOffsetFromTopMm, msg))
       } else {
-        sectionInstructionsForPlate(platePic, fullPic, grid, part, stepSizePx, marginLR, marginTB, availableW, availableH, config)
+        sectionInstructionsForSection(sectionPic, fullPic, grid, part, stepSizePx, marginLR, marginTB, availableW, availableH, config)
       }
       chapterOverviewPage ++ sectionInstrs
     }
   }
 
   /** One section per step: layered canvases (4 per page) for each step patch. */
-  private def sectionInstructionsForPlate(
-      platePic: PixelPic,
+  private def sectionInstructionsForSection(
+      sectionPic: PixelPic,
       fullPic: PixelPic,
-      grid: GridConfig,
+      grid: Layout,
       part: GridPart,
       stepSizePx: Int,
       marginLR: Double,
@@ -482,13 +482,13 @@ object PdfUtils {
       availableH: Double,
       config: PdfLayoutConfig
   ): List[Instruction] = {
-    val nCols        = platePic.width / stepSizePx
-    val nRows        = platePic.height / stepSizePx
+    val nCols        = sectionPic.width / stepSizePx
+    val nRows        = sectionPic.height / stepSizePx
     (0 until nRows).flatMap { cy =>
       (0 until nCols).map { cx =>
         val stepX   = cx * stepSizePx
         val stepY   = cy * stepSizePx
-        platePic.crop(stepX, stepY, stepSizePx, stepSizePx) match {
+        sectionPic.crop(stepX, stepY, stepSizePx, stepSizePx) match {
           case Some(patch) =>
             layerPagesForPatch(patch, fullPic, stepSizePx, cx, cy, part, grid, marginLR, marginTB, availableW, availableH, config)
           case None =>
@@ -498,10 +498,10 @@ object PdfUtils {
     }.toList.flatten
   }
 
-  /** Left column for a step page: patch color counts, small full-mosaic overview with non-current plates and other steps greyed (only current step in full color). */
+  /** Left column for a step page: patch color counts, small full-mosaic overview with non-current sections and other steps greyed (only current step in full color). */
   private def stepPageLeftColumnInstructions(
       fullPic: PixelPic,
-      grid: GridConfig,
+      grid: Layout,
       part: GridPart,
       patch: PixelPic,
       stepCx: Int,
@@ -523,17 +523,17 @@ object PdfUtils {
     val colorListBottom  = contentTopY + sw.firstLineOffsetMm + colorRows.size * sw.lineHeightMm
     val gridOverviewY    = colorListBottom + co.gridOverviewGapAboveMm
     val (smallX0, smallY0, smallScale, smallOverviewW, smallOverviewH) = smallOverviewLayoutParams(fullPic, gridOverviewY, marginLR, co)
-    val greyRectsOtherPlates = parts.toList.filter(_ != part).map(p => (smallX0 + p.x * smallScale, smallY0 + p.y * smallScale, p.width * smallScale, p.height * smallScale))
-    val nColsPlate = part.width / stepSizePx
-    val nRowsPlate = part.height / stepSizePx
-    val greyRectsOtherSteps = (0 until nRowsPlate).flatMap { cy =>
-      (0 until nColsPlate).filter(cx => cx != stepCx || cy != stepCy).map { cx =>
+    val greyRectsOtherSections = parts.toList.filter(_ != part).map(p => (smallX0 + p.x * smallScale, smallY0 + p.y * smallScale, p.width * smallScale, p.height * smallScale))
+    val nColsSection = part.width / stepSizePx
+    val nRowsSection = part.height / stepSizePx
+    val greyRectsOtherSteps = (0 until nRowsSection).flatMap { cy =>
+      (0 until nColsSection).filter(cx => cx != stepCx || cy != stepCy).map { cx =>
         val gx = part.x + cx * stepSizePx
         val gy = part.y + cy * stepSizePx
         (smallX0 + gx * smallScale, smallY0 + gy * smallScale, stepSizePx * smallScale, stepSizePx * smallScale)
       }
     }.toList
-    val greyRectsMm       = greyRectsOtherPlates ++ greyRectsOtherSteps
+    val greyRectsMm       = greyRectsOtherSections ++ greyRectsOtherSteps
     val stepGlobalX       = part.x + stepCx * stepSizePx
     val stepGlobalY       = part.y + stepCy * stepSizePx
     val highlightedRectMm = (smallX0 + stepGlobalX * smallScale, smallY0 + stepGlobalY * smallScale, stepSizePx * smallScale, stepSizePx * smallScale)
@@ -549,7 +549,7 @@ object PdfUtils {
       stepCx: Int,
       stepCy: Int,
       part: GridPart,
-      grid: GridConfig,
+      grid: Layout,
       marginLR: Double,
       marginTB: Double,
       availableW: Double,
@@ -681,22 +681,22 @@ object PdfUtils {
     verticals ++ horizontals
   }
 
-  /** Stroke rects for 16×16 step grid: one line every patchSizePx pixels in plate space. */
+  /** Stroke rects for 16×16 step grid: one line every patchSizePx pixels in section space. */
   private def grid16x16PatchStrokeRects(
       x0: Double,
       y0: Double,
       imageW: Double,
       imageH: Double,
-      plateWidth: Int,
-      plateHeight: Int,
+      sectionWidth: Int,
+      sectionHeight: Int,
       patchSizePx: Int,
       lineWidthMm: Double
   ): List[(Double, Double, Double, Double)] = {
     val half      = lineWidthMm / 2
-    val nCols     = plateWidth / patchSizePx
-    val nRows     = plateHeight / patchSizePx
-    val pxW       = imageW / plateWidth
-    val pxH       = imageH / plateHeight
+    val nCols     = sectionWidth / patchSizePx
+    val nRows     = sectionHeight / patchSizePx
+    val pxW       = imageW / sectionWidth
+    val pxH       = imageH / sectionHeight
     val verticals   = (1 until nCols).map { i =>
       val x = x0 + i * patchSizePx * pxW - half
       (x, y0, lineWidthMm, imageH)
@@ -708,9 +708,9 @@ object PdfUtils {
     verticals ++ horizontals
   }
 
-  /** Full-resolution RGB flat for the plate: pixels in cumulative color set get their color, rest get layer background (like BuildScreen preview per-pixel). */
-  private def buildCumulativeLayerRgb(platePic: PixelPic, colorIndexSet: Set[Int], paletteLookup: Int => Pixel): Vector[Int] =
-    platePic.pixels.iterator.flatMap { idx =>
+  /** Full-resolution RGB flat for the section: pixels in cumulative color set get their color, rest get layer background (like BuildScreen preview per-pixel). */
+  private def buildCumulativeLayerRgb(sectionPic: PixelPic, colorIndexSet: Set[Int], paletteLookup: Int => Pixel): Vector[Int] =
+    sectionPic.pixels.iterator.flatMap { idx =>
       val (r, g, b) =
         if (colorIndexSet.contains(idx)) {
           val p = paletteLookup(idx)

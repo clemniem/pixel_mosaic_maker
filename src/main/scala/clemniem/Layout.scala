@@ -35,7 +35,7 @@ private object GridDefNormalize {
       }
     }
 
-  /** Normalize by enlarging the last cell of each short def (no new plates). */
+  /** Normalize by enlarging the last cell of each short def (no new sections). */
   def normalizeByEnlarge[A](defs: List[A], total: A => Int, cells: A => List[Int], update: (A, List[Int]) => A): List[A] =
     if (defs.isEmpty) defs
     else {
@@ -61,7 +61,7 @@ object RowDef {
   def normalizeToRectangle(rowDefs: List[RowDef]): List[RowDef] =
     GridDefNormalize.normalizeToRect(rowDefs, _.totalWidth, _.cellWidths, (r, cw) => r.copy(cellWidths = cw))
 
-  /** Normalize by enlarging the last cell of each short row (no new plates). */
+  /** Normalize by enlarging the last cell of each short row (no new sections). */
   def normalizeByEnlarging(rowDefs: List[RowDef]): List[RowDef] =
     GridDefNormalize.normalizeByEnlarge(rowDefs, _.totalWidth, _.cellWidths, (r, cw) => r.copy(cellWidths = cw))
 }
@@ -79,12 +79,12 @@ object ColumnDef {
   def normalizeToRectangle(colDefs: List[ColumnDef]): List[ColumnDef] =
     GridDefNormalize.normalizeToRect(colDefs, _.totalHeight, _.cellHeights, (c, ch) => c.copy(cellHeights = ch))
 
-  /** Normalize by enlarging the last cell of each short column (no new plates). */
+  /** Normalize by enlarging the last cell of each short column (no new sections). */
   def normalizeByEnlarging(colDefs: List[ColumnDef]): List[ColumnDef] =
     GridDefNormalize.normalizeByEnlarge(colDefs, _.totalHeight, _.cellHeights, (c, ch) => c.copy(cellHeights = ch))
 }
 
-final case class GridConfig(cols: Int, rows: Int, parts: Array[GridPart]) {
+final case class Layout(cols: Int, rows: Int, parts: Array[GridPart]) {
 
   /** Total width = bounding box (works for uniform and variable layouts). */
   val width: Int =
@@ -97,12 +97,12 @@ final case class GridConfig(cols: Int, rows: Int, parts: Array[GridPart]) {
     else parts.iterator.map(p => p.y + p.height).max
 }
 
-object GridConfig {
-  given Encoder[GridConfig] = deriveEncoder
-  given Decoder[GridConfig] = deriveDecoder
+object Layout {
+  given Encoder[Layout] = deriveEncoder
+  given Decoder[Layout] = deriveDecoder
 
   /** Uniform grid: same column widths for all rows, same row heights for all columns. */
-  def make(rowHeights: Seq[Int], columnWidths: Seq[Int]): GridConfig = {
+  def make(rowHeights: Seq[Int], columnWidths: Seq[Int]): Layout = {
     val rowOffsets  = rowHeights.scanLeft(0)(_ + _).dropRight(1)
     val colOffsets  = columnWidths.scanLeft(0)(_ + _).dropRight(1)
     val parts: Array[GridPart] =
@@ -110,12 +110,12 @@ object GridConfig {
         (rowHeight, y) <- rowHeights.zip(rowOffsets)
         (colWidth, x)  <- columnWidths.zip(colOffsets)
       } yield GridPart(x = x, y = y, width = colWidth, height = rowHeight)).toArray
-    GridConfig(cols = columnWidths.length, rows = rowHeights.length, parts = parts)
+    Layout(cols = columnWidths.length, rows = rowHeights.length, parts = parts)
   }
 
   /** Build from row definitions: each row has a height and a list of cell widths (variable count per row). */
-  def fromRowDefs(rowDefs: List[RowDef]): GridConfig = {
-    if (rowDefs.isEmpty) GridConfig(0, 0, Array.empty)
+  def fromRowDefs(rowDefs: List[RowDef]): Layout = {
+    if (rowDefs.isEmpty) Layout(0, 0, Array.empty)
     else {
       val cols = rowDefs.map(_.cellWidths.length).max
       val rows = rowDefs.length
@@ -125,13 +125,13 @@ object GridConfig {
         }
         (y + row.height, acc ++ rowParts)
       }
-      GridConfig(cols = cols, rows = rows, parts = parts.toArray)
+      Layout(cols = cols, rows = rows, parts = parts.toArray)
     }
   }
 
   /** Build from column definitions: each column has a width and a list of cell heights (variable count per column). */
-  def fromColumnDefs(colDefs: List[ColumnDef]): GridConfig = {
-    if (colDefs.isEmpty) GridConfig(0, 0, Array.empty)
+  def fromColumnDefs(colDefs: List[ColumnDef]): Layout = {
+    if (colDefs.isEmpty) Layout(0, 0, Array.empty)
     else {
       val rows = colDefs.map(_.cellHeights.length).max
       val cols = colDefs.length
@@ -141,7 +141,7 @@ object GridConfig {
         }
         (x + col.width, acc ++ colParts)
       }
-      GridConfig(cols = cols, rows = rows, parts = parts.toArray)
+      Layout(cols = cols, rows = rows, parts = parts.toArray)
     }
   }
 }

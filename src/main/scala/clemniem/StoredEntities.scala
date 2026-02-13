@@ -5,17 +5,17 @@ import io.circe.{Decoder, Encoder}
 
 /** Stored entities for galleries: each has id and display name for listing. */
 
-final case class StoredGridConfig(
+final case class StoredLayout(
     id: String,
     name: String,
-    config: GridConfig,
+    config: Layout,
     mode: Option[GridDefMode] = None,
     rowDefs: Option[List[RowDef]] = None,
     columnDefs: Option[List[ColumnDef]] = None
 )
-object StoredGridConfig {
-  given Encoder[StoredGridConfig] = deriveEncoder
-  given Decoder[StoredGridConfig] = deriveDecoder
+object StoredLayout {
+  given Encoder[StoredLayout] = deriveEncoder
+  given Decoder[StoredLayout] = deriveDecoder
 }
 
 final case class StoredPalette(id: String, name: String, colors: Vector[Color])
@@ -51,7 +51,7 @@ object StoredBuild {
 
 /** LocalStorage keys for gallery lists. */
 object StorageKeys {
-  val gridConfigs  = "gridConfigs"
+  val layouts      = "gridConfigs"
   val palettes     = "palettes"
   val images       = "images"
   val buildConfigs = "buildConfigs"

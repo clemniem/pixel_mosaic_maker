@@ -3,7 +3,7 @@ package clemniem.common
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import clemniem.Color
-import clemniem.GridConfig
+import clemniem.Layout
 import clemniem.PixelPic
 import org.scalajs.dom
 import org.scalajs.dom.html.Canvas
@@ -127,7 +127,7 @@ object CanvasUtils {
       canvas: Canvas,
       ctx: CanvasRenderingContext2D,
       pic: PixelPic,
-      grid: GridConfig,
+      grid: Layout,
       offsetX: Int,
       offsetY: Int,
       maxDim: Int

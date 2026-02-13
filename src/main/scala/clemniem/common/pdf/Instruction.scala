@@ -46,7 +46,7 @@ object Instruction {
       rgbFlat: Vector[Int]
   ) extends Instruction
 
-  /** Draw stroke-only rects (e.g. plate grid overlay). Each (xMm, yMm, widthMm, heightMm). Line width in mm. */
+  /** Draw stroke-only rects (e.g. section grid overlay). Each (xMm, yMm, widthMm, heightMm). Line width in mm. */
   case class DrawStrokeRects(
       rectsMm: List[(Double, Double, Double, Double)],
       strokeR: Int,

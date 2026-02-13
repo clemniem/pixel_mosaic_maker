@@ -15,8 +15,8 @@ trait ScreenId {
 /** All screen IDs: Overview (home), galleries (list of saved items), and flow/editor screens. */
 object ScreenId {
   case object OverviewId          extends ScreenId { val name = "overview";          val title = "Overview" }
-  case object GridConfigsId       extends ScreenId { val name = "grid-configs";      val title = "Layout";             override val overviewDescription = Some("How your mosaic is split into sections") }
-  case object GridConfigId        extends ScreenId { val name = "grid-config";       val title = "Edit layout" }
+  case object LayoutsId           extends ScreenId { val name = "grid-configs";      val title = "Layout";             override val overviewDescription = Some("How your mosaic is split into sections") }
+  case object LayoutId            extends ScreenId { val name = "grid-config";       val title = "Edit layout" }
   case object PalettesId          extends ScreenId { val name = "palettes";           val title = "Palettes";           override val overviewDescription = Some("Color palettes") }
   case object PaletteId           extends ScreenId { val name = "palette";           val title = "Palette" }
   case object ImagesId            extends ScreenId { val name = "images";           val title = "Images";              override val overviewDescription = Some("Upload and manage your images") }
@@ -30,7 +30,7 @@ object ScreenId {
 
   /** Screen IDs shown on the overview page as link cards, in order. */
   val overviewScreenIds: List[ScreenId] =
-    List(ImagesId, PalettesId, GridConfigsId, BuildConfigsId, BuildsId, PrintInstructionsId)
+    List(ImagesId, PalettesId, LayoutsId, BuildConfigsId, BuildsId, PrintInstructionsId)
 
   /** Next screen in the overview flow (for the "Next →" button). Overview → first in list; last → Overview; editors → next after their gallery. */
   def nextInOverviewOrder(current: ScreenId): ScreenId =
@@ -42,8 +42,8 @@ object ScreenId {
         else OverviewId
       }       else
         current match {
-          case GridConfigId   => PalettesId
-          case PaletteId      => GridConfigsId
+          case LayoutId       => PalettesId
+          case PaletteId      => LayoutsId
           case ImageUploadId  => BuildConfigsId
           case BuildConfigId  => BuildsId
           case BuildId        => PrintInstructionsId
@@ -57,8 +57,8 @@ object ScreenId {
 sealed trait ScreenOutput
 
 object ScreenOutput {
-  /** Step 1 → next: chosen grid of plates. */
-  final case class GridConfigDone(grid: GridConfig) extends ScreenOutput
+  /** Step 1 → next: chosen layout of sections. */
+  final case class LayoutDone(grid: Layout) extends ScreenOutput
 
   /** Step 2 → next: uploaded and prepped pixel image (pixel-true, palette-reduced). */
   final case class ImageUploaded(name: String) extends ScreenOutput
@@ -68,14 +68,14 @@ object ScreenOutput {
   final case class PaletteChosen(paletteId: String) extends ScreenOutput
   // TODO: add palette type when Palettes screen exists (see gbcamutil ChangePalette / LegoColor)
 
-  /** Step 4 → next: build = Palette + GridConfig + Image + Offset (stateless). */
+  /** Step 4 → next: build = Palette + Layout + Image + Offset (stateless). */
   final case class BuildConfigDone(config: BuildConfig) extends ScreenOutput
 
   /** Step 5 → Print: same config, for PDF generation. */
   final case class BuildStarted(config: BuildConfig) extends ScreenOutput
 
-  /** Open grid config editor to edit an existing stored config. */
-  final case class EditGridConfig(stored: StoredGridConfig) extends ScreenOutput
+  /** Open layout editor to edit an existing stored layout. */
+  final case class EditLayout(stored: StoredLayout) extends ScreenOutput
 
   /** Open palette editor to edit an existing stored palette. */
   final case class EditPalette(stored: StoredPalette) extends ScreenOutput
@@ -86,7 +86,7 @@ object ScreenOutput {
   /** Open build config editor to edit an existing stored config. */
   final case class EditBuildConfig(stored: StoredBuildConfig) extends ScreenOutput
 
-  /** Start the step-by-step build with the selected build config (plates → 16×16 cells). */
+  /** Start the step-by-step build with the selected build config (sections → 16×16 cells). */
   final case class StartBuild(stored: StoredBuildConfig) extends ScreenOutput
 
   /** Resume a build from the builds list (has buildConfigRef + savedStepIndex). */

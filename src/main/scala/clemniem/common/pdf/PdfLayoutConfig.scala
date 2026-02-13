@@ -58,7 +58,7 @@ object PdfLayoutConfig {
       firstLineOffsetMm: Double
   )
 
-  /** Chapter (plate) overview page: same pattern as full overview – left = color list + small grid overview below; right = exploded plate with dimension lines. No title. */
+  /** Chapter (section) overview page: same pattern as full overview – left = color list + small grid overview below; right = exploded section with dimension lines. No title. */
   final case class ChapterOverview(
       contentTopOffsetFromTopMm: Double,
       colorListReservedWidthMm: Double,
