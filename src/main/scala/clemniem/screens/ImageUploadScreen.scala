@@ -2,10 +2,11 @@ package clemniem.screens
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import clemniem.{Color, NavigateNext, PixelPic, PixelPicService, Screen, ScreenId, StorageKeys, StoredImage}
+import clemniem.{AutoQuantize, Color, FromPalette, NavigateNext, PaletteMode, PixelPic, PixelPicService, Screen, ScreenId, StorageKeys, StoredImage, StoredPalette}
 import clemniem.common.{CanvasUtils, CmdUtils, ImageUtils, LocalStorageUtils}
 import clemniem.common.image.{
   ColorDithering,
+  ColorQuantizationService,
   DownscaleAverage,
   DownscaleBayer,
   DownscaleStrategy,
@@ -49,16 +50,23 @@ object ImageUploadScreen extends Screen {
       sourceDataUrl = None,
       sourceFileName = None,
       downscaleStrategy = DownscaleAverage,
-      numPaletteColors = None,
+      paletteMode = UploadPaletteMode.Auto(16),
       colorDithering = NoColorDithering,
-      pipelineRunId = 0L
+      pipelineRunId = 0L,
+      savedPalettes = None,
+      detectedColorCount = None
     )
-    val cmd = CmdUtils.run(
+    val fileCmd = CmdUtils.run(
       waitForFileSelection(),
       identity[ImageUploadMsg],
       e => ImageUploadMsg.ImageDecodedError(e.getMessage)
     )
-    (model, cmd)
+    val palettesCmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
+      ImageUploadMsg.LoadedPalettes.apply,
+      _ => ImageUploadMsg.LoadedPalettes(Nil),
+      (_, _) => ImageUploadMsg.LoadedPalettes(Nil)
+    )
+    (model, Cmd.Batch(fileCmd, palettesCmd))
   }
 
   private def waitForFileSelection(): IO[ImageUploadMsg] = {
@@ -89,17 +97,23 @@ object ImageUploadScreen extends Screen {
     (model.sourceDataUrl, model.sourceFileName) match {
       case (Some(url), Some(fileName)) =>
         val runId = model.pipelineRunId
+        val paletteMode: PaletteMode = model.paletteMode match {
+          case UploadPaletteMode.Auto(n) => AutoQuantize(n)
+          case UploadPaletteMode.FromSaved(id) =>
+            val colors = model.savedPalettes.flatMap(_.find(_.id == id)).map(_.colors).getOrElse(Vector.empty)
+            FromPalette(colors.map(c => (c.r.toByte, c.g.toByte, c.b.toByte, 255.toByte)))
+        }
         CmdUtils.run(
           PixelPicService.processUploadedImage(
             url,
             fileName,
             model.downscaleStrategy,
-            model.numPaletteColors,
+            paletteMode,
             model.colorDithering
           ).map(e =>
             e.fold(
               msg => ImageUploadMsg.ImageDecodedError(msg, Some(runId)),
-              pic => ImageUploadMsg.ImageDecoded(pic, Some(fileName), runId)
+              { case (pic, detectedColors) => ImageUploadMsg.ImageDecoded(pic, Some(fileName), detectedColors, runId) }
             )
           ),
           identity[ImageUploadMsg],
@@ -122,11 +136,13 @@ object ImageUploadScreen extends Screen {
         name = baseNameFromFileName(fileName),
         error = None,
         loading = true,
-        pipelineRunId = model.pipelineRunId + 1L
+        pipelineRunId = model.pipelineRunId + 1L,
+        detectedColorCount = None,
+        paletteMode = UploadPaletteMode.Auto(16)
       )
       (next, runPipeline(next))
 
-    case ImageUploadMsg.ImageDecoded(pic, fileName, runId) =>
+    case ImageUploadMsg.ImageDecoded(pic, fileName, detectedColors, runId) =>
       if (runId != model.pipelineRunId) (model, Cmd.None)
       else {
         val name =
@@ -134,13 +150,35 @@ object ImageUploadScreen extends Screen {
             fileName.map(baseNameFromFileName).filter(_.nonEmpty).getOrElse("Unnamed image")
           else
             model.name
-        val nextModel = model.copy(pixelPic = Some(pic), name = name, error = None, loading = false)
-        val drawCmd = CmdUtils.fireAndForget(
-          CanvasUtils.runAfterFrames(3)(drawPreview(pic)),
-          ImageUploadMsg.NoOp,
-          _ => ImageUploadMsg.NoOp
+        // On first load, set palette mode default to min(detectedColors, 16)
+        val updatedPaletteMode =
+          if (model.detectedColorCount.isEmpty)
+            UploadPaletteMode.Auto(detectedColors.min(16).max(ColorQuantizationService.MinColors))
+          else
+            model.paletteMode
+        val needsRerun = model.detectedColorCount.isEmpty && (updatedPaletteMode match {
+          case UploadPaletteMode.Auto(n) => n != 16  // initial pipeline ran with 16, smart default differs
+          case _ => false
+        })
+        val nextModel = model.copy(
+          pixelPic = Some(pic),
+          name = name,
+          error = None,
+          loading = needsRerun,
+          detectedColorCount = Some(detectedColors),
+          paletteMode = updatedPaletteMode,
+          pipelineRunId = if (needsRerun) model.pipelineRunId + 1L else model.pipelineRunId
         )
-        (nextModel, drawCmd)
+        if (needsRerun) {
+          (nextModel, runPipeline(nextModel))
+        } else {
+          val drawCmd = CmdUtils.fireAndForget(
+            CanvasUtils.runAfterFrames(3)(drawPreview(pic)),
+            ImageUploadMsg.NoOp,
+            _ => ImageUploadMsg.NoOp
+          )
+          (nextModel, drawCmd)
+        }
       }
 
     case ImageUploadMsg.ImageDecodedError(msg, runId) =>
@@ -154,9 +192,22 @@ object ImageUploadScreen extends Screen {
       val next = model.copy(downscaleStrategy = s, loading = true, pipelineRunId = model.pipelineRunId + 1L)
       (next, runPipeline(next))
 
-    case ImageUploadMsg.SetNumPaletteColors(opt) =>
-      val next = model.copy(numPaletteColors = opt, loading = true, pipelineRunId = model.pipelineRunId + 1L)
+    case ImageUploadMsg.SetPaletteModeAuto(n) =>
+      val next = model.copy(paletteMode = UploadPaletteMode.Auto(n), loading = true, pipelineRunId = model.pipelineRunId + 1L)
       (next, runPipeline(next))
+
+    case ImageUploadMsg.SetPaletteModeFromSaved(id) =>
+      val hasPalette = id.nonEmpty && model.savedPalettes.exists(_.exists(_.id == id))
+      if (hasPalette) {
+        val next = model.copy(paletteMode = UploadPaletteMode.FromSaved(id), loading = true, pipelineRunId = model.pipelineRunId + 1L)
+        (next, runPipeline(next))
+      } else {
+        // No valid palette selected; switch mode in the UI but don't run pipeline
+        (model.copy(paletteMode = UploadPaletteMode.FromSaved(id)), Cmd.None)
+      }
+
+    case ImageUploadMsg.LoadedPalettes(list) =>
+      (model.copy(savedPalettes = Some(list)), Cmd.None)
 
     case ImageUploadMsg.SetColorDithering(d) =>
       val next = model.copy(colorDithering = d, loading = true, pipelineRunId = model.pipelineRunId + 1L)
@@ -302,30 +353,81 @@ object ImageUploadScreen extends Screen {
       )
     )
 
-  private def paletteColorsBlock(model: Model): Html[Msg] =
+  private def paletteColorsBlock(model: Model): Html[Msg] = {
+    val isAuto = model.paletteMode match { case UploadPaletteMode.Auto(_) => true; case _ => false }
+    val isFromSaved = !isAuto
+    // When switching to "From palette", pick the first saved palette as default
+    val firstPaletteId = model.savedPalettes.flatMap(_.headOption).map(_.id).getOrElse("")
+
     div(`class` := "field-block--lg")(
-      label(`class` := "label-block")(text("Palette colors")),
+      label(`class` := "label-block")(text("Palette")),
+      // Mode selector row: Auto / From palette
       div(`class` := "upload-option-row upload-option-row--wrap")(
-        (button(
-          `class` := pillClass(model.numPaletteColors.isEmpty, "upload-option-pill"),
-          onClick(ImageUploadMsg.SetNumPaletteColors(None))
-        )(text("Full")) +: paletteColorCounts.map { n =>
-          val selected = model.numPaletteColors.contains(n)
-          button(
-            `class` := pillClass(selected, "upload-option-pill"),
-            onClick(ImageUploadMsg.SetNumPaletteColors(Some(n)))
-          )(text(n.toString))
-        }.toVector)*
+        button(
+          `class` := pillClass(isAuto, "upload-option-pill"),
+          onClick(ImageUploadMsg.SetPaletteModeAuto(
+            model.paletteMode match { case UploadPaletteMode.Auto(n) => n; case _ => model.detectedColorCount.map(_.min(16).max(ColorQuantizationService.MinColors)).getOrElse(16) }
+          ))
+        )(text("Auto")),
+        button(
+          `class` := pillClass(isFromSaved, "upload-option-pill"),
+          onClick(ImageUploadMsg.SetPaletteModeFromSaved(
+            model.paletteMode match { case UploadPaletteMode.FromSaved(id) => id; case _ => firstPaletteId }
+          ))
+        )(text("From palette"))
       ),
-      (for {
-        n   <- model.numPaletteColors
-        pic <- model.pixelPic
-        if !model.loading || pic.paletteLookup.size <= paletteColorCounts.max
-      } yield div(`class` := "upload-palette-strip", style := "margin-top: 0.35rem;")(
-        PaletteStripView.previewInline(pic.paletteLookup.toList.map(p => Color(p.r, p.g, p.b)))
-      )).getOrElse(div(`class` := "hidden")(text(""))),
-      span(`class` := "helper-text helper-text--top")(text("Reduce to 4–16 colors for a retro look."))
+      // Conditional detail row
+      model.paletteMode match {
+        case UploadPaletteMode.Auto(n) =>
+          div()(
+            div(`class` := "upload-option-row upload-option-row--wrap", style := "margin-top: 0.35rem;")(
+              paletteColorCounts.map { count =>
+                val selected = count == n
+                button(
+                  `class` := pillClass(selected, "upload-option-pill"),
+                  onClick(ImageUploadMsg.SetPaletteModeAuto(count))
+                )(text(count.toString))
+              }*
+            ),
+            model.pixelPic.map { pic =>
+              div(`class` := "upload-palette-strip", style := "margin-top: 0.35rem;")(
+                PaletteStripView.previewInline(pic.paletteLookup.toList.map(p => Color(p.r, p.g, p.b)))
+              )
+            }.getOrElse(div(`class` := "hidden")(text(""))),
+            span(`class` := "helper-text helper-text--top")(text("Reduce to 4–16 colors."))
+          )
+        case UploadPaletteMode.FromSaved(selectedId) =>
+          model.savedPalettes match {
+            case Some(palettes) if palettes.nonEmpty =>
+              div()(
+                div(`class` := "upload-option-row", style := "margin-top: 0.35rem;")(
+                  tyrian.Html.select(
+                    `class` := s"${NesCss.input} input-w-full",
+                    onChange(v => ImageUploadMsg.SetPaletteModeFromSaved(v))
+                  )(
+                    palettes.map { sp =>
+                      val attrs =
+                        if (sp.id == selectedId) List(Attribute("value", sp.id), selected(true))
+                        else List(Attribute("value", sp.id))
+                      option(attrs*)(text(s"${sp.name} (${sp.colors.size} colors)"))
+                    }*
+                  )
+                ),
+                palettes.find(_.id == selectedId).map { sp =>
+                  div(`class` := "upload-palette-strip", style := "margin-top: 0.35rem;")(
+                    PaletteStripView.previewInline(sp.colors.toList)
+                  )
+                }.getOrElse(div(`class` := "hidden")(text(""))),
+                span(`class` := "helper-text helper-text--top")(text("Map image colors to this saved palette."))
+              )
+            case _ =>
+              div(style := "margin-top: 0.35rem;")(
+                span(`class` := "helper-text")(text("No palettes saved yet. Save a palette first."))
+              )
+          }
+      }
     )
+  }
 
   private def colorDitheringBlock(model: Model): Html[Msg] =
     div(`class` := "field-block--lg")(
@@ -339,12 +441,17 @@ object ImageUploadScreen extends Screen {
           )(text(d.name))
         }*
       ),
-      span(`class` := "helper-text helper-text--top")(text("Only applies when palette colors is set."))
+      span(`class` := "helper-text helper-text--top")(text("Dithering pattern for mapping to the palette."))
     )
 
   override def subscriptions(model: Model): Sub[IO, Msg] =
     Sub.None
 }
+
+/** Palette mode selection in the upload UI. */
+enum UploadPaletteMode:
+  case Auto(numColors: Int)
+  case FromSaved(paletteId: String)
 
 final case class ImageUploadModel(
     name: String,
@@ -354,18 +461,22 @@ final case class ImageUploadModel(
     sourceDataUrl: Option[String],
     sourceFileName: Option[String],
     downscaleStrategy: DownscaleStrategy,
-    numPaletteColors: Option[Int],
+    paletteMode: UploadPaletteMode,
     colorDithering: ColorDithering,
-    pipelineRunId: Long
+    pipelineRunId: Long,
+    savedPalettes: Option[List[StoredPalette]],
+    detectedColorCount: Option[Int]
 )
 
 enum ImageUploadMsg:
   case FileLoaded(dataUrl: String, fileName: String)
-  case ImageDecoded(pic: PixelPic, fileName: Option[String], runId: Long)
+  case ImageDecoded(pic: PixelPic, fileName: Option[String], detectedColors: Int, runId: Long)
   case ImageDecodedError(message: String, runId: Option[Long] = None)
   case SetName(name: String)
   case SetDownscaleStrategy(strategy: DownscaleStrategy)
-  case SetNumPaletteColors(numColors: Option[Int])
+  case SetPaletteModeAuto(numColors: Int)
+  case SetPaletteModeFromSaved(paletteId: String)
+  case LoadedPalettes(list: List[StoredPalette])
   case SetColorDithering(dithering: ColorDithering)
   case Save
   case LoadedForSave(list: List[StoredImage])
