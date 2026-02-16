@@ -14,21 +14,21 @@ lazy val pixel_mosaic_maker =
       scalaVersion := "3.6.4",
       organization := "clemniem",
       libraryDependencies ++= Seq(
-        "io.indigoengine" %%% "tyrian-io"   % "0.14.0",
-        "io.circe"        %%% "circe-core"   % "0.14.6",
-        "io.circe"        %%% "circe-parser" % "0.14.6",
-        "io.circe"        %%% "circe-generic"% "0.14.6",
-        "org.scalameta"   %%% "munit"        % "1.1.1" % Test
+        "io.indigoengine" %%% "tyrian-io"     % "0.14.0",
+        "io.circe"        %%% "circe-core"    % "0.14.15",
+        "io.circe"        %%% "circe-parser"  % "0.14.6",
+        "io.circe"        %%% "circe-generic" % "0.14.6",
+        "org.scalameta"   %%% "munit"         % "1.1.1" % Test
       ),
       testFrameworks += new TestFramework("munit.Framework"),
       scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
       // Output to version-independent paths so JS entry points don't break on Scala version bumps.
       Compile / fastLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "target" / "scalajs-dev",
       Compile / fullLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "target" / "scalajs-opt",
-      scalafixOnCompile := true,
-      semanticdbEnabled := true,
-      semanticdbVersion := scalafixSemanticdb.revision,
-      autoAPIMappings   := true
+      scalafixOnCompile                                   := true,
+      semanticdbEnabled                                   := true,
+      semanticdbVersion                                   := scalafixSemanticdb.revision,
+      autoAPIMappings                                     := true
     )
     .settings( // Welcome message
       logo := List(
