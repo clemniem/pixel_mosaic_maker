@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pixel-mosaic-maker-v1';
+const CACHE_NAME = 'pixel-mosaic-maker-__BUILD_TS__';
 
 const PRECACHE_URLS = [
   './',

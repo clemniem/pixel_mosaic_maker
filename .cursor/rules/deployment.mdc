@@ -24,7 +24,7 @@ Deploy index.html loads jsPDF from **CDN** (unpkg `jspdf.umd.min.js`) and sets `
 ## Service Worker
 - `sw-register.js`: Only registers when `location.hostname !== 'localhost'` (avoids MIME/404 on local dev).
 - `sw.js`: Caches HTML, CSS, fetches. Uses `self.skipWaiting()` on install.
-- **Cache busting:** If users see stale content after deploy, bump `CACHE_NAME` version in `sw.js` (e.g. `v3` -> `v4`). On activate, old caches are deleted.
+- **Cache busting:** `sw.js` contains a `__BUILD_TS__` placeholder. The deploy workflow replaces it with a Unix timestamp (`date +%s`) via `sed`, so every deploy gets a unique `CACHE_NAME` automatically. On activate, old caches are deleted. No manual version bumps needed.
 
 ## Workflow Requirements
 Deploy job needs permissions: `contents: read`, `pages: write`, `id-token: write`. Use concurrency group `"pages"` to avoid overlapping deploys.
