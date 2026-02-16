@@ -6,13 +6,12 @@ import io.circe.{Decoder, Encoder}
 /** Stored entities for galleries: each has id and display name for listing. */
 
 final case class StoredLayout(
-    id: String,
-    name: String,
-    config: Layout,
-    mode: Option[GridDefMode] = None,
-    rowDefs: Option[List[RowDef]] = None,
-    columnDefs: Option[List[ColumnDef]] = None
-)
+  id: String,
+  name: String,
+  config: Layout,
+  mode: Option[GridDefMode] = None,
+  rowDefs: Option[List[RowDef]] = None,
+  columnDefs: Option[List[ColumnDef]] = None)
 object StoredLayout {
   given Encoder[StoredLayout] = deriveEncoder
   given Decoder[StoredLayout] = deriveDecoder
@@ -38,12 +37,11 @@ object StoredBuildConfig {
 
 /** A build in progress: references a build config and stores saved step and patch background color. */
 final case class StoredBuild(
-    id: String,
-    name: String,
-    buildConfigRef: String,
-    savedStepIndex: Option[Int] = None,
-    patchBackgroundColorHex: Option[String] = None
-)
+  id: String,
+  name: String,
+  buildConfigRef: String,
+  savedStepIndex: Option[Int] = None,
+  patchBackgroundColorHex: Option[String] = None)
 object StoredBuild {
   given Encoder[StoredBuild] = deriveEncoder
   given Decoder[StoredBuild] = deriveDecoder

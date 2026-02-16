@@ -7,11 +7,15 @@ import tyrian.*
 /** Shared layout for gallery screens: root container, header (title + back button), and content. */
 object GalleryLayout {
 
-  /** Label for back-style buttons (arrow + text). Arrow uses .btn-arrow so it renders at readable size with Press Start 2P. */
+  /** Label for back-style buttons (arrow + text). Arrow uses .btn-arrow so it renders at readable size with Press Start
+    * 2P.
+    */
   def backButtonLabel[Msg](arrow: String, label: String): Html[Msg] =
     span(span(`class` := "btn-arrow")(text(arrow)), text(" " + label))
 
-  /** Label for next-style buttons (text + arrow). Arrow uses .btn-arrow so it renders at readable size with Press Start 2P. */
+  /** Label for next-style buttons (text + arrow). Arrow uses .btn-arrow so it renders at readable size with Press Start
+    * 2P.
+    */
   def nextButtonLabel[Msg](label: String, arrow: String): Html[Msg] =
     span(text(label + " "), span(`class` := "btn-arrow")(text(arrow)))
 
@@ -42,13 +46,13 @@ object GalleryLayout {
 
   /** Paginated gallery list from full list: computes slice and builds list with add action and pagination. */
   def paginatedListWith[A, Msg](
-      list: List[A],
-      currentPage: Int,
-      pageSize: Int,
-      addAction: Html[Msg],
-      entryCard: A => Html[Msg],
-      onPreviousPage: Msg,
-      onNextPage: Msg
+    list: List[A],
+    currentPage: Int,
+    pageSize: Int,
+    addAction: Html[Msg],
+    entryCard: A => Html[Msg],
+    onPreviousPage: Msg,
+    onNextPage: Msg
   ): Html[Msg] = {
     val (slice, page, totalPages) = sliceForPage(list, currentPage, pageSize)
     listWithAddActionAndPagination(addAction, slice.map(entryCard), page, totalPages, onPreviousPage, onNextPage)
@@ -66,7 +70,8 @@ object GalleryLayout {
       button(`class` := NesCss.btn, onClick(onCancel))(text("Cancel"))
     )
 
-  /** CSS class for the content area so items don't touch container borders. Use with gallery-list for the list wrapper. */
+  /** CSS class for the content area so items don't touch container borders. Use with gallery-list for the list wrapper.
+    */
   val galleryContentClass = "gallery-content"
 
   /** CSS class for the vertical list of gallery cards + actions (gap between items, no touching). */
@@ -75,18 +80,22 @@ object GalleryLayout {
   /** Default number of entries per page when using pagination. */
   val defaultPageSize: Int = 3
 
-  /** Gallery list with add/create action at the top, then the given entries. Use for all galleries so the add button is consistently first. */
+  /** Gallery list with add/create action at the top, then the given entries. Use for all galleries so the add button is
+    * consistently first.
+    */
   def listWithAddAction[Msg](addAction: Html[Msg], entries: Iterable[Html[Msg]]): Html[Msg] =
     div(`class` := galleryListClass)((addAction +: entries.toSeq)*)
 
-  /** Paginated gallery list: add action, then a max-height entries area, then Previous / Page x of y / Next. Only shows pagination when totalPages > 1. */
+  /** Paginated gallery list: add action, then a max-height entries area, then Previous / Page x of y / Next. Only shows
+    * pagination when totalPages > 1.
+    */
   def listWithAddActionAndPagination[Msg](
-      addAction: Html[Msg],
-      entriesForCurrentPage: Iterable[Html[Msg]],
-      currentPage: Int,
-      totalPages: Int,
-      onPreviousPage: Msg,
-      onNextPage: Msg
+    addAction: Html[Msg],
+    entriesForCurrentPage: Iterable[Html[Msg]],
+    currentPage: Int,
+    totalPages: Int,
+    onPreviousPage: Msg,
+    onNextPage: Msg
   ): Html[Msg] = {
     val paginationBar =
       if (totalPages <= 1) None
@@ -111,18 +120,23 @@ object GalleryLayout {
     div(`class` := galleryListClass)(children*)
   }
 
-  /** @param title       Screen title (e.g. "Palettes", "Build configs")
-    * @param backButton  Back button HTML (e.g. ← Overview)
-    * @param content     Main content: loading state, empty state, or list + actions (will be wrapped in gallery-content)
-    * @param shortHeader If true, use smaller margin below header
-    * @param nextButton  Optional "Next →" button (navigates to next screen in overview order)
+  /** @param title
+    *   Screen title (e.g. "Palettes", "Build configs")
+    * @param backButton
+    *   Back button HTML (e.g. ← Overview)
+    * @param content
+    *   Main content: loading state, empty state, or list + actions (will be wrapped in gallery-content)
+    * @param shortHeader
+    *   If true, use smaller margin below header
+    * @param nextButton
+    *   Optional "Next →" button (navigates to next screen in overview order)
     */
   def apply[Msg](
-      title: String,
-      backButton: Html[Msg],
-      content: Html[Msg],
-      shortHeader: Boolean,
-      nextButton: Option[Html[Msg]]
+    title: String,
+    backButton: Html[Msg],
+    content: Html[Msg],
+    shortHeader: Boolean,
+    nextButton: Option[Html[Msg]]
   ): Html[Msg] = {
     val headerClass = if (shortHeader) "screen-header screen-header--short" else "screen-header"
     val headerButtons = nextButton match {

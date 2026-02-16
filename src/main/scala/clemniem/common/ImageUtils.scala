@@ -78,14 +78,14 @@ object ImageUtils {
 
   /** Downscale ImageData by taking every `factor`-th pixel (nearest-neighbor downscale). */
   def downscaleImageData(imageData: ImageData, factor: Int): ImageData = {
-    val w    = imageData.width
-    val h    = imageData.height
-    val src  = imageData.data
-    val arr  = Array.tabulate(w * h * 4)(i => (src(i) & 0xff).toByte)
+    val w                  = imageData.width
+    val h                  = imageData.height
+    val src                = imageData.data
+    val arr                = Array.tabulate(w * h * 4)(i => (src(i) & 0xff).toByte)
     val (nw, nh, outBytes) = downscaleToBytes(w, h, arr, factor)
-    val (_, ctx) = createOffscreenCanvas(nw, nh)
-    val out = ctx.createImageData(nw, nh)
-    val dst = out.data
+    val (_, ctx)           = createOffscreenCanvas(nw, nh)
+    val out                = ctx.createImageData(nw, nh)
+    val dst                = out.data
     for (i <- outBytes.indices) dst(i) = outBytes(i) & 0xff
     out
   }
@@ -118,17 +118,17 @@ object ImageUtils {
     ctx.getImageData(0, 0, img.width, img.height)
   }
 
-  /** Get ImageData from a loaded Image, scaled to fit within maxW×maxH. Uses canvas drawImage scaling so
-    * we never allocate huge buffers (avoids main-thread freeze on large uploads).
+  /** Get ImageData from a loaded Image, scaled to fit within maxW×maxH. Uses canvas drawImage scaling so we never
+    * allocate huge buffers (avoids main-thread freeze on large uploads).
     */
   def imageToImageDataMaxSize(img: Image, maxW: Int, maxH: Int): ImageData = {
     val w = img.width
     val h = img.height
     if (w <= maxW && h <= maxH) imageToImageData(img)
     else {
-      val scale = (maxW.toDouble / w).min(maxH.toDouble / h)
-      val nw = (w * scale).toInt.max(1).min(maxW)
-      val nh = (h * scale).toInt.max(1).min(maxH)
+      val scale    = (maxW.toDouble / w).min(maxH.toDouble / h)
+      val nw       = (w * scale).toInt.max(1).min(maxW)
+      val nh       = (h * scale).toInt.max(1).min(maxH)
       val (_, ctx) = createOffscreenCanvas(nw, nh)
       ctx.drawImage(img, 0, 0, w, h, 0, 0, nw, nh)
       ctx.getImageData(0, 0, nw, nh)
@@ -137,8 +137,8 @@ object ImageUtils {
 
   /** Convert ImageData to DOM-free RawImage (copy of bytes). */
   def rawFromImageData(imageData: ImageData): RawImage = {
-    val w = imageData.width
-    val h = imageData.height
+    val w   = imageData.width
+    val h   = imageData.height
     val src = imageData.data
     val arr = new Array[Byte](w * h * 4)
     for (i <- arr.indices) arr(i) = (src(i) & 0xff).toByte
@@ -148,8 +148,8 @@ object ImageUtils {
   /** Convert RawImage to ImageData (requires DOM for createImageData). */
   def imageDataFromRaw(raw: RawImage): ImageData = {
     val (_, ctx) = createOffscreenCanvas(raw.width, raw.height)
-    val out = ctx.createImageData(raw.width, raw.height)
-    val dst = out.data
+    val out      = ctx.createImageData(raw.width, raw.height)
+    val dst      = out.data
     for (i <- raw.data.indices) dst(i) = raw.data(i) & 0xff
     out
   }

@@ -2,14 +2,14 @@ package clemniem
 
 import cats.effect.IO
 import clemniem.common.ImageUtils.{
-  DataUrlBase64,
+  detectNearestNeighborScale,
   downscaleImageData,
   getFromImage,
   imageToImageData,
   imageToImageDataMaxSize,
   loadImageFromFile,
   rawFromImageData,
-  detectNearestNeighborScale
+  DataUrlBase64
 }
 import clemniem.common.image.{
   ColorDithering,
@@ -23,13 +23,15 @@ import org.scalajs.dom.File
 
 /** Palette mode for the image upload pipeline. */
 sealed trait PaletteMode
+
 /** Auto-quantize using median cut to N colors (4–16). */
 final case class AutoQuantize(numColors: Int) extends PaletteMode
+
 /** Use a fixed palette directly (e.g. from a saved StoredPalette). */
 final case class FromPalette(palette: Vector[(Byte, Byte, Byte, Byte)]) extends PaletteMode
 
-/** IO-based image loading and processing that produces [[PixelPic]] instances.
-  * Separated from the [[PixelPic]] data model to keep concerns distinct.
+/** IO-based image loading and processing that produces [[PixelPic]] instances. Separated from the [[PixelPic]] data
+  * model to keep concerns distinct.
   */
 object PixelPicService {
 
@@ -37,7 +39,7 @@ object PixelPicService {
   def loadPixelImageFromFile(file: File): IO[Option[PixelPic]] =
     for {
       (fileName, dataUrl) <- loadImageFromFile(file)
-      pic                 <- getFromImage(dataUrl) { img =>
+      pic <- getFromImage(dataUrl) { img =>
         val imgData0 = imageToImageData(img)
         val scaleOpt = detectNearestNeighborScale(imgData0)
         val imgData  = scaleOpt.fold(imgData0)(f => downscaleImageData(imgData0, f))
@@ -45,29 +47,30 @@ object PixelPicService {
       }
     } yield pic
 
-  /** Full pipeline: load from data URL, validate size, downscale to target max, quantize.
-    * Returns Left(error) or Right((pic, detectedUniqueColors)) where detectedUniqueColors is
-    * the number of unique colors in the downscaled image before quantization.
+  /** Full pipeline: load from data URL, validate size, downscale to target max, quantize. Returns Left(error) or
+    * Right((pic, detectedUniqueColors)) where detectedUniqueColors is the number of unique colors in the downscaled
+    * image before quantization.
     */
   def processUploadedImage(
-      dataUrl: DataUrlBase64,
-      fileName: String,
-      downscaleStrategy: DownscaleStrategy,
-      paletteMode: PaletteMode,
-      colorDithering: ColorDithering
+    dataUrl: DataUrlBase64,
+    fileName: String,
+    downscaleStrategy: DownscaleStrategy,
+    paletteMode: PaletteMode,
+    colorDithering: ColorDithering
   ): IO[Either[String, (PixelPic, Int)]] =
     getFromImage(dataUrl) { img =>
       val w = img.width
       val h = img.height
       if (SizeReductionService.exceedsMaxUpload(w, h))
-        Left(s"Image too large. Max ${SizeReductionService.MaxUploadWidth}×${SizeReductionService.MaxUploadHeight} px (got ${w}×${h}).")
+        Left(
+          s"Image too large. Max ${SizeReductionService.MaxUploadWidth}×${SizeReductionService.MaxUploadHeight} px (got ${w}×${h}).")
       else {
         val imgData = imageToImageDataMaxSize(
           img,
           SizeReductionService.TargetMaxWidth,
           SizeReductionService.TargetMaxHeight
         )
-        val raw    = rawFromImageData(imgData)
+        val raw = rawFromImageData(imgData)
         val reduced = SizeReductionService.downscale(
           raw,
           SizeReductionService.TargetMaxWidth,
@@ -75,7 +78,7 @@ object PixelPicService {
           downscaleStrategy
         )
         val uniqueColors = countUniqueColors(reduced)
-        val name = fileName
+        val name         = fileName
         val result = paletteMode match {
           case AutoQuantize(n) =>
             val q = ColorQuantizationService.quantize(reduced, n, colorDithering)
@@ -95,7 +98,7 @@ object PixelPicService {
   /** Count unique RGBA colors in a raw image. */
   private def countUniqueColors(raw: RawImage): Int = {
     val seen = scala.collection.mutable.HashSet.empty[Long]
-    val n = raw.width * raw.height
+    val n    = raw.width * raw.height
     for (i <- 0 until n) {
       val o = i * 4
       val r = raw.data(o) & 0xff

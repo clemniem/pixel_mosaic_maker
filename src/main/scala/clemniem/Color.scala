@@ -33,19 +33,21 @@ object Color {
   val smallOverviewGrey: Color               = Color(210, 210, 210)
   val progressBarBackgroundPastelBlue: Color = Color(200, 220, 240)
   val progressBarFill: Color                 = Color(0, 0, 0)
-  val layerPatchBackground: Color           = Color(220, 220, 220)
-  val defaultPageBackground: Color          = Color(253, 251, 230)
+  val layerPatchBackground: Color            = Color(220, 220, 220)
+  val defaultPageBackground: Color           = Color(253, 251, 230)
+
   /** Red used for error/validation strokes (e.g. canvas overlay). */
-  val errorStroke: Color                  = Color(255, 0, 0)
+  val errorStroke: Color = Color(255, 0, 0)
+
   /** Green used for highlight/success strokes (e.g. current step overlay). */
-  val highlightStroke: Color              = Color(0, 200, 0)
+  val highlightStroke: Color = Color(0, 200, 0)
 
   private def clamp(c: Int): Int = math.max(0, math.min(255, c))
 
   /** Parse hex string: #rrggbb or #rgb or rrggbb (with or without #). Returns black on parse failure. */
   def fromHex(hex: String): Color =
     try {
-      val s = hex.trim
+      val s        = hex.trim
       val stripped = if (s.startsWith("#")) s.drop(1) else s
       if (stripped.length == 6) {
         val r = Integer.parseInt(stripped.take(2), 16)
@@ -74,6 +76,7 @@ object Color {
 
 /** A named LEGO color with its RGB value. */
 final case class LegoColor(name: String, color: Color) {
+
   /** Whether this is a transparent LEGO color. */
   def isTransparent: Boolean = name.startsWith("Trans-")
 }

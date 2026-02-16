@@ -33,26 +33,26 @@ object SizeReductionService {
 
   /** Downscale so that width ≤ targetW and height ≤ targetH. Uses block sampling. */
   def downscale(
-      image: RawImage,
-      targetMaxW: Int,
-      targetMaxH: Int,
-      strategy: DownscaleStrategy
+    image: RawImage,
+    targetMaxW: Int,
+    targetMaxH: Int,
+    strategy: DownscaleStrategy
   ): RawImage = {
     val w = image.width
     val h = image.height
     if (w <= targetMaxW && h <= targetMaxH) image.copy()
     else {
-    val scaleX = w.toDouble / targetMaxW
-    val scaleY = h.toDouble / targetMaxH
-    val scale  = math.max(scaleX, scaleY)
-    val nw     = (w / scale).toInt.max(1).min(targetMaxW)
-    val nh     = (h / scale).toInt.max(1).min(targetMaxH)
-    strategy match {
-      case DownscaleAverage =>
-        downscaleAverage(image, nw, nh)
-      case b: DownscaleBayer =>
-        downscaleBayer(image, nw, nh, b.matrixSize)
-    }
+      val scaleX = w.toDouble / targetMaxW
+      val scaleY = h.toDouble / targetMaxH
+      val scale  = math.max(scaleX, scaleY)
+      val nw     = (w / scale).toInt.max(1).min(targetMaxW)
+      val nh     = (h / scale).toInt.max(1).min(targetMaxH)
+      strategy match {
+        case DownscaleAverage =>
+          downscaleAverage(image, nw, nh)
+        case b: DownscaleBayer =>
+          downscaleBayer(image, nw, nh, b.matrixSize)
+      }
     }
   }
 
@@ -60,15 +60,25 @@ object SizeReductionService {
     val w   = src.width
     val h   = src.height
     val out = RawImage.create(nw, nh)
-    for (dy <- 0 until nh; dx <- 0 until nw) {
+    for {
+      dy <- 0 until nh
+      dx <- 0 until nw
+    } {
       val x0 = (dx * w) / nw
       val y0 = (dy * h) / nh
       val x1 = ((dx + 1) * w).min(w)
       val y1 = ((dy + 1) * h).min(h)
-      val (r, g, b, a, n) = (y0 until y1).flatMap(sy => (x0 until x1).map(sx => (sy, sx))).foldLeft((0L, 0L, 0L, 0L, 0L)) { case ((r0, g0, b0, a0, n0), (sy, sx)) =>
-        val i = (sy * w + sx) * 4
-        (r0 + (src.data(i) & 0xff), g0 + (src.data(i + 1) & 0xff), b0 + (src.data(i + 2) & 0xff), a0 + (src.data(i + 3) & 0xff), n0 + 1)
-      }
+      val (r, g, b, a, n) =
+        (y0 until y1).flatMap(sy => (x0 until x1).map(sx => (sy, sx))).foldLeft((0L, 0L, 0L, 0L, 0L)) {
+          case ((r0, g0, b0, a0, n0), (sy, sx)) =>
+            val i = (sy * w + sx) * 4
+            (
+              r0 + (src.data(i) & 0xff),
+              g0 + (src.data(i + 1) & 0xff),
+              b0 + (src.data(i + 2) & 0xff),
+              a0 + (src.data(i + 3) & 0xff),
+              n0 + 1)
+        }
       if (n > 0) {
         val o = (dy * nw + dx) * 4
         out.data(o) = (r / n).toByte
@@ -85,8 +95,8 @@ object SizeReductionService {
       if (n <= 1) 0.5
       else {
         val half = n / 2
-        val v = recurse(half, x % half, y % half)
-        val add = (if ((y / half) % 2 == 0) 0 else 2) + (if ((x / half) % 2 == 0) 0 else 1)
+        val v    = recurse(half, x % half, y % half)
+        val add  = (if ((y / half) % 2 == 0) 0 else 2) + (if ((x / half) % 2 == 0) 0 else 1)
         (v * 4 + add) / 4.0
       }
     recurse(matrixSize, x % matrixSize, y % matrixSize)
@@ -96,14 +106,17 @@ object SizeReductionService {
     val w   = src.width
     val h   = src.height
     val out = RawImage.create(nw, nh)
-    for (dy <- 0 until nh; dx <- 0 until nw) {
-      val x0     = (dx * w) / nw
-      val y0     = (dy * h) / nh
-      val thresh = bayerValue(matrixSize, dx, dy)
-      val bw     = ((dx + 1) * w) / nw - x0
-      val bh     = ((dy + 1) * h) / nh - y0
-      val total  = bw * bh
-      val pick   = (thresh * (total - 1)).toInt.max(0).min(total - 1)
+    for {
+      dy <- 0 until nh
+      dx <- 0 until nw
+    } {
+      val x0          = (dx * w) / nw
+      val y0          = (dy * h) / nh
+      val thresh      = bayerValue(matrixSize, dx, dy)
+      val bw          = ((dx + 1) * w) / nw - x0
+      val bh          = ((dy + 1) * h) / nh - y0
+      val total       = bw * bh
+      val pick        = (thresh * (total - 1)).toInt.max(0).min(total - 1)
       val linearIndex = (y0 until y0 + bh).flatMap(sy => (x0 until x0 + bw).map(sx => (sy, sx))).lift(pick)
       linearIndex match {
         case Some((sy, sx)) =>

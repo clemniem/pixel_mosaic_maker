@@ -5,7 +5,7 @@ import munit.FunSuite
 class PdfLayoutSpec extends FunSuite {
 
   test("coverInstructions contains exactly one PageSize") {
-    val list = PdfLayout.coverInstructions("My Mosaic", 0, PdfLayoutConfig.default)
+    val list      = PdfLayout.coverInstructions("My Mosaic", 0, PdfLayoutConfig.default)
     val pageSizes = list.collect { case Instruction.PageSize(_, _) => () }
     assertEquals(pageSizes.length, 1)
   }

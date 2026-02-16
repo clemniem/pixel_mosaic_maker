@@ -6,33 +6,53 @@ import tyrian.{Cmd, Html, Sub}
 /** Identifies a screen in the SPA. See docs/FLOW.md for the six-step flow. */
 trait ScreenId {
   def name: String
+
   /** Display title used in the UI (e.g. header, document title, overview link card). */
   def title: String
+
   /** Short description for the overview page link card. None = screen is not shown on overview. */
   def overviewDescription: Option[String] = None
 }
 
 /** All screen IDs: Overview (home), galleries (list of saved items), and flow/editor screens. */
 object ScreenId {
-  case object OverviewId          extends ScreenId { val name = "overview";          val title = "Overview" }
-  case object LayoutsId           extends ScreenId { val name = "grid-configs";      val title = "Layout";             override val overviewDescription = Some("How your mosaic is split into sections") }
-  case object LayoutId            extends ScreenId { val name = "grid-config";       val title = "Edit layout" }
-  case object PalettesId          extends ScreenId { val name = "palettes";           val title = "Palettes";           override val overviewDescription = Some("Color palettes") }
-  case object PaletteId           extends ScreenId { val name = "palette";           val title = "Palette" }
-  case object ImagesId            extends ScreenId { val name = "images";           val title = "Images";              override val overviewDescription = Some("Upload and manage your images") }
-  case object BuildConfigsId      extends ScreenId { val name = "build-configs";     val title = "Mosaic setup";       override val overviewDescription = Some("Choose layout, image and colors") }
-  case object BuildsId            extends ScreenId { val name = "builds";           val title = "Build";               override val overviewDescription = Some("Step-by-step building instructions") }
-  case object ImageUploadId       extends ScreenId { val name = "image-upload";     val title = "Upload image" }
-  case object BuildConfigId       extends ScreenId { val name = "build-config";     val title = "Mosaic setup" }
-  case object BuildId             extends ScreenId { val name = "build";             val title = "Building steps" }
-  case object PrintInstructionsId extends ScreenId { val name = "print-instructions"; val title = "Print";              override val overviewDescription = Some("Create a printable PDF guide") }
-  case object AboutId             extends ScreenId { val name = "about";               val title = "About" }
+  case object OverviewId extends ScreenId { val name = "overview"; val title = "Overview" }
+  case object LayoutsId extends ScreenId {
+    val name                         = "grid-configs"; val title = "Layout";
+    override val overviewDescription = Some("How your mosaic is split into sections")
+  }
+  case object LayoutId extends ScreenId { val name = "grid-config"; val title = "Edit layout" }
+  case object PalettesId extends ScreenId {
+    val name = "palettes"; val title = "Palettes"; override val overviewDescription = Some("Color palettes")
+  }
+  case object PaletteId extends ScreenId { val name = "palette"; val title = "Palette" }
+  case object ImagesId extends ScreenId {
+    val name = "images"; val title = "Images"; override val overviewDescription = Some("Upload and manage your images")
+  }
+  case object BuildConfigsId extends ScreenId {
+    val name                         = "build-configs"; val title = "Mosaic setup";
+    override val overviewDescription = Some("Choose layout, image and colors")
+  }
+  case object BuildsId extends ScreenId {
+    val name                         = "builds"; val title = "Build";
+    override val overviewDescription = Some("Step-by-step building instructions")
+  }
+  case object ImageUploadId extends ScreenId { val name = "image-upload"; val title = "Upload image" }
+  case object BuildConfigId extends ScreenId { val name = "build-config"; val title = "Mosaic setup" }
+  case object BuildId       extends ScreenId { val name = "build"; val title = "Building steps"      }
+  case object PrintInstructionsId extends ScreenId {
+    val name                         = "print-instructions"; val title = "Print";
+    override val overviewDescription = Some("Create a printable PDF guide")
+  }
+  case object AboutId extends ScreenId { val name = "about"; val title = "About" }
 
   /** Screen IDs shown on the overview page as link cards, in order. */
   val overviewScreenIds: List[ScreenId] =
     List(ImagesId, PalettesId, LayoutsId, BuildConfigsId, BuildsId, PrintInstructionsId)
 
-  /** Next screen in the overview flow (for the "Next →" button). Overview → first in list; last → Overview; editors → next after their gallery. */
+  /** Next screen in the overview flow (for the "Next →" button). Overview → first in list; last → Overview; editors →
+    * next after their gallery.
+    */
   def nextInOverviewOrder(current: ScreenId): ScreenId =
     if (current == OverviewId) overviewScreenIds.head
     else {
@@ -40,15 +60,15 @@ object ScreenId {
       if (idx >= 0) {
         if (idx + 1 < overviewScreenIds.length) overviewScreenIds(idx + 1)
         else OverviewId
-      }       else
+      } else
         current match {
-          case LayoutId       => PalettesId
-          case PaletteId      => LayoutsId
-          case ImageUploadId  => BuildConfigsId
-          case BuildConfigId  => BuildsId
-          case BuildId        => PrintInstructionsId
-          case AboutId        => OverviewId
-          case _              => OverviewId
+          case LayoutId      => PalettesId
+          case PaletteId     => LayoutsId
+          case ImageUploadId => BuildConfigsId
+          case BuildConfigId => BuildsId
+          case BuildId       => PrintInstructionsId
+          case AboutId       => OverviewId
+          case _             => OverviewId
         }
     }
 }
@@ -57,6 +77,7 @@ object ScreenId {
 sealed trait ScreenOutput
 
 object ScreenOutput {
+
   /** Step 1 → next: chosen layout of sections. */
   final case class LayoutDone(grid: Layout) extends ScreenOutput
 
@@ -97,31 +118,29 @@ object ScreenOutput {
 sealed trait RootMsg
 object RootMsg {
   case class NavigateTo(screenId: ScreenId, output: Option[ScreenOutput]) extends RootMsg
-  case class HandleScreenMsg(screenId: ScreenId, msg: Any)               extends RootMsg
+  case class HandleScreenMsg(screenId: ScreenId, msg: Any)                extends RootMsg
 }
 
-/**
- * Message a screen can emit to request navigation to another screen with optional output.
- * Include this in your screen's Msg type (e.g. `enum MyMsg { case A; case B; case GoNext(s: ScreenId, o: Option[ScreenOutput]) }`)
- * or use [[NavigateNext]] directly so the root app can handle it and switch screens.
- */
+/** Message a screen can emit to request navigation to another screen with optional output. Include this in your
+  * screen's Msg type (e.g. `enum MyMsg { case A; case B; case GoNext(s: ScreenId, o: Option[ScreenOutput]) }`) or use
+  * [[NavigateNext]] directly so the root app can handle it and switch screens.
+  */
 case class NavigateNext(screenId: ScreenId, output: Option[ScreenOutput])
 
-/**
- * Abstraction for a single screen in the SPA.
- * Each screen has its own Model, Msg, init, update, view, and subscriptions.
- * Use [[wrapMsg]] to lift screen messages to [[RootMsg]] so the root app can run [[Cmd]]/[[Sub]].
- *
- * To add a new screen:
- *  1. Define a [[ScreenId]] case object (e.g. in the same file as the screen).
- *  2. Extend [[ScreenOutput]] with a case class for the data this screen receives from the previous step (if any).
- *  3. Implement a [[Screen]] (object or class) with init/update/view/subscriptions.
- *  4. Register the screen in [[ScreenRegistry]] and set [[ScreenRegistry.initialScreenId]] or navigate via [[RootMsg.NavigateTo]].
- *
- * To navigate to the next screen from within a screen: include [[NavigateNext]] in your screen's Msg type
- * and emit `Cmd.Emit(NavigateNext(nextScreenId, Some(yourOutput)))`. The root app will run the next screen's
- * `init(Some(yourOutput))`. You can also emit [[RootMsg.NavigateTo]] from outside (e.g. router) if needed.
- */
+/** Abstraction for a single screen in the SPA. Each screen has its own Model, Msg, init, update, view, and
+  * subscriptions. Use [[wrapMsg]] to lift screen messages to [[RootMsg]] so the root app can run [[Cmd]]/[[Sub]].
+  *
+  * To add a new screen:
+  *   1. Define a [[ScreenId]] case object (e.g. in the same file as the screen).
+  *   2. Extend [[ScreenOutput]] with a case class for the data this screen receives from the previous step (if any).
+  *   3. Implement a [[Screen]] (object or class) with init/update/view/subscriptions.
+  *   4. Register the screen in [[ScreenRegistry]] and set [[ScreenRegistry.initialScreenId]] or navigate via
+  *      [[RootMsg.NavigateTo]].
+  *
+  * To navigate to the next screen from within a screen: include [[NavigateNext]] in your screen's Msg type and emit
+  * `Cmd.Emit(NavigateNext(nextScreenId, Some(yourOutput)))`. The root app will run the next screen's
+  * `init(Some(yourOutput))`. You can also emit [[RootMsg.NavigateTo]] from outside (e.g. router) if needed.
+  */
 trait Screen {
   type Model
   type Msg

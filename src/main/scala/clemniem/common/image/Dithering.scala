@@ -6,6 +6,7 @@ final case class QuantizedResult(palette: Vector[(Byte, Byte, Byte, Byte)], indi
 /** Dithering algorithm for mapping image pixels to a fixed palette. Extensible (e.g. add different error matrices). */
 trait ColorDithering {
   def name: String
+
   /** Produce one palette index per pixel (same order as RawImage: row-major). */
   def quantizeToIndices(image: RawImage, palette: Vector[(Byte, Byte, Byte, Byte)]): Array[Int]
 }
@@ -27,18 +28,19 @@ object NoColorDithering extends ColorDithering {
     out
   }
 
-  /** Find nearest palette color using perceptual weighted distance (green > red > blue).
-    * Alpha is ignored -- for opaque images it's just noise, and palette colors typically have uniform alpha.
+  /** Find nearest palette color using perceptual weighted distance (green > red > blue). Alpha is ignored -- for opaque
+    * images it's just noise, and palette colors typically have uniform alpha.
     */
   def nearestPaletteIndex(r: Int, g: Int, b: Int, a: Int, palette: Vector[(Byte, Byte, Byte, Byte)]): Int =
     if (palette.isEmpty) 0
-    else palette.indices.minBy { idx =>
-      val (pr, pg, pb, _) = palette(idx)
-      val dr = r - (pr & 0xff)
-      val dg = g - (pg & 0xff)
-      val db = b - (pb & 0xff)
-      2 * dr * dr + 4 * dg * dg + 3 * db * db
-    }
+    else
+      palette.indices.minBy { idx =>
+        val (pr, pg, pb, _) = palette(idx)
+        val dr              = r - (pr & 0xff)
+        val dg              = g - (pg & 0xff)
+        val db              = b - (pb & 0xff)
+        2 * dr * dr + 4 * dg * dg + 3 * db * db
+      }
 }
 
 /** Floyd-Steinberg error diffusion. Error weights (dx, dy, weight): right, down-left, down, down-right. */
@@ -56,26 +58,28 @@ object FloydSteinbergDithering extends ColorDithering {
     val w   = image.width
     val h   = image.height
     val buf = Array.ofDim[Double](w * h * 4)
-    for (i <- buf.indices) {
+    for (i <- buf.indices)
       buf(i) = image.data(i) & 0xff
-    }
     val out = new Array[Int](w * h)
-    for (y <- 0 until h; x <- 0 until w) {
-      val idx = y * w + x
-      val o   = idx * 4
-      val r   = buf(o).toInt.max(0).min(255)
-      val g   = buf(o + 1).toInt.max(0).min(255)
-      val b   = buf(o + 2).toInt.max(0).min(255)
-      val a   = buf(o + 3).toInt.max(0).min(255)
+    for {
+      y <- 0 until h
+      x <- 0 until w
+    } {
+      val idx    = y * w + x
+      val o      = idx * 4
+      val r      = buf(o).toInt.max(0).min(255)
+      val g      = buf(o + 1).toInt.max(0).min(255)
+      val b      = buf(o + 2).toInt.max(0).min(255)
+      val a      = buf(o + 3).toInt.max(0).min(255)
       val palIdx = NoColorDithering.nearestPaletteIndex(r, g, b, a, palette)
       out(idx) = palIdx
       val (pr, pg, pb, _) = palette(palIdx)
-      val qr = pr & 0xff
-      val qg = pg & 0xff
-      val qb = pb & 0xff
-      val er = r - qr
-      val eg = g - qg
-      val eb = b - qb
+      val qr              = pr & 0xff
+      val qg              = pg & 0xff
+      val qb              = pb & 0xff
+      val er              = r - qr
+      val eg              = g - qg
+      val eb              = b - qb
       for ((dx, dy, weight) <- weights) {
         val nx = x + dx
         val ny = y + dy
@@ -92,12 +96,14 @@ object FloydSteinbergDithering extends ColorDithering {
   }
 }
 
-/** Ordered dithering using a Bayer matrix (Game Boy Camera style). Threshold is added before picking nearest palette color. */
+/** Ordered dithering using a Bayer matrix (Game Boy Camera style). Threshold is added before picking nearest palette
+  * color.
+  */
 final case class OrderedBayerDithering(matrixSize: Int) extends ColorDithering {
   override def name: String = s"Ordered (${matrixSize}×${matrixSize})"
 
   private val matrix: Array[Array[Double]] = bayerMatrix(matrixSize)
-  private val scale = 32.0
+  private val scale                        = 32.0
 
   override def quantizeToIndices(image: RawImage, palette: Vector[(Byte, Byte, Byte, Byte)]): Array[Int] = {
     val w   = image.width
@@ -105,14 +111,14 @@ final case class OrderedBayerDithering(matrixSize: Int) extends ColorDithering {
     val n   = w * h
     val out = new Array[Int](n)
     for (i <- 0 until n) {
-      val x = i % w
-      val y = i / w
-      val o = i * 4
+      val x      = i % w
+      val y      = i / w
+      val o      = i * 4
       val thresh = (matrix(y % matrixSize)(x % matrixSize) * scale).toInt
-      val r = ((image.data(o) & 0xff) + thresh).max(0).min(255)
-      val g = ((image.data(o + 1) & 0xff) + thresh).max(0).min(255)
-      val b = ((image.data(o + 2) & 0xff) + thresh).max(0).min(255)
-      val a = (image.data(o + 3) & 0xff) & 0xff
+      val r      = ((image.data(o) & 0xff) + thresh).max(0).min(255)
+      val g      = ((image.data(o + 1) & 0xff) + thresh).max(0).min(255)
+      val b      = ((image.data(o + 2) & 0xff) + thresh).max(0).min(255)
+      val a      = (image.data(o + 3) & 0xff) & 0xff
       out(i) = NoColorDithering.nearestPaletteIndex(r, g, b, a, palette)
     }
     out
@@ -122,10 +128,10 @@ final case class OrderedBayerDithering(matrixSize: Int) extends ColorDithering {
     def recurse(n: Int): Array[Array[Double]] =
       if (n <= 1) Array(Array(0.5))
       else {
-        val half = recurse(n / 2)
+        val half  = recurse(n / 2)
         val scale = 1.0 / (n * n)
         Array.tabulate(n, n) { (r, c) =>
-          val v = half(r % (n / 2))(c % (n / 2))
+          val v   = half(r % (n / 2))(c % (n / 2))
           val add = (r / (n / 2)) * 2 + (c / (n / 2))
           ((v * 4 + add) * scale) - 0.5
         }

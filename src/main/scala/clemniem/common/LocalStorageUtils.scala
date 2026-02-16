@@ -7,33 +7,37 @@ import io.circe.{Decoder, Encoder}
 import tyrian.Cmd
 import tyrian.cmds.LocalStorage
 
-/** Generic LocalStorage helpers to save/load case classes (JSON via circe).
-  * Use these to persist multiple outputs per type (e.g. 3 grid configs, 3 palettes, 3 images).
+/** Generic LocalStorage helpers to save/load case classes (JSON via circe). Use these to persist multiple outputs per
+  * type (e.g. 3 grid configs, 3 palettes, 3 images).
   *
   * Keying strategies:
-  * - One item per key: e.g. `"layout/abc-123"` → single [[Layout]]; use [[save]]/[[load]].
-  * - List under one key: e.g. `"gridConfigs"` → `List[StoredLayout]`; use [[saveList]]/[[loadList]].
-  *   (Key string kept for backward compatibility with existing LocalStorage data.)
+  *   - One item per key: e.g. `"layout/abc-123"` → single [[Layout]]; use [[save]]/[[load]].
+  *   - List under one key: e.g. `"gridConfigs"` → `List[StoredLayout]`; use [[saveList]]/[[loadList]]. (Key string kept
+  *     for backward compatibility with existing LocalStorage data.)
   */
 object LocalStorageUtils {
 
   /** Save a single item at `key`. Emits `success(item)` on success, `failure(message, item)` on error. */
   def save[A, M](
-      key: String,
-      item: A
-  )(success: A => M, failure: (String, A) => M)(using Encoder[A]): Cmd[IO, M] = {
+    key: String,
+    item: A
+  )(success: A => M,
+    failure: (String, A) => M
+  )(using Encoder[A]
+  ): Cmd[IO, M] = {
     val json = item.asJson.noSpacesSortKeys
     LocalStorage.setItem(key, json) {
-      case LocalStorage.Result.Success            => success(item)
-      case LocalStorage.Result.Failure(message)   => failure(message, item)
-      case e                                      => failure(e.toString, item)
+      case LocalStorage.Result.Success          => success(item)
+      case LocalStorage.Result.Failure(message) => failure(message, item)
+      case e                                    => failure(e.toString, item)
     }
   }
 
-  /** Load a single item from `key`. Emits `success(a)` when decoded, `notFound(key)` when missing, `failure(msg, key)` on decode error. */
-  def load[A, M](key: String)(success: A => M, notFound: String => M, failure: (String, String) => M)(using
-      Decoder[A]
-  ): Cmd[IO, M] =
+  /** Load a single item from `key`. Emits `success(a)` when decoded, `notFound(key)` when missing, `failure(msg, key)`
+    * on decode error.
+    */
+  def load[A, M](key: String)(success: A => M, notFound: String => M, failure: (String, String) => M)(using Decoder[A])
+    : Cmd[IO, M] =
     LocalStorage.getItem(key) {
       case Left(_) =>
         notFound(key)
@@ -49,9 +53,12 @@ object LocalStorageUtils {
 
   /** Save a list at `key`. Use for "all grid configs", "all palettes", etc. */
   def saveList[A, M](
-      key: String,
-      items: List[A]
-  )(success: List[A] => M, failure: (String, List[A]) => M)(using Encoder[List[A]]): Cmd[IO, M] = {
+    key: String,
+    items: List[A]
+  )(success: List[A] => M,
+    failure: (String, List[A]) => M
+  )(using Encoder[List[A]]
+  ): Cmd[IO, M] = {
     val json = items.asJson.noSpacesSortKeys
     LocalStorage.setItem(key, json) {
       case LocalStorage.Result.Success          => success(items)
@@ -61,8 +68,12 @@ object LocalStorageUtils {
   }
 
   /** Load a list from `key`. Emits empty list when key is missing (so you can start with Nil). */
-  def loadList[A, M](key: String)(success: List[A] => M, notFound: String => M, failure: (String, String) => M)(using
-      Decoder[List[A]]
+  def loadList[A, M](
+    key: String
+  )(success: List[A] => M,
+    notFound: String => M,
+    failure: (String, String) => M
+  )(using Decoder[List[A]]
   ): Cmd[IO, M] =
     LocalStorage.getItem(key) {
       case Left(_) =>
@@ -77,18 +88,19 @@ object LocalStorageUtils {
         }
     }
 
-  /** Handle a gallery confirm-delete: filter the list, save it, and compute the clamped page.
-    * Returns `(newListOpt, newPage, saveCmd)` — the caller just destructures and updates its model fields.
+  /** Handle a gallery confirm-delete: filter the list, save it, and compute the clamped page. Returns
+    * `(newListOpt, newPage, saveCmd)` — the caller just destructures and updates its model fields.
     */
   def confirmDelete[A, M](
-      listOpt: Option[List[A]],
-      id: String,
-      storageKey: String,
-      pageSize: Int,
-      currentPage: Int,
-      cancelMsg: M,
-      getId: A => String
-  )(using Encoder[List[A]]): (Option[List[A]], Int, Cmd[IO, M]) =
+    listOpt: Option[List[A]],
+    id: String,
+    storageKey: String,
+    pageSize: Int,
+    currentPage: Int,
+    cancelMsg: M,
+    getId: A => String
+  )(using Encoder[List[A]]
+  ): (Option[List[A]], Int, Cmd[IO, M]) =
     listOpt match {
       case Some(list) =>
         val newList    = list.filterNot(a => getId(a) == id)
@@ -104,6 +116,6 @@ object LocalStorageUtils {
     LocalStorage.removeItem(key) {
       case LocalStorage.Result.Success          => success(key)
       case LocalStorage.Result.Failure(message) => failure(message, key)
-      case e                                     => failure(e.toString, key)
+      case e                                    => failure(e.toString, key)
     }
 }
