@@ -95,6 +95,19 @@ final case class Layout(cols: Int, rows: Int, parts: Array[GridPart]) {
   val height: Int =
     if (parts.isEmpty) 0
     else parts.iterator.map(p => p.y + p.height).max
+
+  /** Structural equality — Array uses reference equality by default, so case-class == breaks for Layout. */
+  override def equals(obj: Any): Boolean = obj match {
+    case that: Layout =>
+      this.cols == that.cols && this.rows == that.rows &&
+        java.util.Arrays.equals(this.parts.asInstanceOf[Array[AnyRef]], that.parts.asInstanceOf[Array[AnyRef]])
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val h = 31 * (31 + cols.hashCode()) + rows.hashCode()
+    31 * h + java.util.Arrays.hashCode(parts.asInstanceOf[Array[AnyRef]])
+  }
 }
 
 object Layout {

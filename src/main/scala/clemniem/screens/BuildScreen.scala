@@ -19,6 +19,7 @@ import clemniem.common.{CanvasUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
+import org.scalajs.dom
 import org.scalajs.dom.window
 
 import scala.scalajs.js
@@ -170,7 +171,21 @@ object BuildScreen extends Screen {
     case BuildScreenMsg.SetStep(index) =>
       val steps = model.steps
       val idx   = index.max(0).min(if (steps.isEmpty) 0 else steps.length - 1)
-      (model.copy(stepIndex = idx), drawCmd(model.copy(stepIndex = idx)))
+      (model.copy(stepIndex = idx, draftStepInput = None), drawCmd(model.copy(stepIndex = idx)))
+
+    case BuildScreenMsg.SetStepDraft(value) =>
+      (model.copy(draftStepInput = Some(value)), Cmd.None)
+
+    case BuildScreenMsg.CommitStepDraft =>
+      model.draftStepInput match {
+        case None => (model, Cmd.None)
+        case Some(raw) =>
+          val steps   = model.steps
+          val maxStep = if (steps.isEmpty) 0 else steps.length - 1
+          val idx     = raw.toIntOption.map(_ - 1).getOrElse(model.stepIndex).max(0).min(maxStep)
+          val next    = model.copy(stepIndex = idx, draftStepInput = None)
+          (next, drawCmd(next))
+      }
 
     case BuildScreenMsg.PrevStep =>
       val idx = (model.stepIndex - 1).max(0)
@@ -232,6 +247,9 @@ object BuildScreen extends Screen {
 
     case BuildScreenMsg.SetStacked(value) =>
       (model.copy(stacked = value), drawCmd(model.copy(stacked = value)))
+
+    case BuildScreenMsg.NoOp =>
+      (model, Cmd.None)
 
     case _: NavigateNext =>
       (model, Cmd.None)
@@ -461,8 +479,15 @@ object BuildScreen extends Screen {
               `type` := "number",
               min := "1",
               max := total.max(1).toString,
-              value := (if (total == 0) "0" else (current + 1).toString),
-              onInput(s => BuildScreenMsg.SetStep(s.toIntOption.getOrElse(1) - 1)),
+              value := model.draftStepInput.getOrElse(if (total == 0) "0" else (current + 1).toString),
+              onInput(s => BuildScreenMsg.SetStepDraft(s)),
+              onEvent(
+                "keyup",
+                (e: dom.Event) =>
+                  if (e.asInstanceOf[dom.KeyboardEvent].key == "Enter") BuildScreenMsg.CommitStepDraft
+                  else BuildScreenMsg.NoOp
+              ),
+              onEvent("blur", (_: dom.Event) => BuildScreenMsg.CommitStepDraft),
               `class` := s"${NesCss.input} input-w-4"
             ),
             text(" from "),
@@ -539,7 +564,8 @@ final case class BuildScreenModel(
     stepIndex: Int,
     pendingSave: Option[StoredBuild] = None,
     patchBackgroundColorHex: String = "#eeeeee",
-    stacked: Boolean = false
+    stacked: Boolean = false,
+    draftStepInput: Option[String] = None
 ) {
   def steps: Vector[(Int, Int)] =
     buildConfig match {
@@ -559,6 +585,8 @@ enum BuildScreenMsg:
   case LoadedImages(list: List[StoredImage])
   case LoadedPalettes(list: List[StoredPalette])
   case SetStep(index: Int)
+  case SetStepDraft(value: String)
+  case CommitStepDraft
   case PrevStep
   case NextStep
   case Back
@@ -569,3 +597,4 @@ enum BuildScreenMsg:
   case Draw
   case SetPatchBackgroundColor(hex: String)
   case SetStacked(value: Boolean)
+  case NoOp
