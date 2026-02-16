@@ -27,17 +27,18 @@ object NoColorDithering extends ColorDithering {
     out
   }
 
-  def nearestPaletteIndex(r: Int, g: Int, b: Int, a: Int, palette: Vector[(Byte, Byte, Byte, Byte)]): Int = {
+  /** Find nearest palette color using perceptual weighted distance (green > red > blue).
+    * Alpha is ignored -- for opaque images it's just noise, and palette colors typically have uniform alpha.
+    */
+  def nearestPaletteIndex(r: Int, g: Int, b: Int, a: Int, palette: Vector[(Byte, Byte, Byte, Byte)]): Int =
     if (palette.isEmpty) 0
     else palette.indices.minBy { idx =>
-      val (pr, pg, pb, pa) = palette(idx)
+      val (pr, pg, pb, _) = palette(idx)
       val dr = r - (pr & 0xff)
       val dg = g - (pg & 0xff)
       val db = b - (pb & 0xff)
-      val da = a - (pa & 0xff)
-      dr * dr + dg * dg + db * db + da * da
+      2 * dr * dr + 4 * dg * dg + 3 * db * db
     }
-  }
 }
 
 /** Floyd-Steinberg error diffusion. Error weights (dx, dy, weight): right, down-left, down, down-right. */
@@ -68,15 +69,13 @@ object FloydSteinbergDithering extends ColorDithering {
       val a   = buf(o + 3).toInt.max(0).min(255)
       val palIdx = NoColorDithering.nearestPaletteIndex(r, g, b, a, palette)
       out(idx) = palIdx
-      val (pr, pg, pb, pa) = palette(palIdx)
+      val (pr, pg, pb, _) = palette(palIdx)
       val qr = pr & 0xff
       val qg = pg & 0xff
       val qb = pb & 0xff
-      val qa = pa & 0xff
       val er = r - qr
       val eg = g - qg
       val eb = b - qb
-      val ea = a - qa
       for ((dx, dy, weight) <- weights) {
         val nx = x + dx
         val ny = y + dy
@@ -86,7 +85,6 @@ object FloydSteinbergDithering extends ColorDithering {
           buf(no) += er * weight
           buf(no + 1) += eg * weight
           buf(no + 2) += eb * weight
-          buf(no + 3) += ea * weight
         }
       }
     }

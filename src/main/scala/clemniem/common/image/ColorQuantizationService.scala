@@ -22,7 +22,11 @@ object ColorQuantizationService {
     QuantizedResult(palette, indices)
   }
 
-  /** Median cut: partition color space by channel range, split at median, repeat until we have n boxes; average each box. */
+  private val KMeansIterations = 4
+
+  /** Median cut: partition color space by channel range, split at median, repeat until we have n boxes;
+    * average each box, then refine with a few k-means iterations to sharpen palette colors.
+    */
   def medianCutPalette(image: RawImage, numColors: Int): Vector[(Byte, Byte, Byte, Byte)] = {
     val w = image.width
     val h = image.height
@@ -37,9 +41,46 @@ object ColorQuantizationService {
     if (pixels.isEmpty) Vector.fill(numColors)((0.toByte, 0.toByte, 0.toByte, 255.toByte))
     else {
       val boxes = medianCutIterative(pixels, numColors)
-      boxes.map(avgColor).toVector
+      val initial = boxes.map(avgColor).toVector
+      kMeansRefine(pixels, initial, KMeansIterations)
     }
   }
+
+  /** Refine a palette with k-means: assign every pixel to nearest color, recompute centroids. */
+  private def kMeansRefine(
+      pixels: Vector[(Int, Int, Int, Int)],
+      palette: Vector[(Byte, Byte, Byte, Byte)],
+      iterations: Int
+  ): Vector[(Byte, Byte, Byte, Byte)] =
+    (0 until iterations).foldLeft(palette) { (current, _) =>
+      val k = current.size
+      // Accumulate sums per cluster: (sumR, sumG, sumB, sumA, count)
+      val clusters = pixels.foldLeft(Vector.fill(k)((0L, 0L, 0L, 0L, 0L))) { case (acc, (r, g, b, a)) =>
+        val idx = nearestIndex(r, g, b, current)
+        val (sr, sg, sb, sa, sc) = acc(idx)
+        acc.updated(idx, (sr + r, sg + g, sb + b, sa + a, sc + 1))
+      }
+      clusters.zipWithIndex.map { case ((sr, sg, sb, sa, sc), i) =>
+        if (sc == 0) current(i)
+        else (
+          (sr / sc).toInt.max(0).min(255).toByte,
+          (sg / sc).toInt.max(0).min(255).toByte,
+          (sb / sc).toInt.max(0).min(255).toByte,
+          (sa / sc).toInt.max(0).min(255).toByte
+        )
+      }
+    }
+
+  /** Find nearest palette index using perceptual weighted distance (no alpha). */
+  private def nearestIndex(r: Int, g: Int, b: Int, palette: Vector[(Byte, Byte, Byte, Byte)]): Int =
+    if (palette.isEmpty) 0
+    else palette.indices.minBy { idx =>
+      val (pr, pg, pb, _) = palette(idx)
+      val dr = r - (pr & 0xff)
+      val dg = g - (pg & 0xff)
+      val db = b - (pb & 0xff)
+      2 * dr * dr + 4 * dg * dg + 3 * db * db
+    }
 
   private def avgColor(pixels: Vector[(Int, Int, Int, Int)]): (Byte, Byte, Byte, Byte) = {
     if (pixels.isEmpty) (0.toByte, 0.toByte, 0.toByte, 255.toByte)

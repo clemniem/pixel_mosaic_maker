@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{Color, NavigateNext, Screen, ScreenId, ScreenOutput, StoredPalette, StorageKeys}
+import clemniem.{Color, LegoColor, NavigateNext, Screen, ScreenId, ScreenOutput, StoredPalette, StorageKeys}
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
@@ -29,16 +29,20 @@ object PaletteScreen extends Screen {
         PaletteModel(
           name = stored.name,
           colors = colors,
-          editingId = Some(stored.id)
+          editingId = Some(stored.id),
+          legoPickerIdx = None,
+          legoPickerForAdd = false
         )
       case Some(ScreenOutput.NewPaletteFromImage(name, colors)) =>
         val cs = if (colors.nonEmpty) colors else defaultColors
-        PaletteModel(name = name, colors = cs, editingId = None)
+        PaletteModel(name = name, colors = cs, editingId = None, legoPickerIdx = None, legoPickerForAdd = false)
       case _ =>
         PaletteModel(
           name = "Unnamed palette",
           colors = defaultColors,
-          editingId = None
+          editingId = None,
+          legoPickerIdx = None,
+          legoPickerForAdd = false
         )
     }
     (model, Cmd.None)
@@ -117,6 +121,27 @@ object PaletteScreen extends Screen {
     case PaletteMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.PalettesId, None)))
 
+    case PaletteMsg.ToggleLegoPickerForAdd =>
+      val next = if (model.legoPickerForAdd) model.copy(legoPickerForAdd = false)
+                 else model.copy(legoPickerForAdd = true, legoPickerIdx = None)
+      (next, Cmd.None)
+
+    case PaletteMsg.ToggleLegoPicker(idx) =>
+      val next = if (model.legoPickerIdx.contains(idx)) model.copy(legoPickerIdx = None)
+                 else model.copy(legoPickerIdx = Some(idx), legoPickerForAdd = false)
+      (next, Cmd.None)
+
+    case PaletteMsg.PickLegoColor(idx, lc) =>
+      if (idx >= 0 && idx < model.colors.length) {
+        val next = model.copy(colors = model.colors.updated(idx, lc.color), legoPickerIdx = None)
+        (next, Cmd.None)
+      } else (model, Cmd.None)
+
+    case PaletteMsg.PickLegoColorForAdd(lc) =>
+      if (model.colors.length >= maxColors) (model.copy(legoPickerForAdd = false), Cmd.None)
+      else
+        (model.copy(colors = model.colors :+ lc.color, legoPickerForAdd = false), Cmd.None)
+
     case PaletteMsg.NoOp =>
       (model, Cmd.None)
 
@@ -140,17 +165,29 @@ object PaletteScreen extends Screen {
         text(s"Colors (${model.colors.length}/$maxColors). Edit hex or use picker. Use arrows to reorder.")
       ),
       div(`class` := "palette-edit-list")(
-        model.colors.zipWithIndex.toList.map { case (color, idx) =>
-          colorRow(idx, color, model.colors.length)
+        model.colors.zipWithIndex.toList.flatMap { case (color, idx) =>
+          val row = colorRow(idx, color, model.colors.length, model.legoPickerIdx.contains(idx))
+          if (model.legoPickerIdx.contains(idx))
+            List(row, legoPickerDropdown(idx))
+          else
+            List(row)
         }*
       ),
       if (model.colors.length >= maxColors) div()()
       else
-        button(`class` := NesCss.btn, onClick(PaletteMsg.AddColor))(text("+ Add color"))
+        div(`class` := "palette-add-row")(
+          button(`class` := NesCss.btn, onClick(PaletteMsg.AddColor))(text("+ Add color")),
+          button(
+            `class` := s"${NesCss.btn} palette-add-lego-btn",
+            onClick(PaletteMsg.ToggleLegoPickerForAdd),
+            title := "Pick from LEGO colors"
+          )(text("+ LEGO color")),
+          if (model.legoPickerForAdd) legoPickerDropdownForAdd else div()()
+        )
     )
   }
 
-  private def colorRow(idx: Int, color: Color, total: Int): Html[Msg] =
+  private def colorRow(idx: Int, color: Color, total: Int, legoOpen: Boolean): Html[Msg] =
     div(`class` := "palette-edit-row")(
       div(`class` := "palette-edit-arrows")(
         button(
@@ -163,8 +200,10 @@ object PaletteScreen extends Screen {
         )(text("↓"))
       ),
       div(
-        `class` := "palette-edit-swatch",
-        style := s"background: ${color.toHex};"
+        `class` := s"palette-edit-swatch palette-edit-swatch--clickable${if (legoOpen) " palette-edit-swatch--active" else ""}",
+        style := s"background: ${color.toHex};",
+        onClick(PaletteMsg.ToggleLegoPicker(idx)),
+        title := "Pick from LEGO colors"
       )(),
       span(`class` := NesCss.text, style := "min-width: 1.25rem;")(text(s"${idx + 1}.")),
       input(
@@ -185,12 +224,55 @@ object PaletteScreen extends Screen {
         text("×")
       )
     )
+
+  private val nonTransparentLegoColors: List[LegoColor] =
+    LegoColor.allColors.filterNot(_.isTransparent)
+
+  private def legoPickerDropdown(idx: Int): Html[Msg] =
+    div(`class` := "lego-picker-dropdown")(
+      div(`class` := "lego-picker-grid")(
+        nonTransparentLegoColors.map { lc =>
+          div(
+            `class` := "lego-picker-item",
+            onClick(PaletteMsg.PickLegoColor(idx, lc)),
+            title := lc.name
+          )(
+            div(
+              `class` := "lego-picker-swatch",
+              style := s"background: ${lc.color.toHex};"
+            )(),
+            span(`class` := "lego-picker-label")(text(lc.name))
+          )
+        }*
+      )
+    )
+
+  private def legoPickerDropdownForAdd: Html[Msg] =
+    div(`class` := "lego-picker-dropdown")(
+      div(`class` := "lego-picker-grid")(
+        nonTransparentLegoColors.map { lc =>
+          div(
+            `class` := "lego-picker-item",
+            onClick(PaletteMsg.PickLegoColorForAdd(lc)),
+            title := lc.name
+          )(
+            div(
+              `class` := "lego-picker-swatch",
+              style := s"background: ${lc.color.toHex};"
+            )(),
+            span(`class` := "lego-picker-label")(text(lc.name))
+          )
+        }*
+      )
+    )
 }
 
 final case class PaletteModel(
     name: String,
     colors: Vector[Color],
-    editingId: Option[String]
+    editingId: Option[String],
+    legoPickerIdx: Option[Int],
+    legoPickerForAdd: Boolean
 )
 
 enum PaletteMsg:
@@ -201,6 +283,10 @@ enum PaletteMsg:
   case RemoveColor(idx: Int)
   case MoveColorUp(idx: Int)
   case MoveColorDown(idx: Int)
+  case ToggleLegoPicker(idx: Int)
+  case PickLegoColor(idx: Int, lc: LegoColor)
+  case ToggleLegoPickerForAdd
+  case PickLegoColorForAdd(lc: LegoColor)
   case Save
   case LoadedForSave(list: List[StoredPalette])
   case SaveFailed
