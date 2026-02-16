@@ -872,13 +872,9 @@ input[type="number"].nes-input {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  align-items: flex-start;
+  align-items: stretch;
   position: relative;
 }
-.palette-add-lego-btn {
-  font-size: 0.85rem;
-}
-
 /* LEGO color picker dropdown */
 .lego-picker-dropdown {
   background: var(--screen-container-bg);

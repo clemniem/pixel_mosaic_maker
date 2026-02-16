@@ -178,7 +178,7 @@ object PaletteScreen extends Screen {
         div(`class` := "palette-add-row")(
           button(`class` := NesCss.btn, onClick(PaletteMsg.AddColor))(text("+ Add color")),
           button(
-            `class` := s"${NesCss.btn} palette-add-lego-btn",
+            `class` := NesCss.btn,
             onClick(PaletteMsg.ToggleLegoPickerForAdd),
             title := "Pick from LEGO colors"
           )(text("+ LEGO color")),

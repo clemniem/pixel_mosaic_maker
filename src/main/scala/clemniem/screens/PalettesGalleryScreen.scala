@@ -71,6 +71,22 @@ object PalettesGalleryScreen extends Screen {
       (model, Cmd.Emit(NavigateNext(ScreenId.PaletteId, None)))
     case PalettesGalleryMsg.Edit(stored) =>
       (model, Cmd.Emit(NavigateNext(ScreenId.PaletteId, Some(ScreenOutput.EditPalette(stored)))))
+    case PalettesGalleryMsg.Copy(stored) =>
+      model.list match {
+        case Some(list) =>
+          val newId   = "palette-" + js.Date.now().toLong
+          val copy    = StoredPalette(id = newId, name = stored.name + " copy", colors = stored.colors)
+          val idx     = list.indexWhere(_.id == stored.id)
+          val newList = if (idx >= 0) list.patch(idx + 1, List(copy), 0) else list :+ copy
+          val saveCmd = LocalStorageUtils.saveList(StorageKeys.palettes, newList)(
+            _ => PalettesGalleryMsg.CopySaved,
+            (_, _) => PalettesGalleryMsg.CopyFailed
+          )
+          (model.copy(list = Some(newList)), saveCmd)
+        case None => (model, Cmd.None)
+      }
+    case PalettesGalleryMsg.CopySaved  => (model, Cmd.None)
+    case PalettesGalleryMsg.CopyFailed => (model, Cmd.None)
     case PalettesGalleryMsg.Delete(stored) =>
       (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
     case PalettesGalleryMsg.ConfirmDelete(id) =>
@@ -179,6 +195,7 @@ object PalettesGalleryScreen extends Screen {
         else
           GalleryLayout.galleryActionsRow(
             button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Edit(item)))(text("Edit")),
+            button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Copy(item)))(text("Copy")),
             button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.Delete(item)))(text("Delete"))
           ),
         div(`class` := "gallery-card-preview")(
@@ -202,6 +219,9 @@ enum PalettesGalleryMsg:
   case PaletteFromImageError(message: String)
   case PaletteFromImageSaved
   case Edit(stored: StoredPalette)
+  case Copy(stored: StoredPalette)
+  case CopySaved
+  case CopyFailed
   case Delete(stored: StoredPalette)
   case ConfirmDelete(id: String)
   case CancelDelete
