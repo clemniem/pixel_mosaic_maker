@@ -5,6 +5,7 @@ import clemniem.{ColumnDef, Layout, GridDefMode, NavigateNext, RowDef, Screen, S
 import clemniem.common.CanvasUtils
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
+import org.scalajs.dom
 import tyrian.Html.*
 import tyrian.*
 
@@ -76,7 +77,7 @@ object LayoutScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case LayoutMsg.SetMode(mode) =>
-      val next = model.copy(mode = mode)
+      val next = model.copy(mode = mode, draftInputs = Map.empty)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case LayoutMsg.AddRow =>
@@ -84,35 +85,28 @@ object LayoutScreen extends Screen {
         case Some(prev) => RowDef(prev.height, prev.cellWidths)
         case None       => RowDef(defaultRowHeight, List(defaultCellWidth))
       }
-      val next = model.copy(rowDefs = model.rowDefs :+ newRow)
+      val next = model.copy(rowDefs = model.rowDefs :+ newRow, draftInputs = Map.empty)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case LayoutMsg.RemoveRow(idx) =>
       val next = model.copy(
         rowDefs = model.rowDefs.patch(idx, Nil, 1),
-        anchoredRows = model.anchoredRows.filter(_ != idx).map(i => if (i > idx) i - 1 else i)
+        anchoredRows = model.anchoredRows.filter(_ != idx).map(i => if (i > idx) i - 1 else i),
+        draftInputs = Map.empty
       )
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
-    case LayoutMsg.SetRowHeight(rowIdx, raw) =>
-      val h = raw.toIntOption.map(clampSize).getOrElse(defaultRowHeight)
-      val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, model.rowDefs(rowIdx).copy(height = h)))
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+    case LayoutMsg.SetDraft(key, value) =>
+      (model.copy(draftInputs = model.draftInputs.updated(key, value)), Cmd.None)
 
-    case LayoutMsg.SetRowCellWidth(rowIdx, cellIdx, raw) =>
-      val w = raw.toIntOption.map(clampSize).getOrElse(defaultCellWidth)
-      val row = model.rowDefs(rowIdx)
-      val ws =
-        if (model.anchoredRows.contains(rowIdx))
-          List.fill(row.cellWidths.length)(w)
-        else
-          row.cellWidths.patch(cellIdx, List(w), 1)
-      val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = ws)))
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+    case LayoutMsg.CommitDraft(key) =>
+      val raw = model.draftInputs.getOrElse(key, "")
+      val base = model.copy(draftInputs = model.draftInputs - key)
+      commitDraft(base, key, raw)
 
     case LayoutMsg.AddCellToRow(rowIdx) =>
       val row = model.rowDefs(rowIdx)
-      val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = row.cellWidths :+ defaultCellWidth)))
+      val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = row.cellWidths :+ defaultCellWidth)), draftInputs = Map.empty)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case LayoutMsg.RemoveCellFromRow(rowIdx, cellIdx) =>
@@ -120,7 +114,7 @@ object LayoutScreen extends Screen {
       if (row.cellWidths.length <= 1) (model, Cmd.None)
       else {
         val ws = row.cellWidths.patch(cellIdx, Nil, 1)
-        val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = ws)))
+        val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = ws)), draftInputs = Map.empty)
         (next, Cmd.SideEffect(drawGrid(next.grid)))
       }
 
@@ -135,36 +129,20 @@ object LayoutScreen extends Screen {
         case Some(prev) => ColumnDef(prev.width, prev.cellHeights)
         case None       => ColumnDef(defaultColWidth, List(defaultCellHeight))
       }
-      val next = model.copy(columnDefs = model.columnDefs :+ newCol)
+      val next = model.copy(columnDefs = model.columnDefs :+ newCol, draftInputs = Map.empty)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case LayoutMsg.RemoveColumn(idx) =>
       val next = model.copy(
         columnDefs = model.columnDefs.patch(idx, Nil, 1),
-        anchoredColumns = model.anchoredColumns.filter(_ != idx).map(i => if (i > idx) i - 1 else i)
+        anchoredColumns = model.anchoredColumns.filter(_ != idx).map(i => if (i > idx) i - 1 else i),
+        draftInputs = Map.empty
       )
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
-
-    case LayoutMsg.SetColumnWidth(colIdx, raw) =>
-      val w = raw.toIntOption.map(clampSize).getOrElse(defaultColWidth)
-      val col = model.columnDefs(colIdx)
-      val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(width = w)))
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
-
-    case LayoutMsg.SetColumnCellHeight(colIdx, cellIdx, raw) =>
-      val h = raw.toIntOption.map(clampSize).getOrElse(defaultCellHeight)
-      val col = model.columnDefs(colIdx)
-      val hs =
-        if (model.anchoredColumns.contains(colIdx))
-          List.fill(col.cellHeights.length)(h)
-        else
-          col.cellHeights.patch(cellIdx, List(h), 1)
-      val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = hs)))
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case LayoutMsg.AddCellToColumn(colIdx) =>
       val col = model.columnDefs(colIdx)
-      val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = col.cellHeights :+ defaultCellHeight)))
+      val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = col.cellHeights :+ defaultCellHeight)), draftInputs = Map.empty)
       (next, Cmd.SideEffect(drawGrid(next.grid)))
 
     case LayoutMsg.RemoveCellFromColumn(colIdx, cellIdx) =>
@@ -172,7 +150,7 @@ object LayoutScreen extends Screen {
       if (col.cellHeights.length <= 1) (model, Cmd.None)
       else {
         val hs = col.cellHeights.patch(cellIdx, Nil, 1)
-        val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = hs)))
+        val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = hs)), draftInputs = Map.empty)
         (next, Cmd.SideEffect(drawGrid(next.grid)))
       }
 
@@ -262,6 +240,85 @@ object LayoutScreen extends Screen {
       (model, Cmd.None)
   }
 
+  /** Parse a draft value and apply it to the correct model field. Falls back to the current model value if the input is empty or invalid. */
+  private def commitDraft(model: Model, key: String, raw: String): (Model, Cmd[IO, Msg]) = {
+    val noop: (Model, Cmd[IO, Msg]) = (model, Cmd.None)
+    val parts = key.split(':').toList
+    parts match {
+      case "rh" :: idx :: Nil =>
+        val rowIdx = idx.toInt
+        if (rowIdx >= model.rowDefs.length) noop
+        else {
+          val h    = raw.toIntOption.map(clampSize).getOrElse(model.rowDefs(rowIdx).height)
+          val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, model.rowDefs(rowIdx).copy(height = h)))
+          (next, Cmd.SideEffect(drawGrid(next.grid)))
+        }
+
+      case "rcw" :: ri :: ci :: Nil =>
+        val (rowIdx, cellIdx) = (ri.toInt, ci.toInt)
+        if (rowIdx >= model.rowDefs.length) noop
+        else {
+          val row = model.rowDefs(rowIdx)
+          if (cellIdx >= row.cellWidths.length) noop
+          else {
+            val w  = raw.toIntOption.map(clampSize).getOrElse(row.cellWidths(cellIdx))
+            val ws = if (model.anchoredRows.contains(rowIdx)) List.fill(row.cellWidths.length)(w) else row.cellWidths.patch(cellIdx, List(w), 1)
+            val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = ws)))
+            (next, Cmd.SideEffect(drawGrid(next.grid)))
+          }
+        }
+
+      case "cw" :: idx :: Nil =>
+        val colIdx = idx.toInt
+        if (colIdx >= model.columnDefs.length) noop
+        else {
+          val w    = raw.toIntOption.map(clampSize).getOrElse(model.columnDefs(colIdx).width)
+          val col  = model.columnDefs(colIdx)
+          val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(width = w)))
+          (next, Cmd.SideEffect(drawGrid(next.grid)))
+        }
+
+      case "cch" :: ci :: ri :: Nil =>
+        val (colIdx, cellIdx) = (ci.toInt, ri.toInt)
+        if (colIdx >= model.columnDefs.length) noop
+        else {
+          val col = model.columnDefs(colIdx)
+          if (cellIdx >= col.cellHeights.length) noop
+          else {
+            val h  = raw.toIntOption.map(clampSize).getOrElse(col.cellHeights(cellIdx))
+            val hs = if (model.anchoredColumns.contains(colIdx)) List.fill(col.cellHeights.length)(h) else col.cellHeights.patch(cellIdx, List(h), 1)
+            val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = hs)))
+            (next, Cmd.SideEffect(drawGrid(next.grid)))
+          }
+        }
+
+      case _ => noop
+    }
+  }
+
+  /** Create a number input that stores a draft on input and commits on Enter or blur. */
+  private def draftNumberInput(
+      draftKey: String,
+      currentValue: Int,
+      drafts: Map[String, String],
+      cssClass: String
+  ): Html[Msg] =
+    input(
+      `type` := "number",
+      min   := "1",
+      max   := "500",
+      value := drafts.getOrElse(draftKey, currentValue.toString),
+      onInput(s => LayoutMsg.SetDraft(draftKey, s)),
+      onEvent(
+        "keyup",
+        (e: dom.Event) =>
+          if (e.asInstanceOf[dom.KeyboardEvent].key == "Enter") LayoutMsg.CommitDraft(draftKey)
+          else LayoutMsg.NoOp
+      ),
+      onEvent("blur", (_: dom.Event) => LayoutMsg.CommitDraft(draftKey)),
+      `class` := cssClass
+    )
+
   def view(model: Model): Html[Msg] = {
     val grid = model.grid
     div(
@@ -303,8 +360,8 @@ object LayoutScreen extends Screen {
         )(text("Columns"))
       ),
       div(`class` := "field-block")(
-        if (model.mode == GridDefMode.ByRows) rowsEditor(model.rowDefs, model.anchoredRows)
-        else columnsEditor(model.columnDefs, model.anchoredColumns)
+        if (model.mode == GridDefMode.ByRows) rowsEditor(model.rowDefs, model.anchoredRows, model.draftInputs)
+        else columnsEditor(model.columnDefs, model.anchoredColumns, model.draftInputs)
       ),
       div(`class` := s"${NesCss.containerRounded} grid-preview-box")(
         p(`class` := "section-title")(
@@ -322,25 +379,11 @@ object LayoutScreen extends Screen {
     )
   }
 
-  private def rowsEditor(rowDefs: List[RowDef], anchoredRows: Set[Int]): Html[Msg] = {
+  private def rowsEditor(rowDefs: List[RowDef], anchoredRows: Set[Int], drafts: Map[String, String]): Html[Msg] = {
     val rowElems = rowDefs.zipWithIndex.toList.map { case (row, rowIdx) =>
-      val heightInput = input(
-        `type` := "number",
-        min := "1",
-        max := "500",
-        value := row.height.toString,
-        onInput(s => LayoutMsg.SetRowHeight(rowIdx, s)),
-        `class` := s"${NesCss.input} input-w-4"
-      )
+      val heightInput = draftNumberInput(s"rh:$rowIdx", row.height, drafts, s"${NesCss.input} input-w-4")
       val cellInputs = row.cellWidths.zipWithIndex.map { case (w, cellIdx) =>
-        input(
-          `type` := "number",
-          min := "1",
-          max := "500",
-          value := w.toString,
-          onInput(s => LayoutMsg.SetRowCellWidth(rowIdx, cellIdx, s)),
-          `class` := s"${NesCss.input} input-w-3half"
-        )
+        draftNumberInput(s"rcw:$rowIdx:$cellIdx", w, drafts, s"${NesCss.input} input-w-3half")
       }
       div(`class` := s"${NesCss.containerRounded} grid-editor-row")(
         div(`class` := "grid-editor-row-first")(
@@ -367,25 +410,11 @@ object LayoutScreen extends Screen {
     div(`class` := "grid-editor-list")((rowElems :+ addRowBtn)*)
   }
 
-  private def columnsEditor(colDefs: List[ColumnDef], anchoredColumns: Set[Int]): Html[Msg] = {
+  private def columnsEditor(colDefs: List[ColumnDef], anchoredColumns: Set[Int], drafts: Map[String, String]): Html[Msg] = {
     val colElems = colDefs.zipWithIndex.toList.map { case (col, colIdx) =>
-      val widthInput = input(
-        `type` := "number",
-        min := "1",
-        max := "500",
-        value := col.width.toString,
-        onInput(s => LayoutMsg.SetColumnWidth(colIdx, s)),
-        `class` := s"${NesCss.input} input-w-4"
-      )
+      val widthInput = draftNumberInput(s"cw:$colIdx", col.width, drafts, s"${NesCss.input} input-w-4")
       val cellInputs = col.cellHeights.zipWithIndex.map { case (h, cellIdx) =>
-        input(
-          `type` := "number",
-          min := "1",
-          max := "500",
-          value := h.toString,
-          onInput(s => LayoutMsg.SetColumnCellHeight(colIdx, cellIdx, s)),
-          `class` := s"${NesCss.input} input-w-3half"
-        )
+        draftNumberInput(s"cch:$colIdx:$cellIdx", h, drafts, s"${NesCss.input} input-w-3half")
       }
       div(`class` := s"${NesCss.containerRounded} grid-editor-row")(
         div(`class` := "grid-editor-row-first")(
@@ -436,7 +465,8 @@ final case class LayoutModel(
     editingId: Option[String] = None,
     pendingNormalizeChoice: Boolean = false,
     anchoredRows: Set[Int] = Set.empty,
-    anchoredColumns: Set[Int] = Set.empty
+    anchoredColumns: Set[Int] = Set.empty,
+    draftInputs: Map[String, String] = Map.empty
 ) {
   def grid: Layout =
     mode match
@@ -464,15 +494,13 @@ enum LayoutMsg:
   case SetMode(mode: GridDefMode)
   case AddRow
   case RemoveRow(idx: Int)
-  case SetRowHeight(rowIdx: Int, value: String)
-  case SetRowCellWidth(rowIdx: Int, cellIdx: Int, value: String)
+  case SetDraft(key: String, value: String)
+  case CommitDraft(key: String)
   case AddCellToRow(rowIdx: Int)
   case RemoveCellFromRow(rowIdx: Int, cellIdx: Int)
   case ToggleRowAnchor(rowIdx: Int)
   case AddColumn
   case RemoveColumn(idx: Int)
-  case SetColumnWidth(colIdx: Int, value: String)
-  case SetColumnCellHeight(colIdx: Int, cellIdx: Int, value: String)
   case AddCellToColumn(colIdx: Int)
   case RemoveCellFromColumn(colIdx: Int, cellIdx: Int)
   case ToggleColumnAnchor(colIdx: Int)
