@@ -11,7 +11,7 @@ lazy val pixel_mosaic_maker =
     .settings( // Normal settings
       name         := "pixel_mosaic_maker",
       version      := "0.0.1",
-      scalaVersion := "3.6.4",
+      scalaVersion := "3.8.1",
       organization := "clemniem",
       libraryDependencies ++= Seq(
         "io.indigoengine" %%% "tyrian-io"     % "0.14.0",
