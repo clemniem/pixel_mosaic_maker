@@ -11,8 +11,8 @@ import clemniem.{
   ScreenOutput,
   StorageKeys,
   StoredBuildConfig,
-  StoredLayout,
   StoredImage,
+  StoredLayout,
   StoredPalette
 }
 import clemniem.common.{CanvasUtils, LocalStorageUtils}
@@ -37,14 +37,20 @@ object BuildConfigScreen extends Screen {
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val (name, ox, oy, editingId, prefill) = previous match {
       case Some(ScreenOutput.EditBuildConfig(stored)) =>
-        val pf = (g: List[StoredLayout], i: List[StoredImage], p: List[StoredPalette]) => (
-          g.find(_.config == stored.config.grid).map(_.id),
-          Some(stored.config.imageRef).filter(id => i.exists(_.id == id)).orElse(i.headOption.map(_.id)),
-          Some(stored.config.paletteRef).filter(id => p.exists(_.id == id)).orElse(p.headOption.map(_.id))
-        )
+        val pf = (g: List[StoredLayout], i: List[StoredImage], p: List[StoredPalette]) =>
+          (
+            g.find(_.config == stored.config.grid).map(_.id),
+            Some(stored.config.imageRef).filter(id => i.exists(_.id == id)).orElse(i.headOption.map(_.id)),
+            Some(stored.config.paletteRef).filter(id => p.exists(_.id == id)).orElse(p.headOption.map(_.id))
+          )
         (stored.name, stored.config.offsetX, stored.config.offsetY, Some(stored.id), pf)
       case _ =>
-        ("Unnamed build", 0, 0, None, (_: List[StoredLayout], _: List[StoredImage], _: List[StoredPalette]) => (None, None, None))
+        (
+          "Unnamed build",
+          0,
+          0,
+          None,
+          (_: List[StoredLayout], _: List[StoredImage], _: List[StoredPalette]) => (None, None, None))
     }
     val model = BuildConfigModel(
       layouts = None,
@@ -79,15 +85,15 @@ object BuildConfigScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case BuildConfigMsg.LoadedLayouts(list) =>
-      val next = model.copy(layouts = Some(list))
-      val sel  = model.prefill(list, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
+      val next    = model.copy(layouts = Some(list))
+      val sel     = model.prefill(list, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
       val withSel = next.copy(selectedGridId = sel._1.orElse(next.selectedGridId).orElse(list.headOption.map(_.id)))
       val clamped = clampOffsets(withSel)
       (clamped, drawPreviewCmd(clamped))
 
     case BuildConfigMsg.LoadedImages(list) =>
-      val next = model.copy(images = Some(list))
-      val sel  = model.prefill(model.layouts.getOrElse(Nil), list, model.palettes.getOrElse(Nil))
+      val next    = model.copy(images = Some(list))
+      val sel     = model.prefill(model.layouts.getOrElse(Nil), list, model.palettes.getOrElse(Nil))
       val withSel = next.copy(selectedImageId = sel._2.orElse(next.selectedImageId).orElse(list.headOption.map(_.id)))
       val clamped = clampOffsets(withSel)
       (clamped, drawPreviewCmd(clamped))
@@ -95,7 +101,8 @@ object BuildConfigScreen extends Screen {
     case BuildConfigMsg.LoadedPalettes(list) =>
       val next = model.copy(palettes = Some(list))
       val sel  = model.prefill(model.layouts.getOrElse(Nil), model.images.getOrElse(Nil), list)
-      val withSel = next.copy(selectedPaletteId = sel._3.orElse(next.selectedPaletteId).orElse(list.headOption.map(_.id)))
+      val withSel =
+        next.copy(selectedPaletteId = sel._3.orElse(next.selectedPaletteId).orElse(list.headOption.map(_.id)))
       val clamped = clampOffsets(withSel)
       (clamped, drawPreviewCmd(clamped))
 
@@ -124,8 +131,8 @@ object BuildConfigScreen extends Screen {
 
     case BuildConfigMsg.Save =>
       (for {
-        grid   <- model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
-        image  <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
+        grid    <- model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
+        image   <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
         palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
       } yield BuildConfig(
         grid = grid.config,
@@ -147,12 +154,15 @@ object BuildConfigScreen extends Screen {
 
     case BuildConfigMsg.LoadedForSave(list) =>
       (for {
-        grid   <- model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
-        image  <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
+        grid    <- model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
+        image   <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
         palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
       } yield {
-        val id   = model.editingId.getOrElse("buildconfig-" + js.Date.now().toLong)
-        val stored = StoredBuildConfig(id = id, name = model.name, config = BuildConfig(grid.config, image.id, palette.id, model.offsetX, model.offsetY))
+        val id = model.editingId.getOrElse("buildconfig-" + js.Date.now().toLong)
+        val stored = StoredBuildConfig(
+          id = id,
+          name = model.name,
+          config = BuildConfig(grid.config, image.id, palette.id, model.offsetX, model.offsetY))
         val newList = model.editingId match {
           case Some(eid) => list.filterNot(_.id == eid) :+ stored
           case None      => list :+ stored
@@ -183,8 +193,8 @@ object BuildConfigScreen extends Screen {
 
   /** Overview: full image with palette + grid overlay at offset. */
   private def drawOverview(model: Model): IO[Unit] =
-    CanvasUtils.drawAfterViewReady(overviewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
-      val picOpt = picWithPalette(model)
+    CanvasUtils.drawAfterViewReady(overviewCanvasId, maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
+      val picOpt  = picWithPalette(model)
       val gridOpt = model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
       (picOpt, gridOpt) match {
         case (Some(pic), Some(storedGrid)) =>
@@ -194,13 +204,13 @@ object BuildConfigScreen extends Screen {
         case _ =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Select an image and colors for preview")
       }
-    })
+    }
 
   /** Preview: only the grid region of the image (cropped at offset), with grid overlay. */
   private def drawPreviewRegion(model: Model): IO[Unit] =
-    CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
-      val picOpt   = picWithPalette(model)
-      val gridOpt  = model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
+    CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
+      val picOpt  = picWithPalette(model)
+      val gridOpt = model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
       (picOpt, gridOpt) match {
         case (Some(pic), Some(storedGrid)) =>
           val gw = storedGrid.config.width
@@ -215,7 +225,11 @@ object BuildConfigScreen extends Screen {
               ctx.strokeStyle = Color.errorStroke.rgba(0.8)
               ctx.lineWidth = 1
               storedGrid.config.parts.foreach { part =>
-                ctx.strokeRect(part.x * fit.scale, part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
+                ctx.strokeRect(
+                  part.x * fit.scale,
+                  part.y * fit.scale,
+                  (part.width * fit.scale).max(1),
+                  (part.height * fit.scale).max(1))
               }
             case None =>
               CanvasUtils.drawPlaceholder(canvas, ctx, 300, 200, "Layout area is outside the image")
@@ -223,14 +237,13 @@ object BuildConfigScreen extends Screen {
         case _ =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 300, 200, "Select image, colors and layout for preview")
       }
-    })
+    }
 
   private def picWithPalette(model: Model): Option[PixelPic] =
     for {
       img     <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
       palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
     } yield clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
-
 
   private def drawFullImageOnly(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
     val fit = CanvasUtils.scaleToFit(pic.width, pic.height, 400, 400, 1.0)
@@ -240,7 +253,8 @@ object BuildConfigScreen extends Screen {
     CanvasUtils.drawPixelPic(canvas, ctx, pic, fit.width, fit.height, 0, 0)
   }
 
-  /** Max (offsetX, offsetY) so that the grid stays inside the image; (0, 0) if no image/grid or grid larger than image. */
+  /** Max (offsetX, offsetY) so that the grid stays inside the image; (0, 0) if no image/grid or grid larger than image.
+    */
   private def maxOffsets(model: Model): (Int, Int) =
     (for {
       grid <- model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
@@ -261,8 +275,7 @@ object BuildConfigScreen extends Screen {
     )
   }
 
-
-  def view(model: Model): Html[Msg] = {
+  def view(model: Model): Html[Msg] =
     div(`class` := s"${NesCss.screenContainer} screen-container--wide")(
       ScreenHeader(
         screenId.title,
@@ -273,9 +286,27 @@ object BuildConfigScreen extends Screen {
         Some(ScreenHeader.nameRowInput(model.name, BuildConfigMsg.SetName.apply, None, "")),
         false
       ),
-      selectRow("Layout", model.layouts, model.selectedGridId, BuildConfigMsg.SetGrid.apply, (g: StoredLayout) => g.name, (g: StoredLayout) => g.id),
-      selectRow("Image", model.images, model.selectedImageId, BuildConfigMsg.SetImage.apply, (i: StoredImage) => i.name, (i: StoredImage) => i.id),
-      selectRow("Palette", model.palettes, model.selectedPaletteId, BuildConfigMsg.SetPalette.apply, (p: StoredPalette) => p.name, (p: StoredPalette) => p.id),
+      selectRow(
+        "Layout",
+        model.layouts,
+        model.selectedGridId,
+        BuildConfigMsg.SetGrid.apply,
+        (g: StoredLayout) => g.name,
+        (g: StoredLayout) => g.id),
+      selectRow(
+        "Image",
+        model.images,
+        model.selectedImageId,
+        BuildConfigMsg.SetImage.apply,
+        (i: StoredImage) => i.name,
+        (i: StoredImage) => i.id),
+      selectRow(
+        "Palette",
+        model.palettes,
+        model.selectedPaletteId,
+        BuildConfigMsg.SetPalette.apply,
+        (p: StoredPalette) => p.name,
+        (p: StoredPalette) => p.id),
       offsetRow(model),
       div(`class` := "build-config-canvases")(
         div(`class` := "build-config-canvas-block")(
@@ -292,7 +323,6 @@ object BuildConfigScreen extends Screen {
         )
       )
     )
-  }
 
   private def offsetRow(model: Model): Html[Msg] = {
     val (maxX, maxY) = maxOffsets(model)
@@ -305,9 +335,9 @@ object BuildConfigScreen extends Screen {
           ),
           input(
             `type` := "range",
-            min := "0",
-            max := maxX.max(1).toString,
-            value := model.offsetX.min(maxX).toString,
+            min    := "0",
+            max    := maxX.max(1).toString,
+            value  := model.offsetX.min(maxX).toString,
             onInput(s => BuildConfigMsg.SetOffsetX(s.toIntOption.getOrElse(0)))
           )
         ),
@@ -318,9 +348,9 @@ object BuildConfigScreen extends Screen {
           ),
           input(
             `type` := "range",
-            min := "0",
-            max := maxY.max(1).toString,
-            value := model.offsetY.min(maxY).toString,
+            min    := "0",
+            max    := maxY.max(1).toString,
+            value  := model.offsetY.min(maxY).toString,
             onInput(s => BuildConfigMsg.SetOffsetY(s.toIntOption.getOrElse(0)))
           )
         )
@@ -329,12 +359,12 @@ object BuildConfigScreen extends Screen {
   }
 
   private def selectRow[A](
-      labelText: String,
-      listOpt: Option[List[A]],
-      selectedId: Option[String],
-      setMsg: String => BuildConfigMsg,
-      nameOf: A => String,
-      idOf: A => String
+    labelText: String,
+    listOpt: Option[List[A]],
+    selectedId: Option[String],
+    setMsg: String => BuildConfigMsg,
+    nameOf: A => String,
+    idOf: A => String
   ): Html[Msg] =
     div(`class` := s"${NesCss.field} field-block")(
       label(`class` := "label-block")(span(`class` := NesCss.text)(text(s"$labelText:"))),
@@ -347,7 +377,7 @@ object BuildConfigScreen extends Screen {
           val currentId = selectedId.orElse(list.headOption.map(idOf))
           select(
             `class` := s"${NesCss.input} input-min-w-16",
-            value := currentId.getOrElse(""),
+            value   := currentId.getOrElse(""),
             onInput(s => setMsg(if (s.isEmpty) list.headOption.map(idOf).getOrElse("") else s))
           )(
             list.map { item =>
@@ -360,20 +390,23 @@ object BuildConfigScreen extends Screen {
 }
 
 final case class BuildConfigModel(
-      layouts: Option[List[StoredLayout]],
-    images: Option[List[StoredImage]],
-    palettes: Option[List[StoredPalette]],
-    selectedGridId: Option[String],
-    selectedImageId: Option[String],
-    selectedPaletteId: Option[String],
-    offsetX: Int,
-    offsetY: Int,
-    name: String,
-    editingId: Option[String],
-    prefill: (List[StoredLayout], List[StoredImage], List[StoredPalette]) => (Option[String], Option[String], Option[String])
-)
+  layouts: Option[List[StoredLayout]],
+  images: Option[List[StoredImage]],
+  palettes: Option[List[StoredPalette]],
+  selectedGridId: Option[String],
+  selectedImageId: Option[String],
+  selectedPaletteId: Option[String],
+  offsetX: Int,
+  offsetY: Int,
+  name: String,
+  editingId: Option[String],
+  prefill: (List[StoredLayout], List[StoredImage], List[StoredPalette]) => (
+    Option[String],
+    Option[String],
+    Option[String]
+  ))
 
-enum BuildConfigMsg:
+enum BuildConfigMsg {
   case LoadedLayouts(list: List[StoredLayout])
   case LoadedImages(list: List[StoredImage])
   case LoadedPalettes(list: List[StoredPalette])
@@ -388,3 +421,4 @@ enum BuildConfigMsg:
   case SaveFailed
   case Back
   case DrawPreview
+}

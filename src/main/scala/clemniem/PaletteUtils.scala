@@ -3,11 +3,12 @@ package clemniem
 /** Helpers for applying stored palettes to pixel images. */
 object PaletteUtils {
 
-  /** Apply a stored palette to a PixelPic: map palette colors to Pixel (alpha 255), pad or trim to
-    * the pic's palette size, then set the pic's palette.
+  /** Apply a stored palette to a PixelPic: map palette colors to Pixel (alpha 255), pad or trim to the pic's palette
+    * size, then set the pic's palette.
     */
   /** Resolve a StoredBuildConfig to a palette-applied PixelPic, if the referenced image and palette exist. */
-  def picForBuildConfig(stored: StoredBuildConfig, images: List[StoredImage], palettes: List[StoredPalette]): Option[PixelPic] =
+  def picForBuildConfig(stored: StoredBuildConfig, images: List[StoredImage], palettes: List[StoredPalette])
+    : Option[PixelPic] =
     for {
       img     <- images.find(_.id == stored.config.imageRef)
       palette <- palettes.find(_.id == stored.config.paletteRef)

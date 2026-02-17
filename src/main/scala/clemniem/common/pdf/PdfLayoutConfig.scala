@@ -1,100 +1,98 @@
 package clemniem.common.pdf
 
-/**
- * Layout configuration for the PDF book. All numeric layout choices (margins, paddings, font sizes, gaps)
- * are defined here so layout can be changed in one place without editing PdfUtils.
- * Aligned with docs/print_instructions_layout.md (cover, full overview, chapter overview, layer pages).
- */
+/** Layout configuration for the PDF book. All numeric layout choices (margins, paddings, font sizes, gaps) are defined
+  * here so layout can be changed in one place without editing PdfUtils. Aligned with docs/print_instructions_layout.md
+  * (cover, full overview, chapter overview, layer pages).
+  */
 final case class PdfLayoutConfig(
-    global: PdfLayoutConfig.Global,
-    cover: PdfLayoutConfig.Cover,
-    fullOverview: PdfLayoutConfig.FullOverview,
-    chapterOverview: PdfLayoutConfig.ChapterOverview,
-    layerPage: PdfLayoutConfig.LayerPage
-)
+  global: PdfLayoutConfig.Global,
+  cover: PdfLayoutConfig.Cover,
+  fullOverview: PdfLayoutConfig.FullOverview,
+  chapterOverview: PdfLayoutConfig.ChapterOverview,
+  layerPage: PdfLayoutConfig.LayerPage)
 
 object PdfLayoutConfig {
 
   /** Page size and content margins (used for all pages). */
   final case class Global(
-      pageSizeMm: Double,
-      contentPaddingLRMm: Double,
-      contentPaddingTBMm: Double
-  )
+    pageSizeMm: Double,
+    contentPaddingLRMm: Double,
+    contentPaddingTBMm: Double)
 
   /** Cover page: with mosaic (centered image, frame, title in corner) or title-only. */
   final case class Cover(
-      titleFontSizePt: Int,
-      titleOffsetYFromTopMm: Double,
-      titleBlockHeightMm: Double,
-      titleOnlyXMm: Double,
-      titleOnlyYMm: Double,
-      frameWhiteMarginMm: Double,
-      frameStrokeLineWidthMm: Double,
-      frameCornerRadiusMm: Double,
-      titleBoxPaddingMm: Double
-  )
+    titleFontSizePt: Int,
+    titleOffsetYFromTopMm: Double,
+    titleBlockHeightMm: Double,
+    titleOnlyXMm: Double,
+    titleOnlyYMm: Double,
+    frameWhiteMarginMm: Double,
+    frameStrokeLineWidthMm: Double,
+    frameCornerRadiusMm: Double,
+    titleBoxPaddingMm: Double)
 
-  /** Full overview page: color list top-left, mosaic right (top-aligned with list). No title. Exploded view uses grid parts with gap; dimension markings (architecture-style) on top and left. */
+  /** Full overview page: color list top-left, mosaic right (top-aligned with list). No title. Exploded view uses grid
+    * parts with gap; dimension markings (architecture-style) on top and left.
+    */
   final case class FullOverview(
-      titleOffsetFromTopMm: Double,
-      colorListReservedWidthMm: Double,
-      explodedGapMm: Double,
-      explodedDimensionGapMm: Double,
-      explodedDimensionFontSizePt: Int,
-      explodedDimensionLineWidthMm: Double,
-      titleFontSizePt: Int,
-      countLabelFontSizePt: Int,
-      swatch: SwatchBlock
-  )
+    titleOffsetFromTopMm: Double,
+    colorListReservedWidthMm: Double,
+    explodedGapMm: Double,
+    explodedDimensionGapMm: Double,
+    explodedDimensionFontSizePt: Int,
+    explodedDimensionLineWidthMm: Double,
+    titleFontSizePt: Int,
+    countLabelFontSizePt: Int,
+    swatch: SwatchBlock)
 
-  /** Shared swatch list block (full overview and chapter overview). Row = swatch (with black frame) + gap + "× count"; text centered with swatch. lineHeightMm > swatchSizeMm for row spacing. */
+  /** Shared swatch list block (full overview and chapter overview). Row = swatch (with black frame) + gap + "× count";
+    * text centered with swatch. lineHeightMm > swatchSizeMm for row spacing.
+    */
   final case class SwatchBlock(
-      swatchSizeMm: Double,
-      swatchGapMm: Double,
-      lineHeightMm: Double,
-      swatchStrokeLineWidthMm: Double,
-      countFontSizePt: Int,
-      firstLineOffsetMm: Double
-  )
+    swatchSizeMm: Double,
+    swatchGapMm: Double,
+    lineHeightMm: Double,
+    swatchStrokeLineWidthMm: Double,
+    countFontSizePt: Int,
+    firstLineOffsetMm: Double)
 
-  /** Chapter (section) overview page: same pattern as full overview – left = color list + small grid overview below; right = exploded section with dimension lines. No title. */
+  /** Chapter (section) overview page: same pattern as full overview – left = color list + small grid overview below;
+    * right = exploded section with dimension lines. No title.
+    */
   final case class ChapterOverview(
-      contentTopOffsetFromTopMm: Double,
-      colorListReservedWidthMm: Double,
-      gridOverviewMaxHeightMm: Double,
-      gridOverviewGapAboveMm: Double,
-      gridOverviewLeftMarginMm: Double,
-      gridOverviewRightMarginMm: Double,
-      gridOverviewExplodedGapMm: Double,
-      explodedGapMm: Double,
-      /** Scale factor for right-side exploded area (e.g. 0.85 = a bit smaller). */
-      explodedAreaScaleFactor: Double,
-      explodedDimensionGapMm: Double,
-      explodedDimensionFontSizePt: Int,
-      explodedDimensionLineWidthMm: Double,
-      divisibilityNoteFontSizePt: Int,
-      divisibilityNoteOffsetAboveCountYMm: Double,
-      nonDivisibleMessageFontSizePt: Int,
-      nonDivisibleMessageOffsetFromTopMm: Double,
-      swatch: SwatchBlock
-  )
+    contentTopOffsetFromTopMm: Double,
+    colorListReservedWidthMm: Double,
+    gridOverviewMaxHeightMm: Double,
+    gridOverviewGapAboveMm: Double,
+    gridOverviewLeftMarginMm: Double,
+    gridOverviewRightMarginMm: Double,
+    gridOverviewExplodedGapMm: Double,
+    explodedGapMm: Double,
+    /** Scale factor for right-side exploded area (e.g. 0.85 = a bit smaller). */
+    explodedAreaScaleFactor: Double,
+    explodedDimensionGapMm: Double,
+    explodedDimensionFontSizePt: Int,
+    explodedDimensionLineWidthMm: Double,
+    divisibilityNoteFontSizePt: Int,
+    divisibilityNoteOffsetAboveCountYMm: Double,
+    nonDivisibleMessageFontSizePt: Int,
+    nonDivisibleMessageOffsetFromTopMm: Double,
+    swatch: SwatchBlock)
 
   /** Layer patch pages: 2×2 grid of patches, labels below. */
   final case class LayerPage(
-      patchMarginMm: Double,
-      patchGapMm: Double,
-      patchGridCols: Int,
-      patchesPerPage: Int,
-      contentTopOffsetMm: Double,
-      titleFontSizePt: Int,
-      titleOffsetFromTopMm: Double,
-      labelOffsetBelowPatchMm: Double,
-      labelFontSizePt: Int,
-      grid16LineWidthMm: Double,
-      grid4x4LineWidthMm: Double,
-      gridStrokeGrey: Int
-  )
+    patchMarginMm: Double,
+    patchGapMm: Double,
+    patchGridCols: Int,
+    patchesPerPage: Int,
+    contentTopOffsetMm: Double,
+    titleFontSizePt: Int,
+    titleOffsetFromTopMm: Double,
+    labelOffsetBelowPatchMm: Double,
+    labelFontSizePt: Int,
+    grid16LineWidthMm: Double,
+    grid4x4LineWidthMm: Double,
+    gridStrokeGrey: Int)
 
   val default: PdfLayoutConfig = PdfLayoutConfig(
     global = Global(

@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{Layout, NavigateNext, Screen, ScreenId, ScreenOutput, StoredLayout, StorageKeys}
+import clemniem.{Layout, NavigateNext, Screen, ScreenId, ScreenOutput, StorageKeys, StoredLayout}
 import clemniem.common.CanvasUtils
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
@@ -37,14 +37,22 @@ object LayoutGalleryScreen extends Screen {
             )
           )
       val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
-      (model.copy(list = Some(list), currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), drawPreviews)
+      (
+        model.copy(list = Some(list), currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)),
+        drawPreviews)
     case LayoutGalleryMsg.Edit(stored) =>
       (model, Cmd.Emit(NavigateNext(ScreenId.LayoutId, Some(ScreenOutput.EditLayout(stored)))))
     case LayoutGalleryMsg.Delete(stored) =>
       (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
     case LayoutGalleryMsg.ConfirmDelete(id) =>
       val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
-        model.list, id, StorageKeys.layouts, GalleryLayout.defaultPageSize, model.currentPage, LayoutGalleryMsg.CancelDelete, _.id
+        model.list,
+        id,
+        StorageKeys.layouts,
+        GalleryLayout.defaultPageSize,
+        model.currentPage,
+        LayoutGalleryMsg.CancelDelete,
+        _.id
       )
       (model.copy(list = newList, pendingDeleteId = None, currentPage = newPage), cmd)
     case LayoutGalleryMsg.CancelDelete =>
@@ -53,7 +61,7 @@ object LayoutGalleryScreen extends Screen {
       (model, Cmd.Emit(NavigateNext(ScreenId.LayoutId, None)))
     case LayoutGalleryMsg.PreviousPage =>
       val next = model.copy(currentPage = (model.currentPage - 1).max(1))
-      val cmd  = model.list match {
+      val cmd = model.list match {
         case Some(list) if list.nonEmpty =>
           Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
         case _ => Cmd.None
@@ -64,8 +72,9 @@ object LayoutGalleryScreen extends Screen {
         case Some(list) =>
           val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
           val next       = model.copy(currentPage = (model.currentPage + 1).min(totalPages))
-          val cmd = if (list.isEmpty) Cmd.None
-          else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
+          val cmd =
+            if (list.isEmpty) Cmd.None
+            else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
           (next, cmd)
         case None => (model, Cmd.None)
       }
@@ -82,7 +91,12 @@ object LayoutGalleryScreen extends Screen {
     val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
     model.list match {
       case None =>
-        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = true, Some(nextBtn))
+        GalleryLayout(
+          screenId.title,
+          backBtn,
+          p(`class` := NesCss.text)(text("Loading…")),
+          shortHeader = true,
+          Some(nextBtn))
       case Some(list) =>
         val content =
           if (list.isEmpty)
@@ -99,10 +113,10 @@ object LayoutGalleryScreen extends Screen {
   }
 
   private def paginatedList(
-      list: List[StoredLayout],
-      currentPage: Int,
-      addAction: Html[Msg],
-      entryCard: StoredLayout => Html[Msg]
+    list: List[StoredLayout],
+    currentPage: Int,
+    addAction: Html[Msg],
+    entryCard: StoredLayout => Html[Msg]
   ): Html[Msg] =
     GalleryLayout.paginatedListWith(
       list,
@@ -119,9 +133,9 @@ object LayoutGalleryScreen extends Screen {
       div(`class` := "gallery-preview-wrap")(
         div(onLoad(LayoutGalleryMsg.DrawPreview(item)))(
           canvas(
-            id := s"grid-preview-${item.id}",
-            width := previewWidth,
-            height := previewHeight,
+            id      := s"grid-preview-${item.id}",
+            width   := previewWidth,
+            height  := previewHeight,
             `class` := "gallery-preview-canvas"
           )()
         )
@@ -159,7 +173,8 @@ object LayoutGalleryScreen extends Screen {
     }
 
   private def drawPreview(stored: StoredLayout): IO[Unit] =
-    CanvasUtils.drawGalleryPreview(s"grid-preview-${stored.id}")((_: Canvas, ctx: CanvasRenderingContext2D) => drawGridScaled(ctx, stored.config))
+    CanvasUtils.drawGalleryPreview(s"grid-preview-${stored.id}")((_: Canvas, ctx: CanvasRenderingContext2D) =>
+      drawGridScaled(ctx, stored.config))
 
   /** NES.css-style grid preview: thick dark borders, checkerboard fills, pixel-art bevel. */
   private def drawGridScaled(ctx: CanvasRenderingContext2D, grid: Layout): Unit = {
@@ -168,9 +183,14 @@ object LayoutGalleryScreen extends Screen {
     if (grid.parts.nonEmpty && grid.width > 0 && grid.height > 0) {
       // Leave a small margin so the outer border doesn't clip against the canvas edge
       val margin = 4
-      val fit = CanvasUtils.scaleToFit(grid.width, grid.height, previewWidth - margin * 2, previewHeight - margin * 2, Double.MaxValue)
-      val ox  = fit.offsetX + margin
-      val oy  = fit.offsetY + margin
+      val fit = CanvasUtils.scaleToFit(
+        grid.width,
+        grid.height,
+        previewWidth - margin * 2,
+        previewHeight - margin * 2,
+        Double.MaxValue)
+      val ox = fit.offsetX + margin
+      val oy = fit.offsetY + margin
 
       // --- cell fills (checkerboard) ---
       grid.parts.zipWithIndex.foreach { case (part, i) =>
@@ -214,12 +234,11 @@ object LayoutGalleryScreen extends Screen {
 }
 
 final case class LayoutGalleryModel(
-    list: Option[List[StoredLayout]],
-    pendingDeleteId: Option[String],
-    currentPage: Int
-)
+  list: Option[List[StoredLayout]],
+  pendingDeleteId: Option[String],
+  currentPage: Int)
 
-enum LayoutGalleryMsg:
+enum LayoutGalleryMsg {
   case Loaded(list: List[StoredLayout])
   case Edit(stored: StoredLayout)
   case Delete(stored: StoredLayout)
@@ -230,3 +249,4 @@ enum LayoutGalleryMsg:
   case PreviousPage
   case NextPage
   case Back
+}

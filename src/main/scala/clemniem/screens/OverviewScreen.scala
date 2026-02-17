@@ -8,7 +8,9 @@ import org.scalajs.dom
 import tyrian.Html.*
 import tyrian.*
 
-/** Home page: links to Upload Images, Define Grid, Create Palettes, Mosaic Configurator, Mosaic Builder, Print Instructions. */
+/** Home page: links to Upload Images, Define Grid, Create Palettes, Mosaic Configurator, Mosaic Builder, Print
+  * Instructions.
+  */
 object OverviewScreen extends Screen {
   type Model = Unit
   type Msg   = OverviewMsg | NavigateNext
@@ -60,7 +62,8 @@ object OverviewScreen extends Screen {
     )
 }
 
-enum OverviewMsg:
+enum OverviewMsg {
   case GoTo(screenId: ScreenId)
   case ToggleTheme
   case NoOp
+}

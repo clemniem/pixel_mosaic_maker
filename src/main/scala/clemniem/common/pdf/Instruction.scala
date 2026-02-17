@@ -4,6 +4,7 @@ package clemniem.common.pdf
 sealed trait Instruction
 
 object Instruction {
+
   /** Create a new document with one page of the given size (width and height in mm). */
   case class PageSize(widthMm: Double, heightMm: Double) extends Instruction
 
@@ -17,69 +18,111 @@ object Instruction {
   case class TextAligned(xMm: Double, yMm: Double, value: String, align: String, fontSizePt: Int) extends Instruction
 
   /** Draw a line segment (e.g. dimension tick). */
-  case class DrawLine(x1Mm: Double, y1Mm: Double, x2Mm: Double, y2Mm: Double, lineWidthMm: Double, r: Int, g: Int, b: Int) extends Instruction
+  case class DrawLine(
+    x1Mm: Double,
+    y1Mm: Double,
+    x2Mm: Double,
+    y2Mm: Double,
+    lineWidthMm: Double,
+    r: Int,
+    g: Int,
+    b: Int)
+    extends Instruction
 
-  /** Draw text with a filled background (e.g. NES-style title over frame). When alignLeft, xMm is left edge; else xMm is right edge. yTopMm = top of background box. */
+  /** Draw text with a filled background (e.g. NES-style title over frame). When alignLeft, xMm is left edge; else xMm
+    * is right edge. yTopMm = top of background box.
+    */
   case class TextWithBackground(
-      xMm: Double,
-      yTopMm: Double,
-      value: String,
-      fontSizePt: Int,
-      paddingMm: Double,
-      alignLeft: Boolean,
-      bgR: Int,
-      bgG: Int,
-      bgB: Int
-  ) extends Instruction
+    xMm: Double,
+    yTopMm: Double,
+    value: String,
+    fontSizePt: Int,
+    paddingMm: Double,
+    alignLeft: Boolean,
+    bgR: Int,
+    bgG: Int,
+    bgB: Int)
+    extends Instruction
 
   /** Add a new page (same size as document). Must be used after at least one PageSize. */
   case object AddPage extends Instruction
 
   /** Draw a pixel grid as small rects (gbcamutil-style). rgbFlat: row-major, 3 ints per pixel (r,g,b). */
   case class DrawPixelGrid(
-      xMm: Double,
-      yMm: Double,
-      widthMm: Double,
-      heightMm: Double,
-      pixelWidth: Int,
-      pixelHeight: Int,
-      rgbFlat: Vector[Int]
-  ) extends Instruction
+    xMm: Double,
+    yMm: Double,
+    widthMm: Double,
+    heightMm: Double,
+    pixelWidth: Int,
+    pixelHeight: Int,
+    rgbFlat: Vector[Int])
+    extends Instruction
 
   /** Draw stroke-only rects (e.g. section grid overlay). Each (xMm, yMm, widthMm, heightMm). Line width in mm. */
   case class DrawStrokeRects(
-      rectsMm: List[(Double, Double, Double, Double)],
-      strokeR: Int,
-      strokeG: Int,
-      strokeB: Int,
-      lineWidthMm: Double = 0.25
-  ) extends Instruction
+    rectsMm: List[(Double, Double, Double, Double)],
+    strokeR: Int,
+    strokeG: Int,
+    strokeB: Int,
+    lineWidthMm: Double = 0.25)
+    extends Instruction
 
   /** Draw a filled rectangle (e.g. color swatch). */
-  case class FillRect(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, r: Int, g: Int, b: Int) extends Instruction
+  case class FillRect(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, r: Int, g: Int, b: Int)
+    extends Instruction
 
   /** Draw a filled rectangle with opacity (e.g. grey overlay). opacity in 0.0–1.0. */
-  case class FillRectWithOpacity(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, r: Int, g: Int, b: Int, opacity: Double) extends Instruction
+  case class FillRectWithOpacity(
+    xMm: Double,
+    yMm: Double,
+    widthMm: Double,
+    heightMm: Double,
+    r: Int,
+    g: Int,
+    b: Int,
+    opacity: Double)
+    extends Instruction
 
-  /** Draw one pixel-count row: swatch square (with optional black frame) + "× count" text. Text is vertically centered with the swatch. */
+  /** Draw one pixel-count row: swatch square (with optional black frame) + "× count" text. Text is vertically centered
+    * with the swatch.
+    */
   case class DrawSwatchRow(
-      xMm: Double,
-      yMm: Double,
-      swatchR: Int,
-      swatchG: Int,
-      swatchB: Int,
-      count: Int,
-      swatchSizeMm: Double,
-      gapMm: Double,
-      fontSizePt: Int,
-      swatchStrokeLineWidthMm: Double
-  ) extends Instruction
+    xMm: Double,
+    yMm: Double,
+    swatchR: Int,
+    swatchG: Int,
+    swatchB: Int,
+    count: Int,
+    swatchSizeMm: Double,
+    gapMm: Double,
+    fontSizePt: Int,
+    swatchStrokeLineWidthMm: Double)
+    extends Instruction
 
   /** Draw a filled rounded rectangle (e.g. cover frame). */
-  case class RoundedFillRect(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, radiusMm: Double, r: Int, g: Int, b: Int) extends Instruction
+  case class RoundedFillRect(
+    xMm: Double,
+    yMm: Double,
+    widthMm: Double,
+    heightMm: Double,
+    radiusMm: Double,
+    r: Int,
+    g: Int,
+    b: Int)
+    extends Instruction
 
   /** Draw a stroked rounded rectangle (e.g. cover frame outline). */
-  case class RoundedStrokeRect(xMm: Double, yMm: Double, widthMm: Double, heightMm: Double, radiusMm: Double, strokeR: Int, strokeG: Int, strokeB: Int, lineWidthMm: Double) extends Instruction
+  case class RoundedStrokeRect(
+    xMm: Double,
+    yMm: Double,
+    widthMm: Double,
+    heightMm: Double,
+    radiusMm: Double,
+    strokeR: Int,
+    strokeG: Int,
+    strokeB: Int,
+    lineWidthMm: Double)
+    extends Instruction
 
   /** Trigger browser download with the given filename. */
   case class Save(filename: String) extends Instruction

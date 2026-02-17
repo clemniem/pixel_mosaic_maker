@@ -7,10 +7,10 @@ import clemniem.screens.{
   BuildConfigScreen,
   BuildScreen,
   BuildsGalleryScreen,
-  LayoutGalleryScreen,
-  LayoutScreen,
   ImageUploadScreen,
   ImagesGalleryScreen,
+  LayoutGalleryScreen,
+  LayoutScreen,
   OverviewMsg,
   OverviewScreen,
   PaletteScreen,
@@ -24,10 +24,9 @@ import scala.scalajs.js.annotation.*
 
 /** Root model: current screen and its model (type-erased). Registry is fixed at startup. */
 final case class RootModel(
-    registry: ScreenRegistry,
-    currentScreenId: ScreenId,
-    currentModel: Any
-)
+  registry: ScreenRegistry,
+  currentScreenId: ScreenId,
+  currentModel: Any)
 
 @JSExportTopLevel("TyrianApp")
 object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
@@ -56,7 +55,7 @@ object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
     Routing.none(RootMsg.HandleScreenMsg(registry.initialScreenId, OverviewMsg.NoOp))
 
   def init(flags: Map[String, String]): (RootModel, Cmd[IO, RootMsg]) = {
-    val screen = registry.screenFor(registry.initialScreenId).get
+    val screen       = registry.screenFor(registry.initialScreenId).get
     val (model, cmd) = screen.init(None)
     (
       RootModel(registry, registry.initialScreenId, model),
@@ -108,7 +107,7 @@ object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
       }
   }
 
-  def view(model: RootModel): Html[RootMsg] = {
+  def view(model: RootModel): Html[RootMsg] =
     model.registry.screenFor(model.currentScreenId) match {
       case None =>
         div(text("Unknown screen"))
@@ -117,7 +116,6 @@ object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
           .view(model.currentModel.asInstanceOf[screen.Model])
           .map(screen.wrapMsg)
     }
-  }
 
   def subscriptions(model: RootModel): Sub[IO, RootMsg] =
     model.registry.screenFor(model.currentScreenId) match {

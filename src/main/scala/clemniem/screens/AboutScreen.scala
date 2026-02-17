@@ -56,10 +56,12 @@ object AboutScreen extends Screen {
       div(`class` := "about-content")(
         p(`class` := NesCss.text)(text("Pixel Mosaic Maker turns pixel art into printable mosaic instructions.")),
         p(`class` := NesCss.text)(text("Use Game Boy Camera photos or other low-res images.")),
-        p(`class` := NesCss.text)(text("Get step-by-step guides to recreate the image with physical tiles or bricks (e.g. Lego sections, perler beads).")),
+        p(`class` := NesCss.text)(text(
+          "Get step-by-step guides to recreate the image with physical tiles or bricks (e.g. Lego sections, perler beads).")),
         p(`class` := NesCss.text)(text("You define a grid and upload images.")),
         p(`class` := NesCss.text)(text("You create palettes and build configs, then run a build.")),
-        p(`class` := NesCss.text)(text("You get a PDF book: cover, overview, per-section chapters with swatches, and layer-by-layer patch pages.")),
+        p(`class` := NesCss.text)(text(
+          "You get a PDF book: cover, overview, per-section chapters with swatches, and layer-by-layer patch pages.")),
         p(`class` := NesCss.text)(text("Everything runs in the browser.")),
         p(`class` := NesCss.text)(text("Data is stored in LocalStorage. No server or account required.")),
         h2(`class` := "about-heading")(text("Libraries & tools")),
@@ -81,21 +83,22 @@ object AboutScreen extends Screen {
         p(`class` := NesCss.text)(text("After a deploy you might still see an old version.")),
         p(`class` := NesCss.text)(text("The browser may be serving cached files.")),
         p(`class` := NesCss.text)(text("The button below unregisters the cache and reloads the page.")),
-        (if (model)
-          div(`class` := "about-refresh-confirm")(
-            p(`class` := "about-refresh-confirm-text")(
-              text("Unregister cache and reload now? The page will refresh.")
-            ),
-            div(`class` := "flex-row flex-row--tight")(
-              button(`class` := NesCss.btnPrimary, onClick(AboutMsg.ConfirmRefresh))(text("Yes, refresh")),
-              button(`class` := NesCss.btn, onClick(AboutMsg.CancelRefresh))(text("Cancel"))
+        (
+          if (model)
+            div(`class` := "about-refresh-confirm")(
+              p(`class` := "about-refresh-confirm-text")(
+                text("Unregister cache and reload now? The page will refresh.")
+              ),
+              div(`class` := "flex-row flex-row--tight")(
+                button(`class` := NesCss.btnPrimary, onClick(AboutMsg.ConfirmRefresh))(text("Yes, refresh")),
+                button(`class` := NesCss.btn, onClick(AboutMsg.CancelRefresh))(text("Cancel"))
+              )
             )
-          )
-        else
-          button(`class` := NesCss.btn, onClick(AboutMsg.ShowRefreshConfirm))(text("Refresh app"))
+          else
+            button(`class` := NesCss.btn, onClick(AboutMsg.ShowRefreshConfirm))(text("Refresh app"))
+        )
       )
     )
-  )
 
   private def toolsTable: Html[Msg] = {
     val rows = List(
@@ -133,9 +136,10 @@ object AboutScreen extends Screen {
   }
 }
 
-enum AboutMsg:
+enum AboutMsg {
   case ShowRefreshConfirm
   case ConfirmRefresh
   case CancelRefresh
   case Back
   case NoOp
+}

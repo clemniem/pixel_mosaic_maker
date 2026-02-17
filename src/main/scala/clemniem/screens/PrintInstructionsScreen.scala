@@ -1,24 +1,16 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{
-  Color,
-  Layout,
-  NavigateNext,
-  PixelPic,
-  Screen,
-  ScreenId,
-  StoredBuildConfig,
-  StoredImage,
-  StoredPalette
-}
+import clemniem.{Color, Layout, NavigateNext, PixelPic, Screen, ScreenId, StoredBuildConfig, StoredImage, StoredPalette}
 import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
 import clemniem.common.nescss.NesCss
 import clemniem.StorageKeys
 import tyrian.Html.*
 import tyrian.*
 
-/** Fixed step size options (px). Only those that divide every section width/height are shown. Default 16 if available else smallest. */
+/** Fixed step size options (px). Only those that divide every section width/height are shown. Default 16 if available
+  * else smallest.
+  */
 private val stepSizeCandidates = List(12, 16, 20, 24, 28, 32)
 
 private def availableStepSizesForGrid(grid: Layout): List[Int] =
@@ -68,9 +60,11 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.LoadedBuildConfigs(list) =>
       val selectedId = model.selectedBuildConfigId.orElse(list.headOption.map(_.id))
       val nextBase   = model.copy(buildConfigs = Some(list), selectedBuildConfigId = selectedId)
-      val available  = nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
-      val stepSize   = if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
-      val next       = nextBase.copy(stepSizePx = stepSize)
+      val available =
+        nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
+      val stepSize =
+        if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
+      val next = nextBase.copy(stepSizePx = stepSize)
       (next, Cmd.SideEffect(drawOverview(next)))
     case PrintInstructionsMsg.LoadedImages(list) =>
       val next = model.copy(images = Some(list))
@@ -79,10 +73,12 @@ object PrintInstructionsScreen extends Screen {
       val next = model.copy(palettes = Some(list))
       (next, Cmd.SideEffect(drawOverview(next)))
     case PrintInstructionsMsg.SetBuildConfig(id) =>
-      val nextBase  = model.copy(selectedBuildConfigId = Some(id))
-      val available = nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
-      val stepSize  = if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
-      val next      = nextBase.copy(stepSizePx = stepSize)
+      val nextBase = model.copy(selectedBuildConfigId = Some(id))
+      val available =
+        nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
+      val stepSize =
+        if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
+      val next = nextBase.copy(stepSizePx = stepSize)
       (next, Cmd.SideEffect(drawOverview(next)))
     case PrintInstructionsMsg.DrawOverview =>
       (model, Cmd.SideEffect(drawOverview(model)))
@@ -95,13 +91,13 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.SetPrinterMarginMm(mm) =>
       (model.copy(printerMarginMm = mm), Cmd.None)
     case PrintInstructionsMsg.PrintPdf =>
-      val pageBg = if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
-                   else Color.fromHex(model.pageBackgroundColorHex)
+      val pageBg =
+        if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
+        else Color.fromHex(model.pageBackgroundColorHex)
       val request = PrintBookRequest(
         title = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
         mosaicPicAndGridOpt = model.selectedStored.flatMap(stored =>
-          mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
-        ),
+          mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))),
         stepSizePx = model.stepSizePx,
         pageBackgroundColor = pageBg,
         printerMarginMm = model.printerMarginMm
@@ -146,8 +142,9 @@ object PrintInstructionsScreen extends Screen {
           case Some(list) =>
             select(
               `class` := s"${NesCss.input} input-min-w-16",
-              value := selectedId.getOrElse(""),
-              onInput(s => PrintInstructionsMsg.SetBuildConfig(if (s.isEmpty) list.headOption.map(_.id).getOrElse("") else s))
+              value   := selectedId.getOrElse(""),
+              onInput(s =>
+                PrintInstructionsMsg.SetBuildConfig(if (s.isEmpty) list.headOption.map(_.id).getOrElse("") else s))
             )(
               list.map { item =>
                 option(value := item.id)(text(item.name))
@@ -161,9 +158,9 @@ object PrintInstructionsScreen extends Screen {
             div(`class` := "section-title")(text("Layout preview")),
             div(onLoad(PrintInstructionsMsg.DrawOverview))(
               canvas(
-                id := overviewCanvasId,
-                width := 400,
-                height := 200,
+                id      := overviewCanvasId,
+                width   := 400,
+                height  := 200,
                 `class` := "pixel-canvas"
               )()
             )
@@ -174,9 +171,9 @@ object PrintInstructionsScreen extends Screen {
       div(`class` := s"${NesCss.field} field-block--lg")(
         label(`class` := "label-block")(text("Title")),
         input(
-          `type` := "text",
+          `type`  := "text",
           `class` := s"${NesCss.input} input-w-full",
-          value := model.title,
+          value   := model.title,
           onInput(PrintInstructionsMsg.SetTitle.apply)
         )
       ),
@@ -185,15 +182,15 @@ object PrintInstructionsScreen extends Screen {
         label(`class` := "label-block")(text("Page background color")),
         div(`class` := "flex-row flex-row--tight")(
           input(
-            `type` := "color",
+            `type`  := "color",
             `class` := "input-color",
-            value := Color.normalizeHex(model.pageBackgroundColorHex, PdfUtils.defaultPageBackgroundColor.toHex),
+            value   := Color.normalizeHex(model.pageBackgroundColorHex, PdfUtils.defaultPageBackgroundColor.toHex),
             onInput(hex => PrintInstructionsMsg.SetPageBackgroundColor(hex))
           ),
           input(
-            `type` := "text",
-            `class` := s"${NesCss.input} input-w-7 input-monospace",
-            value := model.pageBackgroundColorHex,
+            `type`      := "text",
+            `class`     := s"${NesCss.input} input-w-7 input-monospace",
+            value       := model.pageBackgroundColorHex,
             placeholder := PdfUtils.defaultPageBackgroundColor.toHex,
             onInput(PrintInstructionsMsg.SetPageBackgroundColor.apply)
           )
@@ -203,12 +200,12 @@ object PrintInstructionsScreen extends Screen {
       div(`class` := s"${NesCss.field} field-block--lg")(
         label(`class` := "label-block")(text("Margin (mm)")),
         input(
-          `type` := "number",
+          `type`  := "number",
           `class` := s"${NesCss.input} input-w-5",
-          value := model.printerMarginMm.toString,
-          min := "0",
-          max := "20",
-          step := "1",
+          value   := model.printerMarginMm.toString,
+          min     := "0",
+          max     := "20",
+          step    := "1",
           onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s)))
         ),
         span(`class` := s"${NesCss.text} helper-text--inline")(text("White border around each page. Default 3 mm."))
@@ -216,7 +213,9 @@ object PrintInstructionsScreen extends Screen {
     )
   }
 
-  /** Step size: fixed values 12–32. Only options valid for selected build config are clickable; invalid ones shown greyed out. */
+  /** Step size: fixed values 12–32. Only options valid for selected build config are clickable; invalid ones shown
+    * greyed out.
+    */
   private def stepSizeSliderBlock(model: Model): Html[Msg] = {
     val available = model.selectedStored
       .map(s => availableStepSizesForGrid(s.config.grid))
@@ -252,33 +251,40 @@ object PrintInstructionsScreen extends Screen {
     )
   }
 
-
   /** Full image with palette applied (for overview canvas). */
 
   private def drawOverview(model: Model): IO[Unit] =
-    CanvasUtils.drawAfterViewReady(overviewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
+    CanvasUtils.drawAfterViewReady(overviewCanvasId, maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
       val images   = model.images.getOrElse(Nil)
       val palettes = model.palettes.getOrElse(Nil)
       model.selectedStored.flatMap(stored =>
-        clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes).map(pic => (stored, pic))
-      ) match {
+        clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes).map(pic => (stored, pic))) match {
         case Some((stored, pic)) =>
-          CanvasUtils.drawFullImageWithGrid(canvas, ctx, pic, stored.config.grid, stored.config.offsetX, stored.config.offsetY, 400)
+          CanvasUtils.drawFullImageWithGrid(
+            canvas,
+            ctx,
+            pic,
+            stored.config.grid,
+            stored.config.offsetX,
+            stored.config.offsetY,
+            400)
         case None =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Select a mosaic setup for preview")
       }
-    })
-
-
+    }
 
   private def mosaicPicAndGridForStored(
-      stored: StoredBuildConfig,
-      images: List[StoredImage],
-      palettes: List[StoredPalette]
+    stored: StoredBuildConfig,
+    images: List[StoredImage],
+    palettes: List[StoredPalette]
   ): Option[(PixelPic, Layout)] =
     for {
-      pic     <- clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
-      cropped <- pic.crop(stored.config.offsetX, stored.config.offsetY, stored.config.grid.width, stored.config.grid.height)
+      pic <- clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
+      cropped <- pic.crop(
+        stored.config.offsetX,
+        stored.config.offsetY,
+        stored.config.grid.width,
+        stored.config.grid.height)
     } yield (cropped, stored.config.grid)
 }
 
@@ -288,22 +294,19 @@ private def parsePrinterMargin(s: String): Double = {
 }
 
 final case class PrintInstructionsModel(
-    buildConfigs: Option[List[StoredBuildConfig]],
-    images: Option[List[StoredImage]],
-    palettes: Option[List[StoredPalette]],
-    selectedBuildConfigId: Option[String],
-    title: String,
-    stepSizePx: Int,
-    pageBackgroundColorHex: String,
-    printerMarginMm: Double
-) {
+  buildConfigs: Option[List[StoredBuildConfig]],
+  images: Option[List[StoredImage]],
+  palettes: Option[List[StoredPalette]],
+  selectedBuildConfigId: Option[String],
+  title: String,
+  stepSizePx: Int,
+  pageBackgroundColorHex: String,
+  printerMarginMm: Double) {
   def selectedStored: Option[StoredBuildConfig] =
-    buildConfigs.flatMap(list =>
-      selectedBuildConfigId.flatMap(id => list.find(_.id == id))
-    )
+    buildConfigs.flatMap(list => selectedBuildConfigId.flatMap(id => list.find(_.id == id)))
 }
 
-enum PrintInstructionsMsg:
+enum PrintInstructionsMsg {
   case LoadedBuildConfigs(list: List[StoredBuildConfig])
   case LoadedImages(list: List[StoredImage])
   case LoadedPalettes(list: List[StoredPalette])
@@ -315,3 +318,4 @@ enum PrintInstructionsMsg:
   case DrawOverview
   case PrintPdf
   case Back
+}

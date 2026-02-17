@@ -4,9 +4,9 @@ import munit.FunSuite
 
 class PixelPicTests extends FunSuite {
 
-  private val black = Pixel(0, 0, 0, 255)
-  private val white = Pixel(255, 255, 255, 255)
-  private val red   = Pixel(255, 0, 0, 255)
+  private val black    = Pixel(0, 0, 0, 255)
+  private val white    = Pixel(255, 255, 255, 255)
+  private val red      = Pixel(255, 0, 0, 255)
   private val palette2 = Vector(black, white)
   private val palette3 = Vector(black, white, red)
 
@@ -106,13 +106,13 @@ class PixelPicTests extends FunSuite {
   }
 
   test("getIndexByCount returns palette indices sorted by count ascending") {
-    val p = pic3x2.get
+    val p       = pic3x2.get
     val byCount = p.getIndexByCount
     assertEquals(byCount, Vector(2, 0, 1))
   }
 
   test("crop in bounds returns Some with correct dimensions and pixels") {
-    val p = pic3x2.get
+    val p       = pic3x2.get
     val cropped = p.crop(1, 0, 2, 2)
     assert(cropped.isDefined)
     val c = cropped.get
@@ -125,7 +125,7 @@ class PixelPicTests extends FunSuite {
   }
 
   test("crop full image returns copy with same dimensions") {
-    val p = pic2x2.get
+    val p       = pic2x2.get
     val cropped = p.crop(0, 0, 2, 2)
     assert(cropped.isDefined)
     val c = cropped.get
@@ -155,31 +155,31 @@ class PixelPicTests extends FunSuite {
   }
 
   test("crop(rect) delegates to crop(x, y, w, h)") {
-    val p = pic3x2.get
+    val p    = pic3x2.get
     val rect = Rectangle(1, 0, 2, 2)
     assertEquals(p.crop(rect), p.crop(1, 0, 2, 2))
   }
 
   test("setPalette replaces palette up to original size") {
-    val p = pic2x2.get
+    val p          = pic2x2.get
     val newPalette = Vector(red, black)
-    val updated = p.setPalette(newPalette)
+    val updated    = p.setPalette(newPalette)
     assertEquals(updated.paletteLookup(0), red)
     assertEquals(updated.paletteLookup(1), black)
     assertEquals(updated.pixels, p.pixels)
   }
 
   test("setPalette with longer palette only takes first N colors") {
-    val p = pic2x2.get
+    val p          = pic2x2.get
     val newPalette = Vector(red, black, white)
-    val updated = p.setPalette(newPalette)
+    val updated    = p.setPalette(newPalette)
     assertEquals(updated.paletteLookup.size, 2)
     assertEquals(updated.paletteLookup(0), red)
     assertEquals(updated.paletteLookup(1), black)
   }
 
   test("pixelPalette maps Pixel to count") {
-    val p = pic3x2.get
+    val p  = pic3x2.get
     val pp = p.pixelPalette
     assertEquals(pp(black), 2)
     assertEquals(pp(white), 3)

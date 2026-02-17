@@ -2,7 +2,20 @@ package clemniem.screens
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import clemniem.{AutoQuantize, Color, FromPalette, NavigateNext, PaletteMode, PixelPic, PixelPicService, Screen, ScreenId, StorageKeys, StoredImage, StoredPalette}
+import clemniem.{
+  AutoQuantize,
+  Color,
+  FromPalette,
+  NavigateNext,
+  PaletteMode,
+  PixelPic,
+  PixelPicService,
+  Screen,
+  ScreenId,
+  StorageKeys,
+  StoredImage,
+  StoredPalette
+}
 import clemniem.common.{CanvasUtils, CmdUtils, ImageUtils, LocalStorageUtils}
 import clemniem.common.image.{
   ColorDithering,
@@ -39,7 +52,12 @@ object ImageUploadScreen extends Screen {
     List(DownscaleAverage, DownscaleBayer.Size2, DownscaleBayer.Size4)
   val paletteColorCounts: List[Int] = (4 to 16).toList
   val colorDitheringOptions: List[ColorDithering] =
-    List(NoColorDithering, FloydSteinbergDithering, OrderedBayerDithering.Size2, OrderedBayerDithering.Size4, OrderedBayerDithering.Size8)
+    List(
+      NoColorDithering,
+      FloydSteinbergDithering,
+      OrderedBayerDithering.Size2,
+      OrderedBayerDithering.Size4,
+      OrderedBayerDithering.Size8)
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val model = ImageUploadModel(
@@ -76,18 +94,21 @@ object ImageUploadScreen extends Screen {
 
     def addListener(input: Input): IO[ImageUploadMsg] =
       IO.async_[ImageUploadMsg] { cb =>
-        input.addEventListener("change", (_: dom.Event) => {
-          val file = Option(input.files(0))
-          input.value = ""
-          file.foreach { f =>
-            ImageUtils.loadImageFromFile(f).unsafeRunAsync {
-              case Right((name, dataUrl)) =>
-                cb(Right(ImageUploadMsg.FileLoaded(dataUrl, name)))
-              case Left(err) =>
-                cb(Right(ImageUploadMsg.ImageDecodedError(err.getMessage)))
+        input.addEventListener(
+          "change",
+          (_: dom.Event) => {
+            val file = Option(input.files(0))
+            input.value = ""
+            file.foreach { f =>
+              ImageUtils.loadImageFromFile(f).unsafeRunAsync {
+                case Right((name, dataUrl)) =>
+                  cb(Right(ImageUploadMsg.FileLoaded(dataUrl, name)))
+                case Left(err) =>
+                  cb(Right(ImageUploadMsg.ImageDecodedError(err.getMessage)))
+              }
             }
           }
-        })
+        )
       }
 
     IO.sleep(150.millis).flatMap(_ => findInput).flatMap(addListener)
@@ -104,18 +125,21 @@ object ImageUploadScreen extends Screen {
             FromPalette(colors.map(c => (c.r.toByte, c.g.toByte, c.b.toByte, 255.toByte)))
         }
         CmdUtils.run(
-          PixelPicService.processUploadedImage(
-            url,
-            fileName,
-            model.downscaleStrategy,
-            paletteMode,
-            model.colorDithering
-          ).map(e =>
-            e.fold(
-              msg => ImageUploadMsg.ImageDecodedError(msg, Some(runId)),
-              { case (pic, detectedColors) => ImageUploadMsg.ImageDecoded(pic, Some(fileName), detectedColors, runId) }
+          PixelPicService
+            .processUploadedImage(
+              url,
+              fileName,
+              model.downscaleStrategy,
+              paletteMode,
+              model.colorDithering
             )
-          ),
+            .map(e =>
+              e.fold(
+                msg => ImageUploadMsg.ImageDecodedError(msg, Some(runId)),
+                { case (pic, detectedColors) =>
+                  ImageUploadMsg.ImageDecoded(pic, Some(fileName), detectedColors, runId)
+                }
+              )),
           identity[ImageUploadMsg],
           e => ImageUploadMsg.ImageDecodedError(e.getMessage, Some(runId))
         )
@@ -157,8 +181,8 @@ object ImageUploadScreen extends Screen {
           else
             model.paletteMode
         val needsRerun = model.detectedColorCount.isEmpty && (updatedPaletteMode match {
-          case UploadPaletteMode.Auto(n) => n != 16  // initial pipeline ran with 16, smart default differs
-          case _ => false
+          case UploadPaletteMode.Auto(n) => n != 16 // initial pipeline ran with 16, smart default differs
+          case _                         => false
         })
         val nextModel = model.copy(
           pixelPic = Some(pic),
@@ -193,13 +217,17 @@ object ImageUploadScreen extends Screen {
       (next, runPipeline(next))
 
     case ImageUploadMsg.SetPaletteModeAuto(n) =>
-      val next = model.copy(paletteMode = UploadPaletteMode.Auto(n), loading = true, pipelineRunId = model.pipelineRunId + 1L)
+      val next =
+        model.copy(paletteMode = UploadPaletteMode.Auto(n), loading = true, pipelineRunId = model.pipelineRunId + 1L)
       (next, runPipeline(next))
 
     case ImageUploadMsg.SetPaletteModeFromSaved(id) =>
       val hasPalette = id.nonEmpty && model.savedPalettes.exists(_.exists(_.id == id))
       if (hasPalette) {
-        val next = model.copy(paletteMode = UploadPaletteMode.FromSaved(id), loading = true, pipelineRunId = model.pipelineRunId + 1L)
+        val next = model.copy(
+          paletteMode = UploadPaletteMode.FromSaved(id),
+          loading = true,
+          pipelineRunId = model.pipelineRunId + 1L)
         (next, runPipeline(next))
       } else {
         // No valid palette selected; switch mode in the UI but don't run pipeline
@@ -229,8 +257,8 @@ object ImageUploadScreen extends Screen {
     case ImageUploadMsg.LoadedForSave(list) =>
       model.pixelPic match {
         case Some(pic) =>
-          val id   = "image-" + js.Date.now().toLong
-          val stored = StoredImage(id = id, name = model.name, pixelPic = pic)
+          val id      = "image-" + js.Date.now().toLong
+          val stored  = StoredImage(id = id, name = model.name, pixelPic = pic)
           val newList = list :+ stored
           val saveCmd = LocalStorageUtils.saveList(StorageKeys.images, newList)(
             _ => NavigateNext(ScreenId.ImagesId, None),
@@ -265,12 +293,12 @@ object ImageUploadScreen extends Screen {
     if (selected) s"pill $extra pill--selected" else s"pill $extra pill--unselected"
 
   private def drawPreview(pic: PixelPic): IO[Unit] =
-    CanvasUtils.drawAfterViewReady("image-upload-preview", maxRetries = 100, delayMs = 1)((canvas, ctx) => {
+    CanvasUtils.drawAfterViewReady("image-upload-preview", maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
       canvas.width = pic.width
       canvas.height = pic.height
       ctx.clearRect(0, 0, pic.width, pic.height)
       clemniem.common.CanvasUtils.drawPixelPic(canvas, ctx, pic, pic.width, pic.height, 0, 0)
-    })
+    }
 
   def view(model: Model): Html[Msg] =
     div(
@@ -281,16 +309,17 @@ object ImageUploadScreen extends Screen {
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
           GalleryLayout.backButton(ImageUploadMsg.Back, "Images"),
           label(
-            `for` := fileInputId,
+            `for`   := fileInputId,
             `class` := s"${NesCss.btnPrimary} label-as-button"
           )(text("Upload")),
           input(
-            id := fileInputId,
-            `type` := "file",
+            id      := fileInputId,
+            `type`  := "file",
             `class` := "hidden"
           ),
           button(
-            `class` := (if (model.pixelPic.nonEmpty && !model.loading) NesCss.btnSuccess else s"${NesCss.btn} btn-disabled"),
+            `class` := (if (model.pixelPic.nonEmpty && !model.loading) NesCss.btnSuccess
+                        else s"${NesCss.btn} btn-disabled"),
             onClick(ImageUploadMsg.Save)
           )(text(if (model.loading) "Saving…" else "Save"))
         ),
@@ -298,11 +327,12 @@ object ImageUploadScreen extends Screen {
         true
       ),
       p(`class` := s"${NesCss.text} screen-intro screen-intro--short")(
-        text(s"Upload an image (max ${SizeReductionService.MaxUploadWidth}×${SizeReductionService.MaxUploadHeight} px). It will be resized to at most ${targetMaxWidth}×${targetMaxHeight} px.")
+        text(
+          s"Upload an image (max ${SizeReductionService.MaxUploadWidth}×${SizeReductionService.MaxUploadHeight} px). It will be resized to at most ${targetMaxWidth}×${targetMaxHeight} px.")
       ),
-      model.error.map(err =>
-        div(`class` := s"${NesCss.container} ${NesCss.containerRounded} error-box")(text(err))
-      ).getOrElse(div(`class` := "hidden")(text(""))),
+      model.error
+        .map(err => div(`class` := s"${NesCss.container} ${NesCss.containerRounded} error-box")(text(err)))
+        .getOrElse(div(`class` := "hidden")(text(""))),
       model.pixelPic match {
         case Some(pic) =>
           val colorCount = pic.paletteLookup.size
@@ -317,7 +347,8 @@ object ImageUploadScreen extends Screen {
             div(`class` := "field-block")(
               div(`class` := "upload-preview-meta")(text(s"${pic.width}×${pic.height} px · $colorCount colors"))
             ),
-            div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card field-block upload-preview-row")(
+            div(
+              `class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card field-block upload-preview-row")(
               PixelPreviewBox("image-upload-preview", pic.width, pic.height, None)
             )
           )
@@ -332,9 +363,9 @@ object ImageUploadScreen extends Screen {
     div(`class` := "field-block--lg")(
       label(`class` := "label-block")(text("Name")),
       input(
-        `type` := "text",
+        `type`  := "text",
         `class` := s"${NesCss.input} input-w-full",
-        value := model.name,
+        value   := model.name,
         onInput(ImageUploadMsg.SetName.apply)
       )
     )
@@ -354,7 +385,7 @@ object ImageUploadScreen extends Screen {
     )
 
   private def paletteColorsBlock(model: Model): Html[Msg] = {
-    val isAuto = model.paletteMode match { case UploadPaletteMode.Auto(_) => true; case _ => false }
+    val isAuto      = model.paletteMode match { case UploadPaletteMode.Auto(_) => true; case _ => false }
     val isFromSaved = !isAuto
     // When switching to "From palette", pick the first saved palette as default
     val firstPaletteId = model.savedPalettes.flatMap(_.headOption).map(_.id).getOrElse("")
@@ -365,15 +396,22 @@ object ImageUploadScreen extends Screen {
       div(`class` := "upload-option-row upload-option-row--wrap")(
         button(
           `class` := pillClass(isAuto, "upload-option-pill"),
-          onClick(ImageUploadMsg.SetPaletteModeAuto(
-            model.paletteMode match { case UploadPaletteMode.Auto(n) => n; case _ => model.detectedColorCount.map(_.min(16).max(ColorQuantizationService.MinColors)).getOrElse(16) }
-          ))
+          onClick(
+            ImageUploadMsg.SetPaletteModeAuto(
+              model.paletteMode match {
+                case UploadPaletteMode.Auto(n) => n;
+                case _ => model.detectedColorCount.map(_.min(16).max(ColorQuantizationService.MinColors)).getOrElse(16)
+              }
+            ))
         )(text("Auto")),
         button(
           `class` := pillClass(isFromSaved, "upload-option-pill"),
-          onClick(ImageUploadMsg.SetPaletteModeFromSaved(
-            model.paletteMode match { case UploadPaletteMode.FromSaved(id) => id; case _ => firstPaletteId }
-          ))
+          onClick(
+            ImageUploadMsg.SetPaletteModeFromSaved(
+              model.paletteMode match {
+                case UploadPaletteMode.FromSaved(id) => id; case _ => firstPaletteId
+              }
+            ))
         )(text("From palette"))
       ),
       // Conditional detail row
@@ -389,11 +427,13 @@ object ImageUploadScreen extends Screen {
                 )(text(count.toString))
               }*
             ),
-            model.pixelPic.map { pic =>
-              div(`class` := "upload-palette-strip", style := "margin-top: 0.35rem;")(
-                PaletteStripView.previewInline(pic.paletteLookup.toList.map(p => Color(p.r, p.g, p.b)))
-              )
-            }.getOrElse(div(`class` := "hidden")(text(""))),
+            model.pixelPic
+              .map { pic =>
+                div(`class` := "upload-palette-strip", style := "margin-top: 0.35rem;")(
+                  PaletteStripView.previewInline(pic.paletteLookup.toList.map(p => Color(p.r, p.g, p.b)))
+                )
+              }
+              .getOrElse(div(`class` := "hidden")(text(""))),
             span(`class` := "helper-text helper-text--top")(text("Reduce to 4–16 colors."))
           )
         case UploadPaletteMode.FromSaved(selectedId) =>
@@ -413,11 +453,14 @@ object ImageUploadScreen extends Screen {
                     }*
                   )
                 ),
-                palettes.find(_.id == selectedId).map { sp =>
-                  div(`class` := "upload-palette-strip", style := "margin-top: 0.35rem;")(
-                    PaletteStripView.previewInline(sp.colors.toList)
-                  )
-                }.getOrElse(div(`class` := "hidden")(text(""))),
+                palettes
+                  .find(_.id == selectedId)
+                  .map { sp =>
+                    div(`class` := "upload-palette-strip", style := "margin-top: 0.35rem;")(
+                      PaletteStripView.previewInline(sp.colors.toList)
+                    )
+                  }
+                  .getOrElse(div(`class` := "hidden")(text(""))),
                 span(`class` := "helper-text helper-text--top")(text("Map image colors to this saved palette."))
               )
             case _ =>
@@ -449,26 +492,26 @@ object ImageUploadScreen extends Screen {
 }
 
 /** Palette mode selection in the upload UI. */
-enum UploadPaletteMode:
+enum UploadPaletteMode {
   case Auto(numColors: Int)
   case FromSaved(paletteId: String)
+}
 
 final case class ImageUploadModel(
-    name: String,
-    pixelPic: Option[PixelPic],
-    error: Option[String],
-    loading: Boolean,
-    sourceDataUrl: Option[String],
-    sourceFileName: Option[String],
-    downscaleStrategy: DownscaleStrategy,
-    paletteMode: UploadPaletteMode,
-    colorDithering: ColorDithering,
-    pipelineRunId: Long,
-    savedPalettes: Option[List[StoredPalette]],
-    detectedColorCount: Option[Int]
-)
+  name: String,
+  pixelPic: Option[PixelPic],
+  error: Option[String],
+  loading: Boolean,
+  sourceDataUrl: Option[String],
+  sourceFileName: Option[String],
+  downscaleStrategy: DownscaleStrategy,
+  paletteMode: UploadPaletteMode,
+  colorDithering: ColorDithering,
+  pipelineRunId: Long,
+  savedPalettes: Option[List[StoredPalette]],
+  detectedColorCount: Option[Int])
 
-enum ImageUploadMsg:
+enum ImageUploadMsg {
   case FileLoaded(dataUrl: String, fileName: String)
   case ImageDecoded(pic: PixelPic, fileName: Option[String], detectedColors: Int, runId: Long)
   case ImageDecodedError(message: String, runId: Option[Long] = None)
@@ -484,3 +527,4 @@ enum ImageUploadMsg:
   case DrawPreview
   case Back
   case NoOp
+}

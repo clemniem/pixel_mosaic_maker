@@ -51,7 +51,13 @@ object ImagesGalleryScreen extends Screen {
       (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
     case ImagesGalleryMsg.ConfirmDelete(id) =>
       val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
-        model.list, id, StorageKeys.images, GalleryLayout.defaultPageSize, model.currentPage, ImagesGalleryMsg.CancelDelete, _.id
+        model.list,
+        id,
+        StorageKeys.images,
+        GalleryLayout.defaultPageSize,
+        model.currentPage,
+        ImagesGalleryMsg.CancelDelete,
+        _.id
       )
       (model.copy(list = newList, pendingDeleteId = None, currentPage = newPage), cmd)
     case ImagesGalleryMsg.CancelDelete =>
@@ -69,8 +75,9 @@ object ImagesGalleryScreen extends Screen {
         case Some(list) =>
           val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
           val next       = model.copy(currentPage = (model.currentPage + 1).min(totalPages))
-          val cmd = if (list.isEmpty) Cmd.None
-          else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
+          val cmd =
+            if (list.isEmpty) Cmd.None
+            else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
           (next, cmd)
         case None => (model, Cmd.None)
       }
@@ -83,7 +90,12 @@ object ImagesGalleryScreen extends Screen {
     val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
     model.list match {
       case None =>
-        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = true, Some(nextBtn))
+        GalleryLayout(
+          screenId.title,
+          backBtn,
+          p(`class` := NesCss.text)(text("Loading…")),
+          shortHeader = true,
+          Some(nextBtn))
       case Some(list) =>
         val content =
           if (list.isEmpty)
@@ -100,10 +112,10 @@ object ImagesGalleryScreen extends Screen {
   }
 
   private def paginatedList(
-      list: List[StoredImage],
-      currentPage: Int,
-      addAction: Html[Msg],
-      entryCard: StoredImage => Html[Msg]
+    list: List[StoredImage],
+    currentPage: Int,
+    addAction: Html[Msg],
+    entryCard: StoredImage => Html[Msg]
   ): Html[Msg] =
     GalleryLayout.paginatedListWith(
       list,
@@ -153,7 +165,9 @@ object ImagesGalleryScreen extends Screen {
       colors = item.pixelPic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
     )
     div(style := "margin-top: 0.35rem;", title := "Click to save as palette")(
-      button(`class` := s"${NesCss.btn} palette-button-inline", onClick(NavigateNext(ScreenId.PaletteId, Some(output))))(
+      button(
+        `class` := s"${NesCss.btn} palette-button-inline",
+        onClick(NavigateNext(ScreenId.PaletteId, Some(output))))(
         PaletteStripView.swatches(colors)*
       )
     )
@@ -170,7 +184,8 @@ object ImagesGalleryScreen extends Screen {
     }
 
   private def drawPreview(stored: StoredImage): IO[Unit] =
-    CanvasUtils.drawGalleryPreview(s"image-preview-${stored.id}")((canvas: Canvas, ctx: CanvasRenderingContext2D) => drawPixelPicScaled(canvas, ctx, stored.pixelPic))
+    CanvasUtils.drawGalleryPreview(s"image-preview-${stored.id}")((canvas: Canvas, ctx: CanvasRenderingContext2D) =>
+      drawPixelPicScaled(canvas, ctx, stored.pixelPic))
 
   private def drawPixelPicScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
     ctx.clearRect(0, 0, previewWidth, previewHeight)
@@ -183,12 +198,11 @@ object ImagesGalleryScreen extends Screen {
 }
 
 final case class ImagesGalleryModel(
-    list: Option[List[StoredImage]],
-    pendingDeleteId: Option[String],
-    currentPage: Int
-)
+  list: Option[List[StoredImage]],
+  pendingDeleteId: Option[String],
+  currentPage: Int)
 
-enum ImagesGalleryMsg:
+enum ImagesGalleryMsg {
   case Loaded(list: List[StoredImage])
   case CreateNew
   case DrawPreview(stored: StoredImage)
@@ -198,3 +212,4 @@ enum ImagesGalleryMsg:
   case PreviousPage
   case NextPage
   case Back
+}

@@ -2,7 +2,17 @@ package clemniem.screens
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import clemniem.{Color, NavigateNext, PixelPic, PixelPicService, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
+import clemniem.{
+  Color,
+  NavigateNext,
+  PixelPic,
+  PixelPicService,
+  Screen,
+  ScreenId,
+  ScreenOutput,
+  StorageKeys,
+  StoredPalette
+}
 import clemniem.common.{CmdUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
@@ -42,24 +52,28 @@ object PalettesGalleryScreen extends Screen {
       input.`type` = "file"
       input.accept = "image/*"
       input.style.display = "none"
-      val _ = dom.document.body.appendChild(input)
+      val _               = dom.document.body.appendChild(input)
       def cleanup(): Unit = Option(input.parentNode).foreach(_.removeChild(input))
-      input.addEventListener("change", (_: dom.Event) => {
-        val file = Option(input.files(0))
-        input.value = "" // only allowed value for file input
-        cleanup()
-        file.foreach { f =>
-          val fileName = Option(f.name).filter(_.nonEmpty)
-          PixelPicService.loadPixelImageFromFile(f).unsafeRunAsync {
-            case Right(opt) =>
-              val msg = opt.fold[PalettesGalleryMsg](PalettesGalleryMsg.PaletteFromImageError("Could not decode image"))(pic =>
-                PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName))
-              cb(Right(msg))
-            case Left(err) =>
-              cb(Right(PalettesGalleryMsg.PaletteFromImageError(err.getMessage)))
+      input.addEventListener(
+        "change",
+        (_: dom.Event) => {
+          val file = Option(input.files(0))
+          input.value = "" // only allowed value for file input
+          cleanup()
+          file.foreach { f =>
+            val fileName = Option(f.name).filter(_.nonEmpty)
+            PixelPicService.loadPixelImageFromFile(f).unsafeRunAsync {
+              case Right(opt) =>
+                val msg =
+                  opt.fold[PalettesGalleryMsg](PalettesGalleryMsg.PaletteFromImageError("Could not decode image"))(
+                    pic => PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName))
+                cb(Right(msg))
+              case Left(err) =>
+                cb(Right(PalettesGalleryMsg.PaletteFromImageError(err.getMessage)))
+            }
           }
         }
-      })
+      )
       input.click()
     }
 
@@ -91,7 +105,13 @@ object PalettesGalleryScreen extends Screen {
       (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
     case PalettesGalleryMsg.ConfirmDelete(id) =>
       val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
-        model.list, id, StorageKeys.palettes, pageSize, model.currentPage, PalettesGalleryMsg.CancelDelete, _.id
+        model.list,
+        id,
+        StorageKeys.palettes,
+        pageSize,
+        model.currentPage,
+        PalettesGalleryMsg.CancelDelete,
+        _.id
       )
       (model.copy(list = newList, pendingDeleteId = None, currentPage = newPage), cmd)
     case PalettesGalleryMsg.CancelDelete =>
@@ -99,9 +119,9 @@ object PalettesGalleryScreen extends Screen {
     case PalettesGalleryMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName) =>
-      val name = fileName.map(baseNameFromFileName).filter(_.nonEmpty).getOrElse("Unnamed palette")
+      val name   = fileName.map(baseNameFromFileName).filter(_.nonEmpty).getOrElse("Unnamed palette")
       val colors = pic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
-      val id    = "palette-" + js.Date.now().toLong
+      val id     = "palette-" + js.Date.now().toLong
       val stored = StoredPalette(id = id, name = name, colors = colors)
       model.list match {
         case Some(list) =>
@@ -119,7 +139,12 @@ object PalettesGalleryScreen extends Screen {
     case PalettesGalleryMsg.PaletteFromImageSaved =>
       (model, Cmd.None)
     case PalettesGalleryMsg.RequestPaletteFromImage =>
-      (model, CmdUtils.run(openFilePickerForPalette(), identity[PalettesGalleryMsg], e => PalettesGalleryMsg.PaletteFromImageError(e.getMessage)))
+      (
+        model,
+        CmdUtils.run(
+          openFilePickerForPalette(),
+          identity[PalettesGalleryMsg],
+          e => PalettesGalleryMsg.PaletteFromImageError(e.getMessage)))
     case PalettesGalleryMsg.PreviousPage =>
       (model.copy(currentPage = (model.currentPage - 1).max(1)), Cmd.None)
     case PalettesGalleryMsg.NextPage =>
@@ -138,7 +163,12 @@ object PalettesGalleryScreen extends Screen {
     val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
     model.list match {
       case None =>
-        GalleryLayout(screenId.title, backBtn, p(`class` := NesCss.text)(text("Loading…")), shortHeader = false, Some(nextBtn))
+        GalleryLayout(
+          screenId.title,
+          backBtn,
+          p(`class` := NesCss.text)(text("Loading…")),
+          shortHeader = false,
+          Some(nextBtn))
       case Some(list) =>
         val content =
           if (list.isEmpty)
@@ -164,10 +194,10 @@ object PalettesGalleryScreen extends Screen {
   }
 
   private def paginatedList(
-      list: List[StoredPalette],
-      currentPage: Int,
-      addAction: Html[Msg],
-      entryCard: StoredPalette => Html[Msg]
+    list: List[StoredPalette],
+    currentPage: Int,
+    addAction: Html[Msg],
+    entryCard: StoredPalette => Html[Msg]
   ): Html[Msg] =
     GalleryLayout.paginatedListWith(
       list,
@@ -206,12 +236,11 @@ object PalettesGalleryScreen extends Screen {
 }
 
 final case class PalettesGalleryModel(
-    list: Option[List[StoredPalette]],
-    pendingDeleteId: Option[String],
-    currentPage: Int
-)
+  list: Option[List[StoredPalette]],
+  pendingDeleteId: Option[String],
+  currentPage: Int)
 
-enum PalettesGalleryMsg:
+enum PalettesGalleryMsg {
   case Loaded(list: List[StoredPalette])
   case CreateNew
   case RequestPaletteFromImage
@@ -228,3 +257,4 @@ enum PalettesGalleryMsg:
   case PreviousPage
   case NextPage
   case Back
+}

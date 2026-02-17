@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{Color, LegoColor, NavigateNext, Screen, ScreenId, ScreenOutput, StoredPalette, StorageKeys}
+import clemniem.{Color, LegoColor, NavigateNext, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
@@ -81,7 +81,7 @@ object PaletteScreen extends Screen {
     case PaletteMsg.MoveColorUp(idx) =>
       if (idx <= 0 || idx >= model.colors.length) (model, Cmd.None)
       else {
-        val c = model.colors
+        val c    = model.colors
         val next = c.updated(idx, c(idx - 1)).updated(idx - 1, c(idx))
         (model.copy(colors = next), Cmd.None)
       }
@@ -89,7 +89,7 @@ object PaletteScreen extends Screen {
     case PaletteMsg.MoveColorDown(idx) =>
       if (idx < 0 || idx >= model.colors.length - 1) (model, Cmd.None)
       else {
-        val c = model.colors
+        val c    = model.colors
         val next = c.updated(idx, c(idx + 1)).updated(idx + 1, c(idx))
         (model.copy(colors = next), Cmd.None)
       }
@@ -122,13 +122,15 @@ object PaletteScreen extends Screen {
       (model, Cmd.Emit(NavigateNext(ScreenId.PalettesId, None)))
 
     case PaletteMsg.ToggleLegoPickerForAdd =>
-      val next = if (model.legoPickerForAdd) model.copy(legoPickerForAdd = false)
-                 else model.copy(legoPickerForAdd = true, legoPickerIdx = None)
+      val next =
+        if (model.legoPickerForAdd) model.copy(legoPickerForAdd = false)
+        else model.copy(legoPickerForAdd = true, legoPickerIdx = None)
       (next, Cmd.None)
 
     case PaletteMsg.ToggleLegoPicker(idx) =>
-      val next = if (model.legoPickerIdx.contains(idx)) model.copy(legoPickerIdx = None)
-                 else model.copy(legoPickerIdx = Some(idx), legoPickerForAdd = false)
+      val next =
+        if (model.legoPickerIdx.contains(idx)) model.copy(legoPickerIdx = None)
+        else model.copy(legoPickerIdx = Some(idx), legoPickerForAdd = false)
       (next, Cmd.None)
 
     case PaletteMsg.PickLegoColor(idx, lc) =>
@@ -200,25 +202,26 @@ object PaletteScreen extends Screen {
         )(text("↓"))
       ),
       div(
-        `class` := s"palette-edit-swatch palette-edit-swatch--clickable${if (legoOpen) " palette-edit-swatch--active" else ""}",
+        `class` := s"palette-edit-swatch palette-edit-swatch--clickable${if (legoOpen) " palette-edit-swatch--active"
+          else ""}",
         style := s"background: ${color.toHex};",
         onClick(PaletteMsg.ToggleLegoPicker(idx)),
         title := "Pick from LEGO colors"
       )(),
       span(`class` := NesCss.text, style := "min-width: 1.25rem;")(text(s"${idx + 1}.")),
       input(
-        id := s"palette-hex-$idx",
+        id     := s"palette-hex-$idx",
         `type` := "text",
-        value := color.toHex,
+        value  := color.toHex,
         onInput(s => PaletteMsg.SetColorHex(idx, s)),
-        `class` := s"${NesCss.input} palette-edit-hex",
+        `class` := s"${NesCss.input} palette-edit-hex"
       ),
       input(
-        id := s"palette-picker-$idx",
+        id     := s"palette-picker-$idx",
         `type` := "color",
-        value := color.toHex,
+        value  := color.toHex,
         onInput(s => PaletteMsg.SetColorFromPicker(idx, s)),
-        `class` := "palette-edit-picker",
+        `class` := "palette-edit-picker"
       ),
       button(`class` := s"${NesCss.btnError} palette-edit-remove", onClick(PaletteMsg.RemoveColor(idx)))(
         text("×")
@@ -239,7 +242,7 @@ object PaletteScreen extends Screen {
           )(
             div(
               `class` := "lego-picker-swatch",
-              style := s"background: ${lc.color.toHex};"
+              style   := s"background: ${lc.color.toHex};"
             )(),
             span(`class` := "lego-picker-label")(text(lc.name))
           )
@@ -258,7 +261,7 @@ object PaletteScreen extends Screen {
           )(
             div(
               `class` := "lego-picker-swatch",
-              style := s"background: ${lc.color.toHex};"
+              style   := s"background: ${lc.color.toHex};"
             )(),
             span(`class` := "lego-picker-label")(text(lc.name))
           )
@@ -268,14 +271,13 @@ object PaletteScreen extends Screen {
 }
 
 final case class PaletteModel(
-    name: String,
-    colors: Vector[Color],
-    editingId: Option[String],
-    legoPickerIdx: Option[Int],
-    legoPickerForAdd: Boolean
-)
+  name: String,
+  colors: Vector[Color],
+  editingId: Option[String],
+  legoPickerIdx: Option[Int],
+  legoPickerForAdd: Boolean)
 
-enum PaletteMsg:
+enum PaletteMsg {
   case SetName(name: String)
   case SetColorHex(idx: Int, value: String)
   case SetColorFromPicker(idx: Int, hex: String)
@@ -292,3 +294,4 @@ enum PaletteMsg:
   case SaveFailed
   case Back
   case NoOp
+}

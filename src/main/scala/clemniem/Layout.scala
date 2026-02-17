@@ -10,10 +10,13 @@ object GridPart {
   given Decoder[GridPart] = deriveDecoder
 }
 
-/** Definition mode: define grid by rows (fixed height per row + widths per cell) or by columns (fixed width per column + heights per cell). */
-enum GridDefMode:
+/** Definition mode: define grid by rows (fixed height per row + widths per cell) or by columns (fixed width per column
+  * + heights per cell).
+  */
+enum GridDefMode {
   case ByRows
   case ByColumns
+}
 
 object GridDefMode {
   given Encoder[GridDefMode] = deriveEncoder
@@ -36,7 +39,8 @@ private object GridDefNormalize {
     }
 
   /** Normalize by enlarging the last cell of each short def (no new sections). */
-  def normalizeByEnlarge[A](defs: List[A], total: A => Int, cells: A => List[Int], update: (A, List[Int]) => A): List[A] =
+  def normalizeByEnlarge[A](defs: List[A], total: A => Int, cells: A => List[Int], update: (A, List[Int]) => A)
+    : List[A] =
     if (defs.isEmpty) defs
     else {
       val maxDim = defs.map(total).max.max(1)
@@ -100,7 +104,7 @@ final case class Layout(cols: Int, rows: Int, parts: Array[GridPart]) {
   override def equals(obj: Any): Boolean = obj match {
     case that: Layout =>
       this.cols == that.cols && this.rows == that.rows &&
-        java.util.Arrays.equals(this.parts.asInstanceOf[Array[AnyRef]], that.parts.asInstanceOf[Array[AnyRef]])
+      java.util.Arrays.equals(this.parts.asInstanceOf[Array[AnyRef]], that.parts.asInstanceOf[Array[AnyRef]])
     case _ => false
   }
 
@@ -116,8 +120,8 @@ object Layout {
 
   /** Uniform grid: same column widths for all rows, same row heights for all columns. */
   def make(rowHeights: Seq[Int], columnWidths: Seq[Int]): Layout = {
-    val rowOffsets  = rowHeights.scanLeft(0)(_ + _).dropRight(1)
-    val colOffsets  = columnWidths.scanLeft(0)(_ + _).dropRight(1)
+    val rowOffsets = rowHeights.scanLeft(0)(_ + _).dropRight(1)
+    val colOffsets = columnWidths.scanLeft(0)(_ + _).dropRight(1)
     val parts: Array[GridPart] =
       (for {
         (rowHeight, y) <- rowHeights.zip(rowOffsets)
@@ -127,7 +131,7 @@ object Layout {
   }
 
   /** Build from row definitions: each row has a height and a list of cell widths (variable count per row). */
-  def fromRowDefs(rowDefs: List[RowDef]): Layout = {
+  def fromRowDefs(rowDefs: List[RowDef]): Layout =
     if (rowDefs.isEmpty) Layout(0, 0, Array.empty)
     else {
       val cols = rowDefs.map(_.cellWidths.length).max
@@ -140,10 +144,9 @@ object Layout {
       }
       Layout(cols = cols, rows = rows, parts = parts.toArray)
     }
-  }
 
   /** Build from column definitions: each column has a width and a list of cell heights (variable count per column). */
-  def fromColumnDefs(colDefs: List[ColumnDef]): Layout = {
+  def fromColumnDefs(colDefs: List[ColumnDef]): Layout =
     if (colDefs.isEmpty) Layout(0, 0, Array.empty)
     else {
       val rows = colDefs.map(_.cellHeights.length).max
@@ -156,5 +159,4 @@ object Layout {
       }
       Layout(cols = cols, rows = rows, parts = parts.toArray)
     }
-  }
 }

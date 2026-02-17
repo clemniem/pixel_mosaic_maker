@@ -25,7 +25,8 @@ import org.scalajs.dom.window
 import scala.scalajs.js
 import scala.concurrent.duration.DurationInt
 
-/** Step-by-step build: one build config, iterate sections then 16×16 cells per section. Overview + preview + step nav. */
+/** Step-by-step build: one build config, iterate sections then 16×16 cells per section. Overview + preview + step nav.
+  */
 object BuildScreen extends Screen {
   type Model = BuildScreenModel
   type Msg   = BuildScreenMsg | NavigateNext
@@ -37,33 +38,34 @@ object BuildScreen extends Screen {
   private val patchSize              = 16
   private val defaultPatchBackground = "#eeeeee"
 
-  /** Pastel background that contrasts with all palette colors and with white and black: light, muted, in a band that is clearly off-white and off-black. */
-  private def pastelBackgroundFromPalette(colors: Vector[Color]): String = {
+  /** Pastel background that contrasts with all palette colors and with white and black: light, muted, in a band that is
+    * clearly off-white and off-black.
+    */
+  private def pastelBackgroundFromPalette(colors: Vector[Color]): String =
     if (colors.isEmpty) defaultPatchBackground
     else {
-      val n    = colors.size
-      val rAvg = colors.map(_.r).sum / n
-      val gAvg = colors.map(_.g).sum / n
-      val bAvg = colors.map(_.b).sum / n
-      val base = 228
-      val tilt = 0.14
+      val n                  = colors.size
+      val rAvg               = colors.map(_.r).sum / n
+      val gAvg               = colors.map(_.g).sum / n
+      val bAvg               = colors.map(_.b).sum / n
+      val base               = 228
+      val tilt               = 0.14
       def clamp(c: Int): Int = math.max(0, math.min(255, c))
-      val r0 = clamp((base + (255 - rAvg) * tilt).round.toInt)
-      val g0 = clamp((base + (255 - gAvg) * tilt).round.toInt)
-      val b0 = clamp((base + (255 - bAvg) * tilt).round.toInt)
+      val r0                 = clamp((base + (255 - rAvg) * tilt).round.toInt)
+      val g0                 = clamp((base + (255 - gAvg) * tilt).round.toInt)
+      val b0                 = clamp((base + (255 - bAvg) * tilt).round.toInt)
       /* Keep clearly off-white (max ≤ 215) and off-black (min ≥ 185) for contrast with both */
       val minChan = 185
       val maxChan = 215
-      val r = math.max(minChan, math.min(maxChan, r0))
-      val g = math.max(minChan, math.min(maxChan, g0))
-      val b = math.max(minChan, math.min(maxChan, b0))
+      val r       = math.max(minChan, math.min(maxChan, r0))
+      val g       = math.max(minChan, math.min(maxChan, g0))
+      val b       = math.max(minChan, math.min(maxChan, b0))
       Color(r, g, b).toHex
     }
-  }
 
   private def suggestedPatchBackground(model: Model): Option[String] =
     for {
-      stored  <- model.buildConfig
+      stored   <- model.buildConfig
       palettes <- model.palettes
       palette  <- palettes.find(_.id == stored.config.paletteRef)
       if palette.colors.nonEmpty
@@ -78,7 +80,10 @@ object BuildScreen extends Screen {
     for (part <- grid.parts) {
       val nCols = part.width / patchSize
       val nRows = part.height / patchSize
-      for (cy <- 0 until nRows; cx <- 0 until nCols) {
+      for {
+        cy <- 0 until nRows
+        cx <- 0 until nCols
+      } {
         val imgX = ox + part.x + cx * patchSize
         val imgY = oy + part.y + cy * patchSize
         out += ((imgX, imgY))
@@ -87,7 +92,7 @@ object BuildScreen extends Screen {
     out.result()
   }
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
+  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) =
     previous match {
       case Some(ScreenOutput.StartBuild(storedConfig)) =>
         val stepIndex = 0
@@ -100,7 +105,7 @@ object BuildScreen extends Screen {
           pendingSave = None,
           patchBackgroundColorHex = defaultPatchBackground
         )
-        val loadImages   = LocalStorageUtils.loadList(StorageKeys.images)(
+        val loadImages = LocalStorageUtils.loadList(StorageKeys.images)(
           BuildScreenMsg.LoadedImages.apply,
           _ => BuildScreenMsg.LoadedImages(Nil),
           (_, _) => BuildScreenMsg.LoadedImages(Nil)
@@ -124,12 +129,12 @@ object BuildScreen extends Screen {
           pendingSave = None,
           patchBackgroundColorHex = patchBg
         )
-        val loadConfigs  = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
+        val loadConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
           BuildScreenMsg.LoadedBuildConfigs.apply,
           _ => BuildScreenMsg.LoadedBuildConfigs(Nil),
           (_, _) => BuildScreenMsg.LoadedBuildConfigs(Nil)
         )
-        val loadImages   = LocalStorageUtils.loadList(StorageKeys.images)(
+        val loadImages = LocalStorageUtils.loadList(StorageKeys.images)(
           BuildScreenMsg.LoadedImages.apply,
           _ => BuildScreenMsg.LoadedImages(Nil),
           (_, _) => BuildScreenMsg.LoadedImages(Nil)
@@ -142,9 +147,10 @@ object BuildScreen extends Screen {
         (model, Cmd.Batch(loadConfigs, loadImages, loadPalettes))
 
       case _ =>
-        (BuildScreenModel(None, None, None, None, 0, None, defaultPatchBackground), Cmd.Emit(NavigateNext(ScreenId.BuildsId, None)))
+        (
+          BuildScreenModel(None, None, None, None, 0, None, defaultPatchBackground),
+          Cmd.Emit(NavigateNext(ScreenId.BuildsId, None)))
     }
-  }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case BuildScreenMsg.LoadedBuildConfigs(list) =>
@@ -152,9 +158,10 @@ object BuildScreen extends Screen {
       val steps     = configOpt.map(c => stepsForConfig(c.config)).getOrElse(Vector.empty)
       val stepIndex = if (steps.isEmpty) 0 else model.stepIndex.max(0).min(steps.length - 1)
       val nextBase  = model.copy(buildConfig = configOpt, stepIndex = stepIndex)
-      val next = if (nextBase.patchBackgroundColorHex == defaultPatchBackground)
-        suggestedPatchBackground(nextBase).fold(nextBase)(bg => nextBase.copy(patchBackgroundColorHex = bg))
-      else nextBase
+      val next =
+        if (nextBase.patchBackgroundColorHex == defaultPatchBackground)
+          suggestedPatchBackground(nextBase).fold(nextBase)(bg => nextBase.copy(patchBackgroundColorHex = bg))
+        else nextBase
       (next, drawCmd(next))
 
     case BuildScreenMsg.LoadedImages(list) =>
@@ -163,9 +170,10 @@ object BuildScreen extends Screen {
 
     case BuildScreenMsg.LoadedPalettes(list) =>
       val nextBase = model.copy(palettes = Some(list))
-      val next = if (nextBase.patchBackgroundColorHex == defaultPatchBackground)
-        suggestedPatchBackground(nextBase).fold(nextBase)(bg => nextBase.copy(patchBackgroundColorHex = bg))
-      else nextBase
+      val next =
+        if (nextBase.patchBackgroundColorHex == defaultPatchBackground)
+          suggestedPatchBackground(nextBase).fold(nextBase)(bg => nextBase.copy(patchBackgroundColorHex = bg))
+        else nextBase
       (next, drawCmd(next))
 
     case BuildScreenMsg.SetStep(index) =>
@@ -204,7 +212,8 @@ object BuildScreen extends Screen {
         case (Some(storedConfig), _) =>
           val buildId   = model.currentBuild.map(_.id).getOrElse("build-" + js.Date.now().toLong)
           val buildName = model.currentBuild.map(_.name).getOrElse(storedConfig.name)
-          val updated   = StoredBuild(buildId, buildName, storedConfig.id, Some(model.stepIndex), Some(model.patchBackgroundColorHex))
+          val updated =
+            StoredBuild(buildId, buildName, storedConfig.id, Some(model.stepIndex), Some(model.patchBackgroundColorHex))
           val cmd = LocalStorageUtils.loadList(StorageKeys.builds)(
             list => BuildScreenMsg.LoadedForSave(list),
             _ => BuildScreenMsg.LoadedForSave(Nil),
@@ -243,7 +252,9 @@ object BuildScreen extends Screen {
       (model, drawCmd(model))
 
     case BuildScreenMsg.SetPatchBackgroundColor(hex) =>
-      (model.copy(patchBackgroundColorHex = Color.normalizeHex(hex, defaultPatchBackground)), drawCmd(model.copy(patchBackgroundColorHex = Color.normalizeHex(hex, defaultPatchBackground))))
+      (
+        model.copy(patchBackgroundColorHex = Color.normalizeHex(hex, defaultPatchBackground)),
+        drawCmd(model.copy(patchBackgroundColorHex = Color.normalizeHex(hex, defaultPatchBackground))))
 
     case BuildScreenMsg.SetStacked(value) =>
       (model.copy(stacked = value), drawCmd(model.copy(stacked = value)))
@@ -267,7 +278,7 @@ object BuildScreen extends Screen {
 
   /** Overview: grid region only (cropped image + grid overlay + current 16×16 patch highlighted). */
   private def drawOverview(model: Model): IO[Unit] =
-    CanvasUtils.drawAfterViewReady(overviewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
+    CanvasUtils.drawAfterViewReady(overviewCanvasId, maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
       val picOpt = picWithPalette(model)
       val cfgOpt = model.buildConfig
       (picOpt, cfgOpt) match {
@@ -284,14 +295,22 @@ object BuildScreen extends Screen {
               ctx.strokeStyle = Color.errorStroke.rgba(0.6)
               ctx.lineWidth = 1
               stored.config.grid.parts.foreach { part =>
-                ctx.strokeRect(part.x * fit.scale, part.y * fit.scale, (part.width * fit.scale).max(1), (part.height * fit.scale).max(1))
+                ctx.strokeRect(
+                  part.x * fit.scale,
+                  part.y * fit.scale,
+                  (part.width * fit.scale).max(1),
+                  (part.height * fit.scale).max(1))
               }
               model.currentStep.foreach { case (sx, sy) =>
                 val rx = sx - stored.config.offsetX
                 val ry = sy - stored.config.offsetY
                 ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
                 ctx.lineWidth = 2
-                ctx.strokeRect(rx * fit.scale, ry * fit.scale, (patchSize * fit.scale).max(1), (patchSize * fit.scale).max(1))
+                ctx.strokeRect(
+                  rx * fit.scale,
+                  ry * fit.scale,
+                  (patchSize * fit.scale).max(1),
+                  (patchSize * fit.scale).max(1))
               }
             case None =>
               CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Grid region out of bounds")
@@ -299,17 +318,18 @@ object BuildScreen extends Screen {
         case _ =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Loading…")
       }
-    })
+    }
 
   /** Colors in patch sorted by count ascending (least to most); each gets its own 16×16 patch drawn. */
   private def colorsByCountAsc(patch: PixelPic): Vector[(Int, Int)] =
     patch.palette.toVector.sortBy(_._2)
 
-  /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. Up to 16 colors; 2 cols on small screens, 4 otherwise. */
-  private val previewColsSmall = 2
-  private val previewColsWide  = 4
+  /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. Up to 16
+    * colors; 2 cols on small screens, 4 otherwise.
+    */
+  private val previewColsSmall      = 2
+  private val previewColsWide       = 4
   private val previewColsBreakpoint = 600
-
 
   private def patchBackgroundRgb(hex: String): (Int, Int, Int) = {
     val h = Color.normalizeHex(hex, defaultPatchBackground)
@@ -324,18 +344,18 @@ object BuildScreen extends Screen {
   }
 
   private def drawPreview(model: Model): IO[Unit] =
-    CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1)((canvas, ctx) => {
+    CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
       val picOpt = picWithPalette(model)
       model.currentStep match {
         case Some((sx, sy)) =>
           picOpt.flatMap(_.crop(sx, sy, patchSize, patchSize)) match {
             case Some(patch) =>
-              val sortedColors = colorsByCountAsc(patch)
-              val cellPx       = 8
-              val cellW        = patchSize * cellPx
-              val cellH        = patchSize * cellPx
-              val gap          = 8
-              val gridStep     = 4
+              val sortedColors    = colorsByCountAsc(patch)
+              val cellPx          = 8
+              val cellW           = patchSize * cellPx
+              val cellH           = patchSize * cellPx
+              val gap             = 8
+              val gridStep        = 4
               val (bgR, bgG, bgB) = patchBackgroundRgb(model.patchBackgroundColorHex)
 
               if (model.stacked) {
@@ -349,21 +369,27 @@ object BuildScreen extends Screen {
                 canvas.height = totalH.max(1)
                 ctx.clearRect(0, 0, canvas.width, canvas.height)
                 sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), layerIdx) =>
-                  val col   = layerIdx % cols
-                  val row   = layerIdx / cols
-                  val ox    = col * (cellW + gap)
-                  val oy    = row * (cellH + gap)
+                  val col      = layerIdx % cols
+                  val row      = layerIdx / cols
+                  val ox       = col * (cellW + gap)
+                  val oy       = row * (cellH + gap)
                   val colorSet = sortedColors.take(layerIdx + 1).map(_._1).toSet
-                  val imgData = ctx.createImageData(cellW, cellH)
-                  val data   = imgData.data
-                  for (y <- 0 until patchSize; x <- 0 until patchSize) {
+                  val imgData  = ctx.createImageData(cellW, cellH)
+                  val data     = imgData.data
+                  for {
+                    y <- 0 until patchSize
+                    x <- 0 until patchSize
+                  } {
                     val idx = y * patchSize + x
                     val (r, g, b) =
                       if (colorSet.contains(patch.pixels(idx))) {
                         val px = patch.paletteLookup(patch.pixels(idx))
                         (px.r, px.g, px.b)
                       } else (bgR, bgG, bgB)
-                    for (py <- 0 until cellPx; pxOff <- 0 until cellPx) {
+                    for {
+                      py    <- 0 until cellPx
+                      pxOff <- 0 until cellPx
+                    } {
                       val off = ((y * cellPx + py) * cellW + (x * cellPx + pxOff)) * 4
                       data(off) = r
                       data(off + 1) = g
@@ -397,19 +423,25 @@ object BuildScreen extends Screen {
                 canvas.height = totalH.max(1)
                 ctx.clearRect(0, 0, canvas.width, canvas.height)
                 sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), i) =>
-                  val px  = patch.paletteLookup(paletteIndex)
-                  val col = i % cols
-                  val row = i / cols
-                  val ox  = col * (cellW + gap)
-                  val oy  = row * (cellH + gap)
+                  val px      = patch.paletteLookup(paletteIndex)
+                  val col     = i % cols
+                  val row     = i / cols
+                  val ox      = col * (cellW + gap)
+                  val oy      = row * (cellH + gap)
                   val imgData = ctx.createImageData(cellW, cellH)
                   val data    = imgData.data
-                  for (y <- 0 until patchSize; x <- 0 until patchSize) {
+                  for {
+                    y <- 0 until patchSize
+                    x <- 0 until patchSize
+                  } {
                     val idx = y * patchSize + x
                     val (r, g, b) =
                       if (patch.pixels(idx) == paletteIndex) (px.r, px.g, px.b)
                       else (bgR, bgG, bgB)
-                    for (py <- 0 until cellPx; pxOff <- 0 until cellPx) {
+                    for {
+                      py    <- 0 until cellPx
+                      pxOff <- 0 until cellPx
+                    } {
                       val off = ((y * cellPx + py) * cellW + (x * cellPx + pxOff)) * 4
                       data(off) = r
                       data(off + 1) = g
@@ -447,7 +479,7 @@ object BuildScreen extends Screen {
           ctx.fillStyle = s"rgb($r,$g,$b)"
           ctx.fillRect(0, 0, patchSize, patchSize)
       }
-    })
+    }
 
   def view(model: Model): Html[Msg] = {
     val steps   = model.steps
@@ -477,8 +509,8 @@ object BuildScreen extends Screen {
             )(text("Next")),
             input(
               `type` := "number",
-              max := total.max(1).toString,
-              value := model.draftStepInput.getOrElse(if (total == 0) "0" else (current + 1).toString),
+              max    := total.max(1).toString,
+              value  := model.draftStepInput.getOrElse(if (total == 0) "0" else (current + 1).toString),
               onInput(s => BuildScreenMsg.SetStepDraft(s)),
               onEvent(
                 "keyup",
@@ -506,9 +538,9 @@ object BuildScreen extends Screen {
         div(`class` := s"${NesCss.field} build-patch-bg-block")(
           label(`class` := "label-block")(text("Background")),
           input(
-            `type` := "color",
+            `type`  := "color",
             `class` := "input-color",
-            value := Color.normalizeHex(model.patchBackgroundColorHex, defaultPatchBackground),
+            value   := Color.normalizeHex(model.patchBackgroundColorHex, defaultPatchBackground),
             onInput(hex => BuildScreenMsg.SetPatchBackgroundColor(hex))
           )
         ),
@@ -556,20 +588,19 @@ object BuildScreen extends Screen {
 }
 
 final case class BuildScreenModel(
-    buildConfig: Option[StoredBuildConfig],
-    currentBuild: Option[StoredBuild],
-    images: Option[List[StoredImage]],
-    palettes: Option[List[StoredPalette]],
-    stepIndex: Int,
-    pendingSave: Option[StoredBuild] = None,
-    patchBackgroundColorHex: String = "#eeeeee",
-    stacked: Boolean = false,
-    draftStepInput: Option[String] = None
-) {
+  buildConfig: Option[StoredBuildConfig],
+  currentBuild: Option[StoredBuild],
+  images: Option[List[StoredImage]],
+  palettes: Option[List[StoredPalette]],
+  stepIndex: Int,
+  pendingSave: Option[StoredBuild] = None,
+  patchBackgroundColorHex: String = "#eeeeee",
+  stacked: Boolean = false,
+  draftStepInput: Option[String] = None) {
   def steps: Vector[(Int, Int)] =
     buildConfig match {
       case Some(stored) => BuildScreen.stepsForConfig(stored.config)
-      case None          => Vector.empty
+      case None         => Vector.empty
     }
 
   def currentStep: Option[(Int, Int)] = {
@@ -579,7 +610,7 @@ final case class BuildScreenModel(
   }
 }
 
-enum BuildScreenMsg:
+enum BuildScreenMsg {
   case LoadedBuildConfigs(list: List[StoredBuildConfig])
   case LoadedImages(list: List[StoredImage])
   case LoadedPalettes(list: List[StoredPalette])
@@ -597,3 +628,4 @@ enum BuildScreenMsg:
   case SetPatchBackgroundColor(hex: String)
   case SetStacked(value: Boolean)
   case NoOp
+}
