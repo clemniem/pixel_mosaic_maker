@@ -477,7 +477,6 @@ object BuildScreen extends Screen {
             )(text("Next")),
             input(
               `type` := "number",
-              min := "1",
               max := total.max(1).toString,
               value := model.draftStepInput.getOrElse(if (total == 0) "0" else (current + 1).toString),
               onInput(s => BuildScreenMsg.SetStepDraft(s)),
