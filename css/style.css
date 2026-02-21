@@ -417,6 +417,22 @@ body {
   font-weight: 500;
 }
 
+.print-preview-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.print-preview-col {
+  flex: 1 1 16rem;
+  min-width: 16rem;
+}
+
+.print-pdf-preview-canvas {
+  cursor: pointer;
+}
+
 .upload-preview-title {
   font-weight: 600;
   font-size: 1.1rem;

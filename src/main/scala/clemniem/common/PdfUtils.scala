@@ -139,52 +139,51 @@ object PdfUtils {
     gridInstr ++ greyInstrs ++ layoutGridDashed ++ frameInstr ++ borderInstr
   }
 
-  /** Progress bar at the bottom of the page, above the printer margin: full width (0 to pageW), y = pageH - marginTB -
-    * bar height. For booklet: bar represents overall progress 0–100%; when filling the second half, the first half is
-    * always completely full.
+  /** Progress bar at the bottom of the page, just above the printer margin (inside the colored background area).
+    * Unfilled area is the page background (no separate track/shadow).
+    *
+    * Booklet rules:
+    *   - No bar on the first 3 PDF pages (cover front, cover back, first content right-hand page).
+    *   - Left pages fill during the first half of overall progress (0–50%).
+    *   - Right pages fill during the second half (50–100%); left is fully filled once progress >= 50%.
     */
   private def progressBarInstructions(
     pageIndex1Based: Int,
     totalPages: Int,
     pageW: Double,
     pageH: Double,
-    marginTB: Double
-  ): List[Instruction] =
-    if (totalPages <= 0) Nil
+    printerMarginMm: Double
+  ): List[Instruction] = {
+    val pageIndex0Based = pageIndex1Based - 1
+    if (totalPages <= 0 || pageIndex0Based < 3) Nil
     else {
-      val barY = pageH - marginTB - progressBarHeightMm
+      val m    = printerMarginMm.max(0.0)
+      val barX = m
+      val barW = (pageW - 2 * m).max(0.0)
+      val barY = pageH - m - progressBarHeightMm
       if (barY < 0) Nil
       else {
-        val barX      = 0.0
-        val barW      = pageW
-        val progress  = pageIndex1Based.toDouble / totalPages
-        val fillRatio = math.min(1.0, progress)
-        val fillW     = (barW * fillRatio).max(0)
-        val bg = List(
-          Instruction.FillRect(
-            barX,
-            barY,
-            barW,
-            progressBarHeightMm,
-            Color.progressBarBackgroundPastelBlue.r,
-            Color.progressBarBackgroundPastelBlue.g,
-            Color.progressBarBackgroundPastelBlue.b
-          ))
-        val fill =
-          if (fillW > 0)
-            List(
-              Instruction.FillRect(
-                barX,
-                barY,
-                fillW,
-                progressBarHeightMm,
-                Color.progressBarFill.r,
-                Color.progressBarFill.g,
-                Color.progressBarFill.b))
-          else Nil
-        bg ++ fill
+        val overallProgress = pageIndex1Based.toDouble / totalPages
+        val contentPageNum  = pageIndex0Based - 1
+        val leftSide        = (contentPageNum % 2) == 0
+        val fillRatio =
+          if (leftSide) math.min(1.0, overallProgress * 2)
+          else math.max(0.0, (overallProgress - 0.5) * 2)
+        val fillW = (barW * fillRatio).max(0)
+        if (fillW > 0)
+          List(
+            Instruction.FillRect(
+              barX,
+              barY,
+              fillW,
+              progressBarHeightMm,
+              Color.progressBarBackgroundPastelBlue.r,
+              Color.progressBarBackgroundPastelBlue.g,
+              Color.progressBarBackgroundPastelBlue.b))
+        else Nil
       }
     }
+  }
 
   /** Insert progress bar instructions before each AddPage (for the page we're leaving) and before Save (for the last
     * page). Uses foldLeft to avoid stack overflow on large documents.
@@ -194,16 +193,16 @@ object PdfUtils {
     totalPages: Int,
     pageW: Double,
     pageH: Double,
-    marginTB: Double
+    printerMarginMm: Double
   ): List[Instruction] = {
     type State = (Int, List[Instruction]) // currentPage, reversed result
     val (_, revResult) = instructions.foldLeft[State]((1, Nil)) { case ((currentPage, acc), inst) =>
       inst match {
         case Instruction.AddPage =>
-          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, marginTB)
+          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, printerMarginMm)
           (currentPage + 1, Instruction.AddPage :: (bar.reverse ++ acc))
         case s @ Instruction.Save(_) =>
-          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, marginTB)
+          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, printerMarginMm)
           (currentPage, s :: (bar.reverse ++ acc))
         case other =>
           (currentPage, other :: acc)
@@ -223,6 +222,60 @@ object PdfUtils {
       request.printerMarginMm,
       config
     )
+  }
+
+  final case class BookPreview(
+    pageWmm: Double,
+    pageHmm: Double,
+    printerMarginMm: Double,
+    totalPages: Int,
+    pages: Vector[List[Instruction]]
+  )
+
+  /** Build a small preview of the PDF as per-page [[Instruction]] lists (no Save). Intended for rendering onto a canvas
+    * in the UI. Includes progress bars. Returns at most `maxPages` pages (from the start).
+    */
+  def previewBookPages(request: PrintBookRequest, maxPages: Int): BookPreview = {
+    val config           = request.layoutConfig.getOrElse(PdfLayoutConfig.default)
+    val (pageW, pageH)   = (config.global.pageSizeMm, config.global.pageSizeMm)
+    val printerMarginMm  = request.printerMarginMm
+    val marginLR         = printerMarginMm + config.global.contentPaddingLRMm
+    val marginTB         = printerMarginMm + config.global.contentPaddingTBMm
+    val availableW       = pageW - 2 * marginLR
+    val availableH       = pageH - 2 * marginTB
+
+    val (coverInstrs, afterCoverInstrs, chapterInstrs) = request.mosaicPicAndGridOpt match {
+      case Some((pic, grid)) =>
+        val cover        = coverWithMosaic(request.title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        val emptyPage    = List(Instruction.AddPage)
+        val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, config)
+        val chapters =
+          allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.stepSizePx, config)
+        (cover, emptyPage ++ fullOverview, chapters)
+      case None =>
+        (PdfLayout.coverInstructions(request.title, printerMarginMm, config), List(Instruction.AddPage), Nil)
+    }
+
+    val rawInstructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save("__preview__.pdf")
+    val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
+    val withBars        = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm)
+    val noSave          = withBars.filterNot { case Instruction.Save(_) => true; case _ => false }
+    val pages           = splitIntoPages(noSave).take(maxPages.max(1))
+    BookPreview(pageW, pageH, printerMarginMm, totalPages, pages)
+  }
+
+  /** Split a full instruction list into per-page lists (AddPage is the boundary). */
+  private def splitIntoPages(instructions: List[Instruction]): Vector[List[Instruction]] = {
+    type State = (Vector[List[Instruction]], List[Instruction]) // finished pages, current (reversed)
+    val (pages, currentRev) = instructions.foldLeft[State]((Vector.empty, Nil)) { case ((done, curRev), inst) =>
+      inst match {
+        case Instruction.AddPage =>
+          (done :+ curRev.reverse, Nil)
+        case other =>
+          (done, other :: curRev)
+      }
+    }
+    pages :+ currentRev.reverse
   }
 
   private def runPrintBookPdf(
@@ -252,7 +305,7 @@ object PdfUtils {
     }
     val rawInstructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
-    val instructions    = insertProgressBars(rawInstructions, totalPages, pageW, pageH, marginTB)
+    val instructions    = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm)
     JsPDF.run(instructions, pageBackgroundColor, printerMarginMm)
   }
 

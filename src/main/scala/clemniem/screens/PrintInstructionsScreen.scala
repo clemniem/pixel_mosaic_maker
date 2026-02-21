@@ -3,6 +3,7 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{Color, Layout, NavigateNext, PixelPic, Screen, ScreenId, StoredBuildConfig, StoredImage, StoredPalette}
 import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
+import clemniem.common.pdf.PdfPreviewRenderer
 import clemniem.common.nescss.NesCss
 import clemniem.StorageKeys
 import tyrian.Html.*
@@ -26,6 +27,8 @@ object PrintInstructionsScreen extends Screen {
 
   val screenId: ScreenId       = ScreenId.PrintInstructionsId
   private val overviewCanvasId = "print-instructions-overview"
+  private val pdfPreviewCanvasId = "print-instructions-pdf-preview"
+  private val pdfPreviewMaxPages = 5
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
     val model = PrintInstructionsModel(
@@ -36,7 +39,8 @@ object PrintInstructionsScreen extends Screen {
       title = "Mosaic",
       stepSizePx = 16,
       pageBackgroundColorHex = PdfUtils.defaultPageBackgroundColor.toHex,
-      printerMarginMm = 3.0
+      printerMarginMm = 3.0,
+      pdfPreviewPageIdx = 0
     )
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       PrintInstructionsMsg.LoadedBuildConfigs.apply,
@@ -65,13 +69,13 @@ object PrintInstructionsScreen extends Screen {
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
       val next = nextBase.copy(stepSizePx = stepSize)
-      (next, Cmd.SideEffect(drawOverview(next)))
+      (next, Cmd.SideEffect(drawPreviews(next)))
     case PrintInstructionsMsg.LoadedImages(list) =>
       val next = model.copy(images = Some(list))
-      (next, Cmd.SideEffect(drawOverview(next)))
+      (next, Cmd.SideEffect(drawPreviews(next)))
     case PrintInstructionsMsg.LoadedPalettes(list) =>
       val next = model.copy(palettes = Some(list))
-      (next, Cmd.SideEffect(drawOverview(next)))
+      (next, Cmd.SideEffect(drawPreviews(next)))
     case PrintInstructionsMsg.SetBuildConfig(id) =>
       val nextBase = model.copy(selectedBuildConfigId = Some(id))
       val available =
@@ -79,30 +83,28 @@ object PrintInstructionsScreen extends Screen {
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
       val next = nextBase.copy(stepSizePx = stepSize)
-      (next, Cmd.SideEffect(drawOverview(next)))
+      (next, Cmd.SideEffect(drawPreviews(next)))
     case PrintInstructionsMsg.DrawOverview =>
-      (model, Cmd.SideEffect(drawOverview(model)))
+      (model, Cmd.SideEffect(drawPreviews(model)))
+    case PrintInstructionsMsg.DrawPdfPreview =>
+      (model, Cmd.SideEffect(drawPdfPreview(model)))
     case PrintInstructionsMsg.SetTitle(title) =>
-      (model.copy(title = title), Cmd.None)
+      val next = model.copy(title = title)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
     case PrintInstructionsMsg.SetStepSize(px) =>
-      (model.copy(stepSizePx = px), Cmd.None)
+      val next = model.copy(stepSizePx = px)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
     case PrintInstructionsMsg.SetPageBackgroundColor(hex) =>
-      (model.copy(pageBackgroundColorHex = hex), Cmd.None)
+      val next = model.copy(pageBackgroundColorHex = hex)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
     case PrintInstructionsMsg.SetPrinterMarginMm(mm) =>
-      (model.copy(printerMarginMm = mm), Cmd.None)
+      val next = model.copy(printerMarginMm = mm)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
+    case PrintInstructionsMsg.NextPdfPreviewPage =>
+      val next = model.copy(pdfPreviewPageIdx = (model.pdfPreviewPageIdx + 1) % pdfPreviewMaxPages)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
     case PrintInstructionsMsg.PrintPdf =>
-      val pageBg =
-        if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
-        else Color.fromHex(model.pageBackgroundColorHex)
-      val request = PrintBookRequest(
-        title = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
-        mosaicPicAndGridOpt = model.selectedStored.flatMap(stored =>
-          mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))),
-        stepSizePx = model.stepSizePx,
-        pageBackgroundColor = pageBg,
-        printerMarginMm = model.printerMarginMm
-      )
-      (model, Cmd.SideEffect(PdfUtils.printBookPdf(request)))
+      (model, Cmd.SideEffect(PdfUtils.printBookPdf(bookRequestForModel(model))))
     case PrintInstructionsMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case _: NavigateNext =>
@@ -155,14 +157,33 @@ object PrintInstructionsScreen extends Screen {
       model.buildConfigs match {
         case Some(_) =>
           div(`class` := "field-block--lg")(
-            div(`class` := "section-title")(text("Layout preview")),
-            div(onLoad(PrintInstructionsMsg.DrawOverview))(
-              canvas(
-                id      := overviewCanvasId,
-                width   := 400,
-                height  := 200,
-                `class` := "pixel-canvas"
-              )()
+            div(`class` := "print-preview-row")(
+              div(`class` := "print-preview-col")(
+                div(`class` := "section-title")(text("Layout preview")),
+                div(onLoad(PrintInstructionsMsg.DrawOverview))(
+                  canvas(
+                    id      := overviewCanvasId,
+                    width   := 400,
+                    height  := 200,
+                    `class` := "pixel-canvas"
+                  )()
+                )
+              ),
+              div(`class` := "print-preview-col")(
+                div(`class` := "section-title")(
+                  text("PDF preview")
+                ),
+                div(onLoad(PrintInstructionsMsg.DrawPdfPreview))(
+                  canvas(
+                    id      := pdfPreviewCanvasId,
+                    width   := 260,
+                    height  := 260,
+                    `class` := "pixel-canvas print-pdf-preview-canvas",
+                    onClick(PrintInstructionsMsg.NextPdfPreviewPage),
+                    title := "Click to cycle preview pages"
+                  )()
+                )
+              )
             )
           )
         case None =>
@@ -273,6 +294,49 @@ object PrintInstructionsScreen extends Screen {
       }
     }
 
+  private def drawPdfPreview(model: Model): IO[Unit] =
+    CanvasUtils.drawAfterViewReady(pdfPreviewCanvasId, maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
+      if (model.selectedStored.isEmpty) {
+        CanvasUtils.drawPlaceholder(canvas, ctx, canvas.width, canvas.height, "Select a mosaic setup for preview")
+      } else {
+        val request = bookRequestForModel(model)
+        val preview = PdfUtils.previewBookPages(request, pdfPreviewMaxPages)
+        val idx     = if (preview.pages.isEmpty) 0 else (model.pdfPreviewPageIdx % preview.pages.size)
+        val pageBg =
+          if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
+          else Color.fromHex(model.pageBackgroundColorHex)
+        if (preview.pages.isEmpty) CanvasUtils.drawPlaceholder(canvas, ctx, canvas.width, canvas.height, "Preview unavailable")
+        else
+          PdfPreviewRenderer.render(
+            canvas,
+            preview.pages(idx),
+            preview.pageWmm,
+            preview.pageHmm,
+            pageBg,
+            preview.printerMarginMm,
+            pageIndex0Based = idx,
+            preview.totalPages
+          )
+      }
+    }
+
+  private def drawPreviews(model: Model): IO[Unit] =
+    drawOverview(model).flatMap(_ => drawPdfPreview(model))
+
+  private def bookRequestForModel(model: Model): PrintBookRequest = {
+    val pageBg =
+      if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
+      else Color.fromHex(model.pageBackgroundColorHex)
+    PrintBookRequest(
+      title = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
+      mosaicPicAndGridOpt = model.selectedStored.flatMap(stored =>
+        mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))),
+      stepSizePx = model.stepSizePx,
+      pageBackgroundColor = pageBg,
+      printerMarginMm = model.printerMarginMm
+    )
+  }
+
   private def mosaicPicAndGridForStored(
     stored: StoredBuildConfig,
     images: List[StoredImage],
@@ -301,7 +365,8 @@ final case class PrintInstructionsModel(
   title: String,
   stepSizePx: Int,
   pageBackgroundColorHex: String,
-  printerMarginMm: Double) {
+  printerMarginMm: Double,
+  pdfPreviewPageIdx: Int) {
   def selectedStored: Option[StoredBuildConfig] =
     buildConfigs.flatMap(list => selectedBuildConfigId.flatMap(id => list.find(_.id == id)))
 }
@@ -316,6 +381,8 @@ enum PrintInstructionsMsg {
   case SetPageBackgroundColor(hex: String)
   case SetPrinterMarginMm(mm: Double)
   case DrawOverview
+  case DrawPdfPreview
+  case NextPdfPreviewPage
   case PrintPdf
   case Back
 }
