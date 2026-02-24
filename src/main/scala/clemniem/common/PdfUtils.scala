@@ -179,7 +179,8 @@ object PdfUtils {
               progressBarHeightMm,
               Color.progressBarBackgroundPastelBlue.r,
               Color.progressBarBackgroundPastelBlue.g,
-              Color.progressBarBackgroundPastelBlue.b))
+              Color.progressBarBackgroundPastelBlue.b
+            ))
         else Nil
       }
     }
@@ -229,20 +230,19 @@ object PdfUtils {
     pageHmm: Double,
     printerMarginMm: Double,
     totalPages: Int,
-    pages: Vector[List[Instruction]]
-  )
+    pages: Vector[List[Instruction]])
 
   /** Build a small preview of the PDF as per-page [[Instruction]] lists (no Save). Intended for rendering onto a canvas
     * in the UI. Includes progress bars. Returns at most `maxPages` pages (from the start).
     */
   def previewBookPages(request: PrintBookRequest, maxPages: Int): BookPreview = {
-    val config           = request.layoutConfig.getOrElse(PdfLayoutConfig.default)
-    val (pageW, pageH)   = (config.global.pageSizeMm, config.global.pageSizeMm)
-    val printerMarginMm  = request.printerMarginMm
-    val marginLR         = printerMarginMm + config.global.contentPaddingLRMm
-    val marginTB         = printerMarginMm + config.global.contentPaddingTBMm
-    val availableW       = pageW - 2 * marginLR
-    val availableH       = pageH - 2 * marginTB
+    val config          = request.layoutConfig.getOrElse(PdfLayoutConfig.default)
+    val (pageW, pageH)  = (config.global.pageSizeMm, config.global.pageSizeMm)
+    val printerMarginMm = request.printerMarginMm
+    val marginLR        = printerMarginMm + config.global.contentPaddingLRMm
+    val marginTB        = printerMarginMm + config.global.contentPaddingTBMm
+    val availableW      = pageW - 2 * marginLR
+    val availableH      = pageH - 2 * marginTB
 
     val (coverInstrs, afterCoverInstrs, chapterInstrs) = request.mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>

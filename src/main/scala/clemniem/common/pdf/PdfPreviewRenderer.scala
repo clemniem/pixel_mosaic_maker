@@ -52,18 +52,17 @@ object PdfPreviewRenderer {
     totalPages: Int,
     printerMarginMm: Double,
     pxPerMm: Double
-  ): Unit = {
+  ): Unit =
     if (pageIndex0Based >= 2 && pageIndex0Based <= totalPages - 3) {
       val contentPageNum = pageIndex0Based - 1
       val leftSide       = (contentPageNum % 2) == 0
       setFont(ctx, fontSizePt = 9, pxPerMm)
       ctx.fillStyle = "rgb(0,0,0)"
-      val yMm       = pageHmm - printerMarginMm - 5
-      val xMm       = if (leftSide) printerMarginMm + 5 else pageWmm - printerMarginMm - 5
+      val yMm = pageHmm - printerMarginMm - 5
+      val xMm = if (leftSide) printerMarginMm + 5 else pageWmm - printerMarginMm - 5
       ctx.textAlign = if (leftSide) "left" else "right"
       ctx.fillText(contentPageNum.toString, mmToPx(xMm, pxPerMm), mmToPx(yMm, pxPerMm))
     }
-  }
 
   def render(
     canvas: Canvas,
@@ -75,8 +74,8 @@ object PdfPreviewRenderer {
     pageIndex0Based: Int,
     totalPages: Int
   ): Unit = {
-    val wPx = canvas.width.toDouble.max(1.0)
-    val hPx = canvas.height.toDouble.max(1.0)
+    val wPx     = canvas.width.toDouble.max(1.0)
+    val hPx     = canvas.height.toDouble.max(1.0)
     val pxPerMm = (wPx / pageWmm).min(hPx / pageHmm)
 
     val ctx = canvas.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
@@ -140,8 +139,8 @@ object PdfPreviewRenderer {
             ctx.fillRect(boxX, boxY, boxW, boxH)
             ctx.fillStyle = "rgb(0,0,0)"
             ctx.textAlign = if (alignLeft) "left" else "right"
-            val textX     = if (alignLeft) boxX + paddingPx else boxX + boxW - paddingPx
-            val textY     = boxY + paddingPx + th
+            val textX = if (alignLeft) boxX + paddingPx else boxX + boxW - paddingPx
+            val textY = boxY + paddingPx + th
             ctx.fillText(value, textX, textY)
             setFont(ctx, fontSizePt, pxPerMm)
             fontSizePt
@@ -202,8 +201,8 @@ object PdfPreviewRenderer {
             fontSizePt
 
           case DrawSwatchRow(xMm, yMm, r, g, b, count, swatchSizeMm, gapMm, fsPt, strokeLineWidthMm) =>
-            val x = mmToPx(xMm, pxPerMm)
-            val y = mmToPx(yMm, pxPerMm)
+            val x  = mmToPx(xMm, pxPerMm)
+            val y  = mmToPx(yMm, pxPerMm)
             val sw = mmToPx(swatchSizeMm, pxPerMm)
             ctx.fillStyle = s"rgb($r,$g,$b)"
             ctx.fillRect(x, y, sw, sw)
@@ -215,7 +214,7 @@ object PdfPreviewRenderer {
             setFont(ctx, fsPt, pxPerMm)
             ctx.fillStyle = "rgb(0,0,0)"
             ctx.textAlign = "left"
-            val th = (fsPt.toDouble * mmPerPt * pxPerMm).max(6.0)
+            val th        = (fsPt.toDouble * mmPerPt * pxPerMm).max(6.0)
             val baselineY = y + (sw + th) / 2
             ctx.fillText("×" + count.toString, x + sw + mmToPx(gapMm, pxPerMm), baselineY)
             setFont(ctx, fontSizePt, pxPerMm)
@@ -227,7 +226,7 @@ object PdfPreviewRenderer {
               off.width = pixelWidth
               off.height = pixelHeight
               val octx = off.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
-              val img = octx.createImageData(pixelWidth, pixelHeight)
+              val img  = octx.createImageData(pixelWidth, pixelHeight)
               (0 until (pixelWidth * pixelHeight)).foreach { p =>
                 val i = p * 3
                 val r = rgbFlat(i)
@@ -265,4 +264,3 @@ object PdfPreviewRenderer {
     } finally ctx.restore()
   }
 }
-

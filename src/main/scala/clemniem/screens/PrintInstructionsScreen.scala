@@ -25,8 +25,8 @@ object PrintInstructionsScreen extends Screen {
   type Model = PrintInstructionsModel
   type Msg   = PrintInstructionsMsg | NavigateNext
 
-  val screenId: ScreenId       = ScreenId.PrintInstructionsId
-  private val overviewCanvasId = "print-instructions-overview"
+  val screenId: ScreenId         = ScreenId.PrintInstructionsId
+  private val overviewCanvasId   = "print-instructions-overview"
   private val pdfPreviewCanvasId = "print-instructions-pdf-preview"
   private val pdfPreviewMaxPages = 5
 
@@ -305,7 +305,8 @@ object PrintInstructionsScreen extends Screen {
         val pageBg =
           if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
           else Color.fromHex(model.pageBackgroundColorHex)
-        if (preview.pages.isEmpty) CanvasUtils.drawPlaceholder(canvas, ctx, canvas.width, canvas.height, "Preview unavailable")
+        if (preview.pages.isEmpty)
+          CanvasUtils.drawPlaceholder(canvas, ctx, canvas.width, canvas.height, "Preview unavailable")
         else
           PdfPreviewRenderer.render(
             canvas,
