@@ -28,6 +28,8 @@ object AboutScreen extends Screen {
       (model, CmdUtils.fireAndForget(refreshAppFromSW, AboutMsg.NoOp, _ => AboutMsg.NoOp))
     case AboutMsg.CancelRefresh =>
       (false, Cmd.None)
+    case AboutMsg.OpenUrl(url) =>
+      (model, Cmd.SideEffect(IO.delay(dom.window.open(url, "_blank"))))
     case AboutMsg.Back =>
       (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
     case AboutMsg.NoOp =>
@@ -70,11 +72,9 @@ object AboutScreen extends Screen {
         ),
         h2(`class` := "about-heading")(text("Source")),
         p(`class` := NesCss.text)(
-          a(
-            href := repoUrl,
-            Attribute("target", "_blank"),
-            Attribute("rel", "noopener noreferrer"),
-            `class` := "about-link about-source-icon-link"
+          span(
+            `class` := "about-link about-source-icon-link",
+            onClick(AboutMsg.OpenUrl(repoUrl))
           )(
             i(`class` := "nes-icon github is-large")()
           )
@@ -120,11 +120,9 @@ object AboutScreen extends Screen {
           rows.map { case (name, purpose, url) =>
             tr(
               td(`class` := NesCss.text)(
-                a(
-                  href := url,
-                  Attribute("target", "_blank"),
-                  Attribute("rel", "noopener noreferrer"),
-                  `class` := "about-link"
+                span(
+                  `class` := "about-link",
+                  onClick(AboutMsg.OpenUrl(url))
                 )(text(name))
               ),
               td(`class` := NesCss.text)(text(purpose))
@@ -140,6 +138,7 @@ enum AboutMsg {
   case ShowRefreshConfirm
   case ConfirmRefresh
   case CancelRefresh
+  case OpenUrl(url: String)
   case Back
   case NoOp
 }
