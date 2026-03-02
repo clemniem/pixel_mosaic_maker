@@ -35,7 +35,7 @@ object BuildScreen extends Screen {
   private val overviewCanvasId       = "build-overview"
   private val previewCanvasId        = "build-preview"
   private val patchSize              = 16
-  private val defaultPatchBackground = "#eeeeee"
+  private val defaultPatchBackground = Color.layerPatchBackground.toHex
 
   /** Pastel background that contrasts with all palette colors and with white and black: light, muted, in a band that is
     * clearly off-white and off-black.
@@ -593,7 +593,7 @@ final case class BuildScreenModel(
   palettes: Option[List[StoredPalette]],
   stepIndex: Int,
   pendingSave: Option[StoredBuild] = None,
-  patchBackgroundColorHex: String = "#eeeeee",
+  patchBackgroundColorHex: String = Color.layerPatchBackground.toHex,
   stacked: Boolean = false,
   draftStepInput: Option[String] = None) {
   def steps: Vector[(Int, Int)] =

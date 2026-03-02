@@ -33,7 +33,7 @@ object Color {
   val smallOverviewGrey: Color               = Color(210, 210, 210)
   val progressBarBackgroundPastelBlue: Color = Color(200, 220, 240)
   val progressBarFill: Color                 = Color(0, 0, 0)
-  val layerPatchBackground: Color            = Color(220, 220, 220)
+  val layerPatchBackground: Color            = Color(200, 220, 240)
   val defaultPageBackground: Color           = Color(253, 251, 230)
 
   /** Red used for error/validation strokes (e.g. canvas overlay). */

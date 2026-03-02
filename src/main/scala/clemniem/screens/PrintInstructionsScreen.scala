@@ -362,7 +362,7 @@ object PrintInstructionsScreen extends Screen {
         input(
           `type` := "range",
           min    := "0",
-          max    := "20",
+          max    := "40",
           step   := "0.5",
           value  := model.contentTopOffsetMm.toString,
           onInput(s => PrintInstructionsMsg.SetContentTopOffsetMm(s.toDoubleOption.getOrElse(PdfUtils.defaultContentTopOffsetMm)))
