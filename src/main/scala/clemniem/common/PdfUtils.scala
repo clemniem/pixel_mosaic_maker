@@ -212,6 +212,13 @@ object PdfUtils {
     revResult.reverse
   }
 
+  /** Sanitize title for use as PDF filename: strip/replace invalid chars, fallback to "mosaic-book" if empty. */
+  def filenameFromTitle(title: String): String = {
+    val invalid = """[\\/:*?"<>|\n\r]+"""
+    val sanitized = title.trim.replaceAll(invalid, "-").replaceAll("-+", "-").stripSuffix("-").trim
+    if (sanitized.isEmpty) "mosaic-book" else sanitized
+  }
+
   /** Generate the book PDF. Single entry point for both Print PDF buttons; pass a [[PrintBookRequest]]. */
   def printBookPdf(request: PrintBookRequest): IO[Unit] = IO {
     val config = request.layoutConfig.getOrElse(PdfLayoutConfig.default)
@@ -303,7 +310,8 @@ object PdfUtils {
       case None =>
         (PdfLayout.coverInstructions(title, printerMarginMm, config), List(Instruction.AddPage), Nil)
     }
-    val rawInstructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save("mosaic-book.pdf")
+    val filename = filenameFromTitle(title) + ".pdf"
+    val rawInstructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save(filename)
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
     val instructions    = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm)
     JsPDF.run(instructions, pageBackgroundColor, printerMarginMm)
