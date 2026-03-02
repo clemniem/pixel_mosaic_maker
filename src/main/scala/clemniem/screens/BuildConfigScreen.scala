@@ -22,7 +22,6 @@ import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
 import tyrian.*
 
-import scala.scalajs.js
 
 /** Build config editor: select one Layout, one Image, one Palette, and offset; preview updates when palette changes. */
 object BuildConfigScreen extends Screen {
@@ -158,7 +157,7 @@ object BuildConfigScreen extends Screen {
         image   <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
         palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
       } yield {
-        val id = model.editingId.getOrElse("buildconfig-" + js.Date.now().toLong)
+        val id = model.editingId.getOrElse(LocalStorageUtils.newId("buildconfig"))
         val stored = StoredBuildConfig(
           id = id,
           name = model.name,

@@ -20,7 +20,6 @@ import org.scalajs.dom.html.Input
 import tyrian.Html.*
 import tyrian.*
 
-import scala.scalajs.js
 
 /** Gallery of saved palettes. Empty state: "+ Create Palette". "From image" creates a palette from an image file. */
 object PalettesGalleryScreen extends Screen {
@@ -88,7 +87,7 @@ object PalettesGalleryScreen extends Screen {
     case PalettesGalleryMsg.Copy(stored) =>
       model.list match {
         case Some(list) =>
-          val newId   = "palette-" + js.Date.now().toLong
+          val newId   = LocalStorageUtils.newId("palette")
           val copy    = StoredPalette(id = newId, name = stored.name + " copy", colors = stored.colors)
           val idx     = list.indexWhere(_.id == stored.id)
           val newList = if (idx >= 0) list.patch(idx + 1, List(copy), 0) else list :+ copy
@@ -121,7 +120,7 @@ object PalettesGalleryScreen extends Screen {
     case PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName) =>
       val name   = fileName.map(baseNameFromFileName).filter(_.nonEmpty).getOrElse("Unnamed palette")
       val colors = pic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
-      val id     = "palette-" + js.Date.now().toLong
+      val id     = LocalStorageUtils.newId("palette")
       val stored = StoredPalette(id = id, name = name, colors = colors)
       model.list match {
         case Some(list) =>

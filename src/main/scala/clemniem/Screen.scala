@@ -40,15 +40,18 @@ object ScreenId {
   case object ImageUploadId extends ScreenId { val name = "image-upload"; val title = "Upload image" }
   case object BuildConfigId extends ScreenId { val name = "build-config"; val title = "Mosaic setup" }
   case object BuildId       extends ScreenId { val name = "build"; val title = "Building steps"      }
-  case object PrintInstructionsId extends ScreenId {
-    val name                         = "print-instructions"; val title = "Print";
+  case object PrintConfigsId extends ScreenId {
+    val name                         = "print-configs"; val title = "Print";
     override val overviewDescription = Some("Create a printable PDF guide")
+  }
+  case object PrintInstructionsId extends ScreenId {
+    val name = "print-instructions"; val title = "Print"
   }
   case object AboutId extends ScreenId { val name = "about"; val title = "About" }
 
   /** Screen IDs shown on the overview page as link cards, in order. */
   val overviewScreenIds: List[ScreenId] =
-    List(ImagesId, PalettesId, LayoutsId, BuildConfigsId, BuildsId, PrintInstructionsId)
+    List(ImagesId, PalettesId, LayoutsId, BuildConfigsId, BuildsId, PrintConfigsId)
 
   /** Next screen in the overview flow (for the "Next →" button). Overview → first in list; last → Overview; editors →
     * next after their gallery.
@@ -66,7 +69,7 @@ object ScreenId {
           case PaletteId     => LayoutsId
           case ImageUploadId => BuildConfigsId
           case BuildConfigId => BuildsId
-          case BuildId       => PrintInstructionsId
+          case BuildId       => PrintConfigsId
           case AboutId       => OverviewId
           case _             => OverviewId
         }
@@ -112,6 +115,9 @@ object ScreenOutput {
 
   /** Resume a build from the builds list (has buildConfigRef + savedStepIndex). */
   final case class ResumeBuild(stored: StoredBuild) extends ScreenOutput
+
+  /** Open the print instructions screen with a previously saved print config. */
+  final case class OpenPrintConfig(stored: StoredPrintConfig) extends ScreenOutput
 }
 
 /** Root-level messages: navigation or delegation to the current screen. */

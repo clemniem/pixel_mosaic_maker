@@ -7,7 +7,6 @@ import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
 
-import scala.scalajs.js
 
 /** Palette editor: list of colors (default 4, max 16), editable by hex or color picker; reorder with arrows. */
 object PaletteScreen extends Screen {
@@ -103,7 +102,7 @@ object PaletteScreen extends Screen {
       (model, cmd)
 
     case PaletteMsg.LoadedForSave(list) =>
-      val id     = model.editingId.getOrElse("palette-" + js.Date.now().toLong)
+      val id     = model.editingId.getOrElse(LocalStorageUtils.newId("palette"))
       val stored = StoredPalette(id = id, name = model.name, colors = model.colors)
       val newList = model.editingId match {
         case Some(editId) => list.filterNot(_.id == editId) :+ stored

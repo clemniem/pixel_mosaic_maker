@@ -22,7 +22,6 @@ import tyrian.*
 import org.scalajs.dom
 import org.scalajs.dom.window
 
-import scala.scalajs.js
 import scala.concurrent.duration.DurationInt
 
 /** Step-by-step build: one build config, iterate sections then 16×16 cells per section. Overview + preview + step nav.
@@ -210,7 +209,7 @@ object BuildScreen extends Screen {
     case BuildScreenMsg.Save =>
       (model.buildConfig, model.currentBuild) match {
         case (Some(storedConfig), _) =>
-          val buildId   = model.currentBuild.map(_.id).getOrElse("build-" + js.Date.now().toLong)
+          val buildId   = model.currentBuild.map(_.id).getOrElse(LocalStorageUtils.newId("build"))
           val buildName = model.currentBuild.map(_.name).getOrElse(storedConfig.name)
           val updated =
             StoredBuild(buildId, buildName, storedConfig.id, Some(model.stepIndex), Some(model.patchBackgroundColorHex))

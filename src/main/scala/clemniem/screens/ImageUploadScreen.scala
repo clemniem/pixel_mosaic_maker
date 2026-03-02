@@ -34,7 +34,6 @@ import org.scalajs.dom.html.Input
 import tyrian.Html.*
 import tyrian.*
 
-import scala.scalajs.js
 import scala.concurrent.duration.DurationInt
 
 /** Upload image: max 5000×5000, auto downscale to 500×500 with optional dithering, optional palette 4–16 colors. */
@@ -257,7 +256,7 @@ object ImageUploadScreen extends Screen {
     case ImageUploadMsg.LoadedForSave(list) =>
       model.pixelPic match {
         case Some(pic) =>
-          val id      = "image-" + js.Date.now().toLong
+          val id      = LocalStorageUtils.newId("image")
           val stored  = StoredImage(id = id, name = model.name, pixelPic = pic)
           val newList = list :+ stored
           val saveCmd = LocalStorageUtils.saveList(StorageKeys.images, newList)(

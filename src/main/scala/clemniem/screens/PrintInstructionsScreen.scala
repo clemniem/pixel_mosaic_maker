@@ -1,13 +1,27 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{Color, Layout, NavigateNext, PixelPic, Screen, ScreenId, StoredBuildConfig, StoredImage, StoredPalette}
+import clemniem.{
+  Color,
+  Layout,
+  NavigateNext,
+  PixelPic,
+  Screen,
+  ScreenId,
+  ScreenOutput,
+  StorageKeys,
+  StoredBuild,
+  StoredBuildConfig,
+  StoredImage,
+  StoredPalette,
+  StoredPrintConfig
+}
 import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
 import clemniem.common.pdf.PdfPreviewRenderer
 import clemniem.common.nescss.NesCss
-import clemniem.StorageKeys
 import tyrian.Html.*
 import tyrian.*
+
 
 /** Fixed step size options (px). Only those that divide every section width/height are shown. Default 16 if available
   * else smallest.
@@ -31,19 +45,29 @@ object PrintInstructionsScreen extends Screen {
   private val pdfPreviewMaxPages = 5
 
   def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
+    val base = previous.collect { case ScreenOutput.OpenPrintConfig(stored) => stored }
     val model = PrintInstructionsModel(
+      builds = None,
       buildConfigs = None,
       images = None,
       palettes = None,
-      selectedBuildConfigId = None,
-      title = "Mosaic",
-      stepSizePx = 16,
-      pageBackgroundColorHex = PdfUtils.defaultPageBackgroundColor.toHex,
-      patchBackgroundColorHex = Color.layerPatchBackground.toHex,
-      stacked = true,
-      printerMarginMm = 3.0,
-      contentTopOffsetMm = PdfUtils.defaultContentTopOffsetMm,
-      pdfPreviewPageIdx = 0
+      selectedBuildId = base.flatMap(_.selectedBuildId),
+      selectedBuildConfigId = base.flatMap(_.selectedBuildConfigId),
+      title = base.map(_.title).getOrElse("Mosaic"),
+      stepSizePx = base.map(_.stepSizePx).getOrElse(16),
+      pageBackgroundColorHex = base.map(_.pageBackgroundColorHex).getOrElse(PdfUtils.defaultPageBackgroundColor.toHex),
+      patchBackgroundColorHex = base.map(_.patchBackgroundColorHex).getOrElse(Color.layerPatchBackground.toHex),
+      stacked = base.map(_.stacked).getOrElse(true),
+      printerMarginMm = base.map(_.printerMarginMm).getOrElse(3.0),
+      contentTopOffsetMm = base.map(_.contentTopOffsetMm).getOrElse(PdfUtils.defaultContentTopOffsetMm),
+      pdfPreviewPageIdx = 0,
+      savedConfigId = base.map(_.id),
+      printConfigs = None
+    )
+    val loadBuilds = LocalStorageUtils.loadList(StorageKeys.builds)(
+      PrintInstructionsMsg.LoadedBuilds.apply,
+      _ => PrintInstructionsMsg.LoadedBuilds(Nil),
+      (_, _) => PrintInstructionsMsg.LoadedBuilds(Nil)
     )
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       PrintInstructionsMsg.LoadedBuildConfigs.apply,
@@ -60,13 +84,36 @@ object PrintInstructionsScreen extends Screen {
       _ => PrintInstructionsMsg.LoadedPalettes(Nil),
       (_, _) => PrintInstructionsMsg.LoadedPalettes(Nil)
     )
-    (model, Cmd.Batch(loadBuildConfigs, loadImages, loadPalettes))
+    val loadPrintConfigs = LocalStorageUtils.loadList(StorageKeys.printConfigs)(
+      PrintInstructionsMsg.LoadedPrintConfigs.apply,
+      _ => PrintInstructionsMsg.LoadedPrintConfigs(Nil),
+      (_, _) => PrintInstructionsMsg.LoadedPrintConfigs(Nil)
+    )
+    (model, Cmd.Batch(loadBuilds, loadBuildConfigs, loadImages, loadPalettes, loadPrintConfigs))
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
+    case PrintInstructionsMsg.LoadedBuilds(list) =>
+      // Auto-select first build (if nothing already selected), and derive build config from it
+      val selBuildId = model.selectedBuildId.orElse(list.headOption.map(_.id))
+      val selConfigId = selBuildId
+        .flatMap(id => list.find(_.id == id).map(_.buildConfigRef))
+        .orElse(model.selectedBuildConfigId)
+      val next = model.copy(builds = Some(list), selectedBuildId = selBuildId, selectedBuildConfigId = selConfigId)
+      (next, Cmd.SideEffect(drawPreviews(next)))
     case PrintInstructionsMsg.LoadedBuildConfigs(list) =>
+      // Only fall back to first config if no build has already set a config id
       val selectedId = model.selectedBuildConfigId.orElse(list.headOption.map(_.id))
       val nextBase   = model.copy(buildConfigs = Some(list), selectedBuildConfigId = selectedId)
+      val available =
+        nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
+      val stepSize =
+        if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
+      val next = nextBase.copy(stepSizePx = stepSize)
+      (next, Cmd.SideEffect(drawPreviews(next)))
+    case PrintInstructionsMsg.SetBuild(id) =>
+      val configId = model.builds.getOrElse(Nil).find(_.id == id).map(_.buildConfigRef)
+      val nextBase = model.copy(selectedBuildId = Some(id), selectedBuildConfigId = configId.orElse(model.selectedBuildConfigId))
       val available =
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
@@ -118,18 +165,42 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.PrevPdfPreviewPage =>
       val next = model.copy(pdfPreviewPageIdx = (model.pdfPreviewPageIdx - 1).max(0))
       (next, Cmd.SideEffect(drawPdfPreview(next)))
+    case PrintInstructionsMsg.LoadedPrintConfigs(list) =>
+      (model.copy(printConfigs = Some(list)), Cmd.None)
+    case PrintInstructionsMsg.SaveConfig =>
+      val id = model.savedConfigId.getOrElse(LocalStorageUtils.newId("printconfig"))
+      val stored = StoredPrintConfig(
+        id = id,
+        name = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
+        selectedBuildId = model.selectedBuildId,
+        selectedBuildConfigId = model.selectedBuildConfigId,
+        title = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
+        stepSizePx = model.stepSizePx,
+        pageBackgroundColorHex = model.pageBackgroundColorHex,
+        patchBackgroundColorHex = model.patchBackgroundColorHex,
+        stacked = model.stacked,
+        printerMarginMm = model.printerMarginMm,
+        contentTopOffsetMm = model.contentTopOffsetMm
+      )
+      val existing = model.printConfigs.getOrElse(Nil)
+      val updated  = stored :: existing.filterNot(_.id == id)
+      val saveCmd = LocalStorageUtils.saveList(StorageKeys.printConfigs, updated)(
+        list => PrintInstructionsMsg.ConfigSaved(id, list),
+        (_, _) => PrintInstructionsMsg.ConfigSaved(id, updated)
+      )
+      (model, saveCmd)
+    case PrintInstructionsMsg.ConfigSaved(id, newList) =>
+      (model.copy(savedConfigId = Some(id), printConfigs = Some(newList)), Cmd.None)
     case PrintInstructionsMsg.PrintPdf =>
       (model, Cmd.SideEffect(PdfUtils.printBookPdf(bookRequestForModel(model))))
     case PrintInstructionsMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
+      (model, Cmd.Emit(NavigateNext(ScreenId.PrintConfigsId, None)))
     case _: NavigateNext =>
       (model, Cmd.None)
   }
 
   def view(model: Model): Html[Msg] = {
-    val buildConfigs = model.buildConfigs.getOrElse(Nil)
-    val selectedId   = model.selectedBuildConfigId.orElse(buildConfigs.headOption.map(_.id))
-    val canPrint     = model.selectedStored.isDefined
+    val canPrint = model.selectedStored.isDefined
 
     div(
       `class` := s"${NesCss.screenContainer} screen-container--narrow"
@@ -137,7 +208,8 @@ object PrintInstructionsScreen extends Screen {
       ScreenHeader(
         screenId.title,
         div(`class` := "flex-row", style := "gap: 0.5rem;")(
-          GalleryLayout.backButton(PrintInstructionsMsg.Back, "Overview"),
+          GalleryLayout.backButton(PrintInstructionsMsg.Back, "Print"),
+          button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.SaveConfig))(text("Save")),
           button(
             `class` := (if (canPrint) NesCss.btnPrimary else s"${NesCss.btn} btn-disabled"),
             onClick(PrintInstructionsMsg.PrintPdf)
@@ -147,28 +219,9 @@ object PrintInstructionsScreen extends Screen {
         false
       ),
       p(`class` := s"${NesCss.text} screen-intro")(
-        text("Pick a mosaic setup, add a title, then create your PDF.")
+        text("Pick a build, add a title, then create your PDF.")
       ),
-      div(`class` := s"${NesCss.field} field-block")(
-        label(`class` := "label-block")(text("Mosaic setup")),
-        model.buildConfigs match {
-          case None =>
-            span(`class` := NesCss.text)(text("Loading…"))
-          case Some(list) if list.isEmpty =>
-            span(`class` := NesCss.text)(text("No setups saved yet. Create one from Mosaic setup."))
-          case Some(list) =>
-            select(
-              `class` := s"${NesCss.input} input-min-w-16",
-              value   := selectedId.getOrElse(""),
-              onInput(s =>
-                PrintInstructionsMsg.SetBuildConfig(if (s.isEmpty) list.headOption.map(_.id).getOrElse("") else s))
-            )(
-              list.map { item =>
-                option(value := item.id)(text(item.name))
-              }*
-            )
-        }
-      ),
+      buildSelectorBlock(model),
       model.buildConfigs match {
         case Some(_) =>
           div(`class` := "field-block--lg")(
@@ -319,6 +372,44 @@ object PrintInstructionsScreen extends Screen {
     )
   }
 
+  private def buildSelectorBlock(model: Model): Html[Msg] = {
+    val builds = model.builds.getOrElse(Nil)
+    if (builds.nonEmpty) {
+      val selectedId = model.selectedBuildId.orElse(builds.headOption.map(_.id))
+      div(`class` := s"${NesCss.field} field-block--lg")(
+        label(`class` := "label-block")(text("Mosaic build")),
+        tyrian.Html.select(
+          `class` := s"${NesCss.input} input-w-full",
+          onChange(PrintInstructionsMsg.SetBuild.apply)
+        )(
+          builds.map { b =>
+            val attrs =
+              if (selectedId.contains(b.id)) List(Attribute("value", b.id), selected(true))
+              else List(Attribute("value", b.id))
+            option(attrs*)(text(b.name))
+          }*
+        )
+      )
+    } else {
+      val buildConfigs = model.buildConfigs.getOrElse(Nil)
+      val selectedId   = model.selectedBuildConfigId.orElse(buildConfigs.headOption.map(_.id))
+      div(`class` := s"${NesCss.field} field-block--lg")(
+        label(`class` := "label-block")(text("Build configuration")),
+        tyrian.Html.select(
+          `class` := s"${NesCss.input} input-w-full",
+          onChange(PrintInstructionsMsg.SetBuildConfig.apply)
+        )(
+          buildConfigs.map { bc =>
+            val attrs =
+              if (selectedId.contains(bc.id)) List(Attribute("value", bc.id), selected(true))
+              else List(Attribute("value", bc.id))
+            option(attrs*)(text(bc.name))
+          }*
+        )
+      )
+    }
+  }
+
   /** Step size: fixed values 12–32. Only options valid for selected build config are clickable; invalid ones shown
     * greyed out.
     */
@@ -450,9 +541,11 @@ private def parsePrinterMargin(s: String): Double = {
 }
 
 final case class PrintInstructionsModel(
+  builds: Option[List[StoredBuild]],
   buildConfigs: Option[List[StoredBuildConfig]],
   images: Option[List[StoredImage]],
   palettes: Option[List[StoredPalette]],
+  selectedBuildId: Option[String],
   selectedBuildConfigId: Option[String],
   title: String,
   stepSizePx: Int,
@@ -461,15 +554,20 @@ final case class PrintInstructionsModel(
   stacked: Boolean,
   printerMarginMm: Double,
   contentTopOffsetMm: Double,
-  pdfPreviewPageIdx: Int) {
+  pdfPreviewPageIdx: Int,
+  savedConfigId: Option[String],
+  printConfigs: Option[List[StoredPrintConfig]]) {
   def selectedStored: Option[StoredBuildConfig] =
     buildConfigs.flatMap(list => selectedBuildConfigId.flatMap(id => list.find(_.id == id)))
 }
 
 enum PrintInstructionsMsg {
+  case LoadedBuilds(list: List[StoredBuild])
   case LoadedBuildConfigs(list: List[StoredBuildConfig])
   case LoadedImages(list: List[StoredImage])
   case LoadedPalettes(list: List[StoredPalette])
+  case LoadedPrintConfigs(list: List[StoredPrintConfig])
+  case SetBuild(id: String)
   case SetBuildConfig(id: String)
   case SetTitle(title: String)
   case SetStepSize(px: Int)
@@ -482,6 +580,8 @@ enum PrintInstructionsMsg {
   case DrawPdfPreview
   case NextPdfPreviewPage
   case PrevPdfPreviewPage
+  case SaveConfig
+  case ConfigSaved(id: String, newList: List[StoredPrintConfig])
   case PrintPdf
   case Back
 }

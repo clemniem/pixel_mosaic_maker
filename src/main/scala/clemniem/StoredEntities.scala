@@ -47,6 +47,24 @@ object StoredBuild {
   given Decoder[StoredBuild] = deriveDecoder
 }
 
+final case class StoredPrintConfig(
+  id: String,
+  name: String,
+  selectedBuildId: Option[String],
+  selectedBuildConfigId: Option[String],
+  title: String,
+  stepSizePx: Int,
+  pageBackgroundColorHex: String,
+  patchBackgroundColorHex: String,
+  stacked: Boolean,
+  printerMarginMm: Double,
+  contentTopOffsetMm: Double
+)
+object StoredPrintConfig {
+  given Encoder[StoredPrintConfig] = deriveEncoder
+  given Decoder[StoredPrintConfig] = deriveDecoder
+}
+
 /** LocalStorage keys for gallery lists. */
 object StorageKeys {
   val layouts      = "gridConfigs"
@@ -54,4 +72,5 @@ object StorageKeys {
   val images       = "images"
   val buildConfigs = "buildConfigs"
   val builds       = "builds"
+  val printConfigs = "printConfigs"
 }

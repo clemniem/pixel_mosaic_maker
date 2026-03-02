@@ -8,6 +8,7 @@ import tyrian.Cmd
 import tyrian.cmds.LocalStorage
 
 import scala.annotation.unused
+import scala.scalajs.js
 
 /** Generic LocalStorage helpers to save/load case classes (JSON via circe). Use these to persist multiple outputs per
   * type (e.g. 3 grid configs, 3 palettes, 3 images).
@@ -18,6 +19,9 @@ import scala.annotation.unused
   *     for backward compatibility with existing LocalStorage data.)
   */
 object LocalStorageUtils {
+
+  /** Generate a unique ID for a new stored entity: `"<prefix>-<timestamp>"`. */
+  def newId(prefix: String): String = s"$prefix-${js.Date.now().toLong}"
 
   /** Save a single item at `key`. Emits `success(item)` on success, `failure(message, item)` on error. */
   def save[A, M](

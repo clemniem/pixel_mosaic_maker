@@ -20,7 +20,6 @@ import org.scalajs.dom
 import tyrian.Html.*
 import tyrian.*
 
-import scala.scalajs.js
 
 /** Step 1: Define layout of sections. Define by rows (height + widths per row) or by columns (width + heights per
   * column).
@@ -232,7 +231,7 @@ object LayoutScreen extends Screen {
 
     case LayoutMsg.LoadedForSave(list) =>
       val normalizedConfig = model.normalizedGrid
-      val id               = model.editingId.getOrElse("grid-" + js.Date.now().toLong)
+      val id               = model.editingId.getOrElse(LocalStorageUtils.newId("grid"))
       val stored = StoredLayout(
         id = id,
         name = model.name,
