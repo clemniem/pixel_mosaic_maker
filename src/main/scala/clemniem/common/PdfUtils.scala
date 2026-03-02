@@ -14,6 +14,9 @@ final case class PrintBookRequest(
   stepSizePx: Int = 16,
   pageBackgroundColor: Color = PdfUtils.defaultPageBackgroundColor,
   printerMarginMm: Double = 3.0,
+  contentTopOffsetMm: Double = 2.0,
+  patchBackgroundColor: Color = Color.layerPatchBackground,
+  stacked: Boolean = true,
   layoutConfig: Option[PdfLayoutConfig] = None)
 
 /** High-level PDF helpers. Build [[Instruction]]s and run them via [[JsPDF]]. */
@@ -22,10 +25,7 @@ object PdfUtils {
   /** Default page background: light pastel yellow (old LEGO-catalog style). */
   val defaultPageBackgroundColor: Color = Color.defaultPageBackground
 
-  /** Extra offset (mm) applied below config so the top line of pixel counts (and content aligned with it) is shifted
-    * down on all overview and step pages.
-    */
-  private val pixelCountTopExtraMm = 2.0
+  val defaultContentTopOffsetMm = 2.0
 
   /** Layout params for the small overview: (smallX0, smallY0, smallScale, smallOverviewW, smallOverviewH). */
   private def smallOverviewLayoutParams(
@@ -228,6 +228,9 @@ object PdfUtils {
       request.stepSizePx,
       request.pageBackgroundColor,
       request.printerMarginMm,
+      request.contentTopOffsetMm,
+      request.patchBackgroundColor,
+      request.stacked,
       config
     )
   }
@@ -255,9 +258,9 @@ object PdfUtils {
       case Some((pic, grid)) =>
         val cover        = coverWithMosaic(request.title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
         val emptyPage    = List(Instruction.AddPage)
-        val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, config)
+        val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.contentTopOffsetMm, config)
         val chapters =
-          allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.stepSizePx, config)
+          allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.stepSizePx, request.contentTopOffsetMm, request.patchBackgroundColor, request.stacked, config)
         (cover, emptyPage ++ fullOverview, chapters)
       case None =>
         (PdfLayout.coverInstructions(request.title, printerMarginMm, config), List(Instruction.AddPage), Nil)
@@ -291,6 +294,9 @@ object PdfUtils {
     stepSizePx: Int,
     pageBackgroundColor: Color,
     printerMarginMm: Double,
+    contentTopOffsetMm: Double,
+    patchBgColor: Color,
+    stacked: Boolean,
     config: PdfLayoutConfig
   ): Unit = {
     val (pageW, pageH) = (config.global.pageSizeMm, config.global.pageSizeMm)
@@ -303,9 +309,9 @@ object PdfUtils {
       case Some((pic, grid)) =>
         val cover        = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
         val emptyPage    = List(Instruction.AddPage)
-        val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, config)
+        val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, contentTopOffsetMm, config)
         val chapters =
-          allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, config)
+          allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, contentTopOffsetMm, patchBgColor, stacked, config)
         (cover, emptyPage ++ fullOverview, chapters)
       case None =>
         (PdfLayout.coverInstructions(title, printerMarginMm, config), List(Instruction.AddPage), Nil)
@@ -415,13 +421,14 @@ object PdfUtils {
     marginTB: Double,
     availableW: Double,
     availableH: Double,
+    contentTopOffsetMm: Double,
     config: PdfLayoutConfig
   ): List[Instruction] = {
     val fo          = config.fullOverview
     val sw          = fo.swatch
-    val contentTopY = marginTB + fo.titleOffsetFromTopMm + pixelCountTopExtraMm
+    val contentTopY = marginTB + fo.titleOffsetFromTopMm + contentTopOffsetMm
     val imageAreaW  = availableW - fo.colorListReservedWidthMm
-    val imageAreaH  = availableH - fo.titleOffsetFromTopMm - pixelCountTopExtraMm
+    val imageAreaH  = availableH - fo.titleOffsetFromTopMm - contentTopOffsetMm
     val colorRows = fullPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
       val px = fullPic.paletteLookup(idx)
       (px.r, px.g, px.b, count)
@@ -616,6 +623,9 @@ object PdfUtils {
     availableW: Double,
     availableH: Double,
     stepSizePx: Int,
+    contentTopOffsetMm: Double,
+    patchBgColor: Color,
+    stacked: Boolean,
     config: PdfLayoutConfig
   ): List[Instruction] = {
     val parts = grid.parts
@@ -630,6 +640,9 @@ object PdfUtils {
         availableW,
         availableH,
         stepSizePx,
+        contentTopOffsetMm,
+        patchBgColor,
+        stacked,
         config)
     }
   }
@@ -647,6 +660,9 @@ object PdfUtils {
     availableW: Double,
     availableH: Double,
     stepSizePx: Int,
+    contentTopOffsetMm: Double,
+    patchBgColor: Color,
+    stacked: Boolean,
     config: PdfLayoutConfig
   ): List[Instruction] = {
     val co            = config.chapterOverview
@@ -656,7 +672,7 @@ object PdfUtils {
     if (sectionPicOpt.isEmpty) Nil
     else {
       val sectionPic  = sectionPicOpt.get
-      val contentTopY = marginTB + co.contentTopOffsetFromTopMm + pixelCountTopExtraMm
+      val contentTopY = marginTB + co.contentTopOffsetFromTopMm + contentTopOffsetMm
       val colorRows = sectionPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
         val px = fullPic.paletteLookup(idx)
         (px.r, px.g, px.b, count)
@@ -686,7 +702,7 @@ object PdfUtils {
       val areaX            = marginLR + co.colorListReservedWidthMm
       val areaY            = contentTopY
       val areaW            = availableW - co.colorListReservedWidthMm
-      val areaH            = availableH - co.contentTopOffsetFromTopMm - pixelCountTopExtraMm
+      val areaH            = availableH - co.contentTopOffsetFromTopMm - contentTopOffsetMm
       val rightAreaW       = areaW * co.explodedAreaScaleFactor
       val rightAreaH       = areaH * co.explodedAreaScaleFactor
       val rightAreaX       = areaX + areaW - rightAreaW
@@ -752,6 +768,9 @@ object PdfUtils {
           marginTB,
           availableW,
           availableH,
+          contentTopOffsetMm,
+          patchBgColor,
+          stacked,
           config)
       }
       chapterOverviewPage ++ sectionInstrs
@@ -769,6 +788,9 @@ object PdfUtils {
     marginTB: Double,
     availableW: Double,
     availableH: Double,
+    contentTopOffsetMm: Double,
+    patchBgColor: Color,
+    stacked: Boolean,
     config: PdfLayoutConfig
   ): List[Instruction] = {
     val nCols = sectionPic.width / stepSizePx
@@ -792,6 +814,9 @@ object PdfUtils {
                 marginTB,
                 availableW,
                 availableH,
+                contentTopOffsetMm,
+                patchBgColor,
+                stacked,
                 config)
             case None =>
               Nil
@@ -815,12 +840,13 @@ object PdfUtils {
     stepSizePx: Int,
     marginLR: Double,
     marginTB: Double,
+    contentTopOffsetMm: Double,
     config: PdfLayoutConfig
   ): List[Instruction] = {
     val co          = config.chapterOverview
     val sw          = co.swatch
     val parts       = grid.parts
-    val contentTopY = marginTB + co.contentTopOffsetFromTopMm + pixelCountTopExtraMm
+    val contentTopY = marginTB + co.contentTopOffsetFromTopMm + contentTopOffsetMm
     val colorRows = patch.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
       val px = fullPic.paletteLookup(idx)
       (px.r, px.g, px.b, count)
@@ -870,15 +896,18 @@ object PdfUtils {
     marginTB: Double,
     availableW: Double,
     availableH: Double,
+    contentTopOffsetMm: Double,
+    patchBgColor: Color,
+    stacked: Boolean,
     config: PdfLayoutConfig
   ): List[Instruction] = {
     val lp             = config.layerPage
     val co             = config.chapterOverview
-    val contentTopY    = marginTB + co.contentTopOffsetFromTopMm + pixelCountTopExtraMm
+    val contentTopY    = marginTB + co.contentTopOffsetFromTopMm + contentTopOffsetMm
     val rightAreaX     = marginLR + co.colorListReservedWidthMm
     val rightAreaW     = availableW - co.colorListReservedWidthMm
     val rightAreaY     = contentTopY
-    val rightAreaH     = availableH - co.contentTopOffsetFromTopMm - pixelCountTopExtraMm
+    val rightAreaH     = availableH - co.contentTopOffsetFromTopMm - contentTopOffsetMm
     val layerGridScale = 0.85
     val effectiveW     = rightAreaW * layerGridScale
     val effectiveH     = rightAreaH * layerGridScale
@@ -889,17 +918,26 @@ object PdfUtils {
     val totalGridW      = lp.patchGridCols * patchCellMm + (lp.patchGridCols - 1) * lp.patchGapMm
     val startX          = rightAreaX + rightAreaW - totalGridW
     val startY          = rightAreaY
+    val bgRgb = (patchBgColor.r, patchBgColor.g, patchBgColor.b)
     val colorIndicesAsc = patch.getIndexByCount
-    val (_, layerRgbFlats) = colorIndicesAsc.foldLeft((Set.empty[Int], Vector.empty[Vector[Int]])) {
-      case ((set, acc), idx) =>
-        val newSet = set + idx
-        (newSet, acc :+ buildCumulativeLayerRgb(patch, newSet, (i: Int) => fullPic.paletteLookup(i)))
+    val (_, layerRgbFlats) = if (stacked) {
+      colorIndicesAsc.foldLeft((Set.empty[Int], Vector.empty[Vector[Int]])) {
+        case ((set, acc), idx) =>
+          val newSet = set + idx
+          (newSet, acc :+ buildLayerRgb(patch, newSet, (i: Int) => fullPic.paletteLookup(i), bgRgb))
+      }
+    } else {
+      colorIndicesAsc.foldLeft((Set.empty[Int], Vector.empty[Vector[Int]])) {
+        case ((set, acc), idx) =>
+          val newSet = set + idx
+          (newSet, acc :+ buildLayerRgb(patch, Set(idx), (i: Int) => fullPic.paletteLookup(i), bgRgb))
+      }
     }
     val layerRgbFlatsList = layerRgbFlats.toList
     val patchW            = patch.width
     val patchH            = patch.height
     val leftColumnInstrs =
-      stepPageLeftColumnInstructions(fullPic, grid, part, patch, stepCx, stepCy, stepSizePx, marginLR, marginTB, config)
+      stepPageLeftColumnInstructions(fullPic, grid, part, patch, stepCx, stepCy, stepSizePx, marginLR, marginTB, contentTopOffsetMm, config)
     layerRgbFlatsList.grouped(lp.patchesPerPage).toList.zipWithIndex.flatMap { case (layerBatch, batchIdx) =>
       val scale  = (patchCellMm / patchW).min(patchCellMm / patchH)
       val imageW = patchW * scale
@@ -1041,17 +1079,19 @@ object PdfUtils {
     verticals ++ horizontals
   }
 
-  /** Full-resolution RGB flat for the section: pixels in cumulative color set get their color, rest get layer
-    * background (like BuildScreen preview per-pixel).
-    */
-  private def buildCumulativeLayerRgb(sectionPic: PixelPic, colorIndexSet: Set[Int], paletteLookup: Int => Pixel)
-    : Vector[Int] =
+  /** Full-resolution RGB flat: pixels in the color set get their color, rest get the given background. */
+  private def buildLayerRgb(
+    sectionPic: PixelPic,
+    colorIndexSet: Set[Int],
+    paletteLookup: Int => Pixel,
+    bgRgb: (Int, Int, Int)
+  ): Vector[Int] =
     sectionPic.pixels.iterator.flatMap { idx =>
       val (r, g, b) =
         if (colorIndexSet.contains(idx)) {
           val p = paletteLookup(idx)
           (p.r, p.g, p.b)
-        } else Color.layerPatchBackground.rgb
+        } else bgRgb
       Vector(r, g, b)
     }.toVector
 

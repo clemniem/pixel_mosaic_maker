@@ -39,7 +39,10 @@ object PrintInstructionsScreen extends Screen {
       title = "Mosaic",
       stepSizePx = 16,
       pageBackgroundColorHex = PdfUtils.defaultPageBackgroundColor.toHex,
+      patchBackgroundColorHex = Color.layerPatchBackground.toHex,
+      stacked = true,
       printerMarginMm = 3.0,
+      contentTopOffsetMm = PdfUtils.defaultContentTopOffsetMm,
       pdfPreviewPageIdx = 0
     )
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
@@ -100,8 +103,20 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.SetPrinterMarginMm(mm) =>
       val next = model.copy(printerMarginMm = mm)
       (next, Cmd.SideEffect(drawPdfPreview(next)))
+    case PrintInstructionsMsg.SetContentTopOffsetMm(mm) =>
+      val next = model.copy(contentTopOffsetMm = mm)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
+    case PrintInstructionsMsg.SetPatchBackgroundColor(hex) =>
+      val next = model.copy(patchBackgroundColorHex = hex)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
+    case PrintInstructionsMsg.SetStacked(value) =>
+      val next = model.copy(stacked = value)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
     case PrintInstructionsMsg.NextPdfPreviewPage =>
-      val next = model.copy(pdfPreviewPageIdx = (model.pdfPreviewPageIdx + 1) % pdfPreviewMaxPages)
+      val next = model.copy(pdfPreviewPageIdx = model.pdfPreviewPageIdx + 1)
+      (next, Cmd.SideEffect(drawPdfPreview(next)))
+    case PrintInstructionsMsg.PrevPdfPreviewPage =>
+      val next = model.copy(pdfPreviewPageIdx = (model.pdfPreviewPageIdx - 1).max(0))
       (next, Cmd.SideEffect(drawPdfPreview(next)))
     case PrintInstructionsMsg.PrintPdf =>
       (model, Cmd.SideEffect(PdfUtils.printBookPdf(bookRequestForModel(model))))
@@ -180,8 +195,16 @@ object PrintInstructionsScreen extends Screen {
                     height  := 260,
                     `class` := "pixel-canvas print-pdf-preview-canvas",
                     onClick(PrintInstructionsMsg.NextPdfPreviewPage),
-                    title := "Click to cycle preview pages"
+                    title := "Click to go to next page"
                   )()
+                ),
+                div(`class` := "flex-row flex-row--tight", style := "margin-top: 0.3rem; justify-content: center;")(
+                  button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.PrevPdfPreviewPage))(
+                    GalleryLayout.backButtonLabel("←", "Prev")
+                  ),
+                  button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.NextPdfPreviewPage))(
+                    GalleryLayout.nextButtonLabel("Next", "→")
+                  )
                 )
               )
             )
@@ -219,6 +242,53 @@ object PrintInstructionsScreen extends Screen {
         span(`class` := s"${NesCss.text} helper-text")(text("Color code (e.g. #fdfbe6) for all pages."))
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
+        label(`class` := "label-block")(text("Step background color")),
+        div(`class` := "flex-row flex-row--tight")(
+          input(
+            `type`  := "color",
+            `class` := "input-color",
+            value   := Color.normalizeHex(model.patchBackgroundColorHex, Color.layerPatchBackground.toHex),
+            onInput(hex => PrintInstructionsMsg.SetPatchBackgroundColor(hex))
+          ),
+          input(
+            `type`      := "text",
+            `class`     := s"${NesCss.input} input-w-7 input-monospace",
+            value       := model.patchBackgroundColorHex,
+            placeholder := Color.layerPatchBackground.toHex,
+            onInput(PrintInstructionsMsg.SetPatchBackgroundColor.apply)
+          )
+        ),
+        span(`class` := s"${NesCss.text} helper-text")(text("Background for non-active pixels in layer steps."))
+      ),
+      div(`class` := s"${NesCss.field} field-block--lg build-stacked-block")(
+        label(`class` := "label-block")(text("Stacked layers")),
+        div(`class` := "stacked-radios")(
+          label(`class` := "stacked-radio-option")(
+            input(
+              `type`  := "radio",
+              `class` := NesCss.radio,
+              name    := "pdf-stacked",
+              value   := "on",
+              checked := model.stacked,
+              onClick(PrintInstructionsMsg.SetStacked(true))
+            ),
+            span(text("On"))
+          ),
+          label(`class` := "stacked-radio-option")(
+            input(
+              `type`  := "radio",
+              `class` := NesCss.radio,
+              name    := "pdf-stacked",
+              value   := "off",
+              checked := !model.stacked,
+              onClick(PrintInstructionsMsg.SetStacked(false))
+            ),
+            span(text("Off"))
+          )
+        ),
+        span(`class` := s"${NesCss.text} helper-text")(text("On = cumulative colors per layer. Off = one color per layer."))
+      ),
+      div(`class` := s"${NesCss.field} field-block--lg")(
         label(`class` := "label-block")(text("Margin (mm)")),
         input(
           `type`  := "number",
@@ -230,6 +300,21 @@ object PrintInstructionsScreen extends Screen {
           onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s)))
         ),
         span(`class` := s"${NesCss.text} helper-text--inline")(text("White border around each page. Default 3 mm."))
+      ),
+      div(`class` := s"${NesCss.field} field-block--lg")(
+        label(`class` := "label-block")(
+          span(`class` := NesCss.text)(text("Content top offset (mm):")),
+          span(`class` := "offset-value")(text(f"${model.contentTopOffsetMm}%.1f"))
+        ),
+        input(
+          `type` := "range",
+          min    := "0",
+          max    := "20",
+          step   := "0.5",
+          value  := model.contentTopOffsetMm.toString,
+          onInput(s => PrintInstructionsMsg.SetContentTopOffsetMm(s.toDoubleOption.getOrElse(PdfUtils.defaultContentTopOffsetMm)))
+        ),
+        span(`class` := s"${NesCss.text} helper-text--inline")(text("Push all page content down. Default 2 mm."))
       )
     )
   }
@@ -301,7 +386,7 @@ object PrintInstructionsScreen extends Screen {
       } else {
         val request = bookRequestForModel(model)
         val preview = PdfUtils.previewBookPages(request, pdfPreviewMaxPages)
-        val idx     = if (preview.pages.isEmpty) 0 else (model.pdfPreviewPageIdx % preview.pages.size)
+        val idx     = if (preview.pages.isEmpty) 0 else model.pdfPreviewPageIdx.max(0).min(preview.pages.size - 1)
         val pageBg =
           if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
           else Color.fromHex(model.pageBackgroundColorHex)
@@ -328,13 +413,19 @@ object PrintInstructionsScreen extends Screen {
     val pageBg =
       if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
       else Color.fromHex(model.pageBackgroundColorHex)
+    val patchBg =
+      if (model.patchBackgroundColorHex.isBlank) Color.layerPatchBackground
+      else Color.fromHex(model.patchBackgroundColorHex)
     PrintBookRequest(
       title = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
       mosaicPicAndGridOpt = model.selectedStored.flatMap(stored =>
         mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))),
       stepSizePx = model.stepSizePx,
       pageBackgroundColor = pageBg,
-      printerMarginMm = model.printerMarginMm
+      printerMarginMm = model.printerMarginMm,
+      contentTopOffsetMm = model.contentTopOffsetMm,
+      patchBackgroundColor = patchBg,
+      stacked = model.stacked
     )
   }
 
@@ -366,7 +457,10 @@ final case class PrintInstructionsModel(
   title: String,
   stepSizePx: Int,
   pageBackgroundColorHex: String,
+  patchBackgroundColorHex: String,
+  stacked: Boolean,
   printerMarginMm: Double,
+  contentTopOffsetMm: Double,
   pdfPreviewPageIdx: Int) {
   def selectedStored: Option[StoredBuildConfig] =
     buildConfigs.flatMap(list => selectedBuildConfigId.flatMap(id => list.find(_.id == id)))
@@ -381,9 +475,13 @@ enum PrintInstructionsMsg {
   case SetStepSize(px: Int)
   case SetPageBackgroundColor(hex: String)
   case SetPrinterMarginMm(mm: Double)
+  case SetContentTopOffsetMm(mm: Double)
+  case SetPatchBackgroundColor(hex: String)
+  case SetStacked(value: Boolean)
   case DrawOverview
   case DrawPdfPreview
   case NextPdfPreviewPage
+  case PrevPdfPreviewPage
   case PrintPdf
   case Back
 }
