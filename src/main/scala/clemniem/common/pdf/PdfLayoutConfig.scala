@@ -113,7 +113,7 @@ object PdfLayoutConfig {
     ),
     fullOverview = FullOverview(
       titleOffsetFromTopMm = -1.0,
-      colorListReservedWidthMm = 22.0,
+      colorListReservedWidthMm = 28.0,
       explodedGapMm = 3.0,
       explodedDimensionGapMm = 3.0,
       explodedDimensionFontSizePt = 8,
@@ -131,7 +131,7 @@ object PdfLayoutConfig {
     ),
     chapterOverview = ChapterOverview(
       contentTopOffsetFromTopMm = -1.0,
-      colorListReservedWidthMm = 26.0,
+      colorListReservedWidthMm = 32.0,
       gridOverviewMaxHeightMm = 48.0,
       gridOverviewGapAboveMm = 6.0,
       gridOverviewLeftMarginMm = 3.0,
