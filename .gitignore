@@ -33,3 +33,7 @@ yarn-error.log*
 node_modules/
 dist/
 .parcel-cache/
+
+# Claude Code (local settings and memory are machine-specific)
+.claude/settings.local.json
+.claude/memory/
