@@ -68,6 +68,19 @@ body.theme-gameboy {
   --screen-container-bg: #c4bebb;
 }
 
+/*
+ * NES.css focus ring fix: the default :focus adds a 6px box-shadow that extends
+ * beyond the pixel border and persists when Tyrian reuses the DOM element after
+ * navigation. Replace with :focus-visible so the ring only appears for keyboard
+ * navigation, not mouse clicks.
+ */
+.nes-btn:focus {
+  box-shadow: none !important;
+}
+.nes-btn:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.18) !important;
+}
+
 /* Only override buttons when Game Boy theme is active; default theme keeps original NES.css (full 3D shadow) */
 body.theme-gameboy .nes-btn {
   background-color: var(--palette-element-bg) !important;
@@ -81,6 +94,9 @@ body.theme-gameboy .nes-btn:hover::after {
 }
 body.theme-gameboy .nes-btn:active:not(.is-disabled)::after {
   box-shadow: inset 4px 4px var(--palette-element-shadow) !important;
+}
+body.theme-gameboy .nes-btn:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--palette-element-shadow) !important;
 }
 body.theme-gameboy .nes-btn.is-primary,
 body.theme-gameboy .nes-btn.is-success {
@@ -99,6 +115,10 @@ body.theme-gameboy .nes-btn.is-primary:active:not(.is-disabled)::after,
 body.theme-gameboy .nes-btn.is-success:active:not(.is-disabled)::after {
   box-shadow: inset 4px 4px var(--palette-good-shadow) !important;
 }
+body.theme-gameboy .nes-btn.is-primary:focus-visible,
+body.theme-gameboy .nes-btn.is-success:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--palette-good-shadow) !important;
+}
 body.theme-gameboy .nes-btn.is-error {
   background-color: var(--palette-bad-bg) !important;
   color: var(--palette-bad-text) !important;
@@ -111,6 +131,9 @@ body.theme-gameboy .nes-btn.is-error:hover::after {
 }
 body.theme-gameboy .nes-btn.is-error:active:not(.is-disabled)::after {
   box-shadow: inset 4px 4px var(--palette-bad-shadow) !important;
+}
+body.theme-gameboy .nes-btn.is-error:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--palette-bad-shadow) !important;
 }
 
 html {
