@@ -233,6 +233,7 @@ object PdfUtils {
     val rawInstructions = contentInstrs :+ Instruction.Save(filename)
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
     val instructions    = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm)
-    JsPDF.run(instructions, pageBackgroundColor, printerMarginMm)
+    val (bgR, bgG, bgB) = pageBackgroundColor.rgb
+    JsPDF.run(instructions, bgR, bgG, bgB, printerMarginMm)
   }
 }

@@ -1,6 +1,5 @@
 package clemniem.common.pdf
 
-import clemniem.Color
 import clemniem.common.pdf.Instruction.*
 import org.scalajs.dom
 import org.scalajs.dom.CanvasRenderingContext2D
@@ -69,7 +68,9 @@ object PdfPreviewRenderer {
     instructions: List[Instruction],
     pageWmm: Double,
     pageHmm: Double,
-    pageBackground: Color,
+    bgR: Int,
+    bgG: Int,
+    bgB: Int,
     printerMarginMm: Double,
     pageIndex0Based: Int,
     totalPages: Int
@@ -92,7 +93,7 @@ object PdfPreviewRenderer {
       val bgY = mPx
       val bgW = (wPx - 2 * mPx).max(0.0)
       val bgH = (hPx - 2 * mPx).max(0.0)
-      ctx.fillStyle = s"rgb(${pageBackground.r},${pageBackground.g},${pageBackground.b})"
+      ctx.fillStyle = s"rgb($bgR,$bgG,$bgB)"
       ctx.fillRect(bgX, bgY, bgW, bgH)
 
       ctx.textAlign = "left"

@@ -53,17 +53,17 @@ class ResizeSpec extends FunSuite {
 
   test("detectNearestNeighborScaleFromBytes detects factor 2 on 4×4 uniform (all same pixel)") {
     val data = rgba(4, 4)((_, _) => (100.toByte, 101.toByte, 102.toByte, 255.toByte))
-    assertEquals(ImageUtils.detectNearestNeighborScaleFromBytes(4, 4, data), Some(2))
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, data), Some(2))
   }
 
   test("detectNearestNeighborScaleFromBytes detects factor 2 on 4×4 that is 2×2 repeated") {
     val data = scaled2x2()
-    assertEquals(ImageUtils.detectNearestNeighborScaleFromBytes(4, 4, data), Some(2))
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, data), Some(2))
   }
 
   test("detectNearestNeighborScaleFromBytes returns None for non-scaled 2×2") {
     val data = rgba(2, 2)((x, y) => (if (x == y) 255.toByte else 0.toByte, 0.toByte, 128.toByte, 255.toByte))
-    assertEquals(ImageUtils.detectNearestNeighborScaleFromBytes(2, 2, data), None)
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(2, 2, data), None)
   }
 
   test("detectNearestNeighborScaleFromBytes returns None when scale would be < 1 (small image)") {
@@ -72,7 +72,7 @@ class ResizeSpec extends FunSuite {
     data(1) = 0.toByte
     data(2) = 0.toByte
     data(3) = 255.toByte
-    assertEquals(ImageUtils.detectNearestNeighborScaleFromBytes(1, 1, data), None)
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(1, 1, data), None)
   }
 
   test("downscaleToBytes reduces 4×4 to 2×2 by factor 2") {
@@ -108,12 +108,12 @@ class ResizeSpec extends FunSuite {
     val (nw, nh, small) = ImageUtils.downscaleToBytes(4, 4, data, 2)
     assertEquals(nw, 2)
     assertEquals(nh, 2)
-    assertEquals(ImageUtils.detectNearestNeighborScaleFromBytes(nw, nh, small), None)
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(nw, nh, small), None)
   }
 
   test("round-trip: 2×2 upscaled to 4×4 then detected and downscaled matches logical 2×2") {
     val data4x4 = scaled2x2()
-    assertEquals(ImageUtils.detectNearestNeighborScaleFromBytes(4, 4, data4x4), Some(2))
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, data4x4), Some(2))
     val (nw, nh, out) = ImageUtils.downscaleToBytes(4, 4, data4x4, 2)
     assertEquals(nw, 2)
     assertEquals(nh, 2)

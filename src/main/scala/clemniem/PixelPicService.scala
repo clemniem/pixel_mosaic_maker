@@ -2,15 +2,15 @@ package clemniem
 
 import cats.effect.IO
 import clemniem.common.ImageUtils.{
-  detectNearestNeighborScale,
   downscaleImageData,
   getFromImage,
   imageToImageData,
   imageToImageDataMaxSize,
   loadImageFromFile,
-  rawFromImageData,
   DataUrlBase64
 }
+import clemniem.common.PixelArtDetection.detectNearestNeighborScale
+import clemniem.common.RawImageUtils.rawFromImageData
 import clemniem.common.image.{
   ColorDithering,
   ColorQuantizationService,

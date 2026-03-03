@@ -14,7 +14,7 @@ import clemniem.{
   StoredLayout,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils, PixelPicCanvas}
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
@@ -208,7 +208,7 @@ object BuildConfigScreen extends Screen {
       val gridOpt = model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
       (picOpt, gridOpt) match {
         case (Some(pic), Some(storedGrid)) =>
-          CanvasUtils.drawFullImageWithGrid(canvas, ctx, pic, storedGrid.config, model.offsetX, model.offsetY, 400)
+          PixelPicCanvas.drawFullImageWithGrid(canvas, ctx, pic, storedGrid.config, model.offsetX, model.offsetY, 400)
         case (Some(pic), None) =>
           renderers.BuildConfigRenderer.drawFullImage(canvas, ctx, pic, 400)
         case _ =>

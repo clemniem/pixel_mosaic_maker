@@ -1,7 +1,7 @@
 package clemniem.screens.renderers
 
 import clemniem.{Color, Layout, PixelPic}
-import clemniem.common.CanvasUtils
+import clemniem.common.{CanvasUtils, PixelPicCanvas}
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 
@@ -24,7 +24,7 @@ object BuildConfigRenderer {
           case Some(cropped) =>
             val fit = CanvasUtils.scaleToFit(cropped.width, cropped.height, previewW, previewH, 1.0)
             ctx.clearRect(0, 0, previewW, previewH)
-            CanvasUtils.drawPixelPic(ctx, cropped, fit.width, fit.height, fit.offsetX, fit.offsetY)
+            PixelPicCanvas.drawPixelPic(ctx, cropped, fit.width, fit.height, fit.offsetX, fit.offsetY)
             ctx.strokeStyle = Color.errorStroke.rgba(0.7)
             ctx.lineWidth = 1
             grid.parts.foreach { part =>
@@ -57,7 +57,7 @@ object BuildConfigRenderer {
         canvas.width = fit.width
         canvas.height = fit.height
         ctx.clearRect(0, 0, fit.width, fit.height)
-        CanvasUtils.drawPixelPic(ctx, cropped, fit.width, fit.height, 0, 0)
+        PixelPicCanvas.drawPixelPic(ctx, cropped, fit.width, fit.height, 0, 0)
         ctx.strokeStyle = Color.errorStroke.rgba(0.8)
         ctx.lineWidth = 1
         grid.parts.foreach { part =>
@@ -77,6 +77,6 @@ object BuildConfigRenderer {
     canvas.width = fit.width
     canvas.height = fit.height
     ctx.clearRect(0, 0, fit.width, fit.height)
-    CanvasUtils.drawPixelPic(ctx, pic, fit.width, fit.height, 0, 0)
+    PixelPicCanvas.drawPixelPic(ctx, pic, fit.width, fit.height, 0, 0)
   }
 }

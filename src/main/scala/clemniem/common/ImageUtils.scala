@@ -1,14 +1,11 @@
 package clemniem.common
 
 import cats.effect.IO
-import clemniem.common.image.RawImage
 import org.scalajs.dom
 import org.scalajs.dom.{File, FileReader, ImageData}
 import org.scalajs.dom.html.{Canvas, Image}
 
 import scala.scalajs.js
-import scala.util.boundary
-import scala.util.boundary.break
 
 object ImageUtils {
 
@@ -36,44 +33,6 @@ object ImageUtils {
       val img = dom.document.createElement("img").asInstanceOf[Image]
       img.onload = _ => cb(Right(fun(img)))
       img.src = base64
-    }
-
-  /** Detect if image is nearest-neighbor scaled by an integer factor (2–10). */
-  def detectNearestNeighborScale(imageData: ImageData): Option[Int] = {
-    val w = imageData.width
-    val h = imageData.height
-    val d = imageData.data
-    detectNearestNeighborScaleFromBytes(w, h, i => (d(i) & 0xff).toByte)
-  }
-
-  /** Same as [[detectNearestNeighborScale]] but on raw bytes (no DOM). Used for unit tests. */
-  def detectNearestNeighborScaleFromBytes(width: Int, height: Int, data: Array[Byte]): Option[Int] =
-    detectNearestNeighborScaleFromBytes(width, height, i => (data(i) & 0xff).toByte)
-
-  private def detectNearestNeighborScaleFromBytes(width: Int, height: Int, getByte: Int => Byte): Option[Int] =
-    boundary {
-      for (scaleFactor <- 2 to 10) {
-        val pw = width / scaleFactor
-        val ph = height / scaleFactor
-        if (pw >= 1 && ph >= 1) {
-          val allMatch = (0 until ph).forall { y =>
-            (0 until pw).forall { x =>
-              val index = ((y * scaleFactor) * width + (x * scaleFactor)) * 4
-              val ref   = (getByte(index), getByte(index + 1), getByte(index + 2), getByte(index + 3))
-              (0 until scaleFactor).forall { dy =>
-                (0 until scaleFactor).forall { dx =>
-                  val testIndex = ((y * scaleFactor + dy) * width + (x * scaleFactor + dx)) * 4
-                  val test =
-                    (getByte(testIndex), getByte(testIndex + 1), getByte(testIndex + 2), getByte(testIndex + 3))
-                  test == ref
-                }
-              }
-            }
-          }
-          if (allMatch) break(Some(scaleFactor))
-        }
-      }
-      None
     }
 
   /** Downscale ImageData by taking every `factor`-th pixel (nearest-neighbor downscale). */
@@ -135,22 +94,4 @@ object ImageUtils {
     }
   }
 
-  /** Convert ImageData to DOM-free RawImage (copy of bytes). */
-  def rawFromImageData(imageData: ImageData): RawImage = {
-    val w   = imageData.width
-    val h   = imageData.height
-    val src = imageData.data
-    val arr = new Array[Byte](w * h * 4)
-    for (i <- arr.indices) arr(i) = (src(i) & 0xff).toByte
-    RawImage(w, h, arr)
-  }
-
-  /** Convert RawImage to ImageData (requires DOM for createImageData). */
-  def imageDataFromRaw(raw: RawImage): ImageData = {
-    val (_, ctx) = createOffscreenCanvas(raw.width, raw.height)
-    val out      = ctx.createImageData(raw.width, raw.height)
-    val dst      = out.data
-    for (i <- raw.data.indices) dst(i) = raw.data(i) & 0xff
-    out
-  }
 }

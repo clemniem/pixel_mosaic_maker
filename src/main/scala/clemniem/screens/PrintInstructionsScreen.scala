@@ -15,7 +15,7 @@ import clemniem.{
   StoredPalette,
   StoredPrintConfig
 }
-import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
+import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils, PdfUtils, PixelPicCanvas, PrintBookRequest}
 import clemniem.common.pdf.PdfPreviewRenderer
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
@@ -451,7 +451,7 @@ object PrintInstructionsScreen extends Screen {
       model.selectedStored.flatMap(stored =>
         clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes).map(pic => (stored, pic))) match {
         case Some((stored, pic)) =>
-          CanvasUtils.drawFullImageWithGrid(
+          PixelPicCanvas.drawFullImageWithGrid(
             canvas,
             ctx,
             pic,
@@ -483,7 +483,9 @@ object PrintInstructionsScreen extends Screen {
             preview.pages(idx),
             preview.pageWmm,
             preview.pageHmm,
-            pageBg,
+            pageBg.r,
+            pageBg.g,
+            pageBg.b,
             preview.printerMarginMm,
             pageIndex0Based = idx,
             preview.totalPages

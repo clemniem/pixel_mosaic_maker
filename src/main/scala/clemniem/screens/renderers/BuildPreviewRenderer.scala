@@ -1,7 +1,7 @@
 package clemniem.screens.renderers
 
 import clemniem.{Color, Layout, PixelPic}
-import clemniem.common.CanvasUtils
+import clemniem.common.{CanvasUtils, PixelPicCanvas}
 import org.scalajs.dom.CanvasRenderingContext2D
 
 /** Pure canvas drawing for build gallery previews (cropped image + grid + step highlight). */
@@ -27,7 +27,7 @@ object BuildPreviewRenderer {
         ctx.clearRect(0, 0, previewW, previewH)
         pic.crop(offsetX, offsetY, gw, gh) match {
           case Some(cropped) =>
-            CanvasUtils.drawPixelPic(ctx, cropped, fit.width, fit.height, fit.offsetX, fit.offsetY)
+            PixelPicCanvas.drawPixelPic(ctx, cropped, fit.width, fit.height, fit.offsetX, fit.offsetY)
             ctx.strokeStyle = Color.errorStroke.rgba(0.6)
             ctx.lineWidth = 1
             grid.parts.foreach { part =>

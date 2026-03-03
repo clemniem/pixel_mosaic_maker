@@ -1,7 +1,7 @@
 package clemniem.screens.renderers
 
 import clemniem.PixelPic
-import clemniem.common.CanvasUtils
+import clemniem.common.{CanvasUtils, PixelPicCanvas}
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
 
@@ -13,7 +13,7 @@ object ImagePreviewRenderer {
     ctx.clearRect(0, 0, previewW, previewH)
     if (pic.width > 0 && pic.height > 0) {
       val fit = CanvasUtils.scaleToFit(pic.width, pic.height, previewW, previewH, Double.MaxValue)
-      CanvasUtils.drawPixelPic(ctx, pic, fit.width, fit.height, fit.offsetX, fit.offsetY)
+      PixelPicCanvas.drawPixelPic(ctx, pic, fit.width, fit.height, fit.offsetX, fit.offsetY)
     }
   }
 
@@ -22,6 +22,6 @@ object ImagePreviewRenderer {
     canvas.width = pic.width
     canvas.height = pic.height
     ctx.clearRect(0, 0, pic.width, pic.height)
-    CanvasUtils.drawPixelPic(ctx, pic, pic.width, pic.height, 0, 0)
+    PixelPicCanvas.drawPixelPic(ctx, pic, pic.width, pic.height, 0, 0)
   }
 }

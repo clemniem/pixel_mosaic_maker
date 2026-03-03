@@ -3,12 +3,6 @@ package clemniem
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 
-/** Common trait for all stored entities: each has an id and a display name. */
-trait StoredEntity {
-  def id: String
-  def name: String
-}
-
 /** Stored entities for galleries: each has id and display name for listing. */
 
 final case class StoredLayout(
