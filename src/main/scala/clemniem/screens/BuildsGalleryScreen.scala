@@ -12,7 +12,7 @@ import clemniem.{
   StoredImage,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
@@ -38,7 +38,7 @@ object BuildsGalleryScreen extends Screen {
       None,
       None,
       showNewBuildDropdown = false)
-    val loadBuilds = Gallery.loadCmd(StorageKeys.builds, BuildsGalleryMsg.LoadedBuilds.apply, (_, _) => BuildsGalleryMsg.LoadedBuilds(Nil))
+    val loadBuilds = Gallery.loadCmd(StorageKeys.builds, BuildsGalleryMsg.LoadedBuilds.apply, (msg, _) => BuildsGalleryMsg.LoadFailed(msg))
     val loadConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       BuildsGalleryMsg.LoadedBuildConfigs.apply,
       (_, _) => BuildsGalleryMsg.LoadedBuildConfigs(Nil)
@@ -114,20 +114,37 @@ object BuildsGalleryScreen extends Screen {
       (next, cmd)
     case BuildsGalleryMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
+    case BuildsGalleryMsg.LoadFailed(error) =>
+      (model.copy(gallery = Gallery.onLoadFailed(model.gallery, error)), Cmd.None)
+    case BuildsGalleryMsg.ClearData =>
+      val cmd = LocalStorageUtils.remove(StorageKeys.builds)(
+        _ => BuildsGalleryMsg.Retry,
+        (_, _) => BuildsGalleryMsg.Retry
+      )
+      (model.copy(gallery = Gallery.initState), cmd)
+    case BuildsGalleryMsg.Retry =>
+      init(None)
   }
 
   def view(model: Model): Html[Msg] = {
     val backBtn = GalleryLayout.backButton(BuildsGalleryMsg.Back, "Overview")
     val nextBtn = GalleryLayout.nextButton(navMsg(ScreenFlow.nextInOverviewOrder(screenId), None))
     (model.gallery.items, model.buildConfigs) match {
-      case (None, _) | (_, None) =>
+      case (Loadable.Loading, _) | (_, None) =>
         GalleryLayout(
           screenId.title,
           backBtn,
           p(`class` := NesCss.text)(text("Loading\u2026")),
           shortHeader = false,
           Some(nextBtn))
-      case (Some(builds), Some(configs)) =>
+      case (Loadable.Failed(error), _) =>
+        GalleryLayout(
+          screenId.title,
+          backBtn,
+          Gallery.failedView(error, BuildsGalleryMsg.ClearData, BuildsGalleryMsg.Retry),
+          shortHeader = false,
+          Some(nextBtn))
+      case (Loadable.Loaded(builds), Some(configs)) =>
         val bottomSection =
           if (model.showNewBuildDropdown)
             div(`class` := s"${NesCss.container} ${NesCss.containerRounded} dropdown-panel")(
@@ -215,7 +232,7 @@ object BuildsGalleryScreen extends Screen {
 
   private def drawAllBuildPreviews(model: BuildsGalleryModel): IO[Unit] =
     model.gallery.items
-      .getOrElse(Nil)
+      .getOrElse(Nil: List[StoredBuild])
       .foldLeft(IO.unit)((acc, build) =>
         acc.flatMap(_ =>
           drawBuildPreview(
@@ -225,7 +242,7 @@ object BuildsGalleryScreen extends Screen {
             model.palettes.getOrElse(Nil))))
 
   private def redrawCurrentPageCmd(model: BuildsGalleryModel): Cmd[IO, Msg] = {
-    val builds = model.gallery.items.getOrElse(Nil)
+    val builds = model.gallery.items.getOrElse(Nil: List[StoredBuild])
     if (builds.isEmpty) Cmd.None
     else {
       val start    = (model.gallery.currentPage - 1) * GalleryLayout.defaultPageSize
@@ -307,11 +324,14 @@ final case class BuildsGalleryModel(
   showNewBuildDropdown: Boolean
 ) {
   def canDrawPreviews: Boolean =
-    gallery.items.isDefined && buildConfigs.isDefined && images.isDefined && palettes.isDefined
+    gallery.items.isLoaded && buildConfigs.isDefined && images.isDefined && palettes.isDefined
 }
 
 enum BuildsGalleryMsg {
   case LoadedBuilds(list: List[StoredBuild])
+  case LoadFailed(error: String)
+  case ClearData
+  case Retry
   case LoadedBuildConfigs(list: List[StoredBuildConfig])
   case LoadedImages(list: List[StoredImage])
   case LoadedPalettes(list: List[StoredPalette])

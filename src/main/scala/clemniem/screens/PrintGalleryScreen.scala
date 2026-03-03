@@ -15,7 +15,7 @@ object PrintGalleryScreen extends Screen {
   val screenId: ScreenId = ScreenId.PrintConfigsId
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val loadConfigs = Gallery.loadCmd(StorageKeys.printConfigs, PrintGalleryMsg.Loaded.apply, (_, _) => PrintGalleryMsg.Loaded(Nil))
+    val loadConfigs = Gallery.loadCmd(StorageKeys.printConfigs, PrintGalleryMsg.Loaded.apply, (msg, _) => PrintGalleryMsg.LoadFailed(msg))
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       PrintGalleryMsg.LoadedBuildConfigs.apply,
       (_, _) => PrintGalleryMsg.LoadedBuildConfigs(Nil)
@@ -45,6 +45,16 @@ object PrintGalleryScreen extends Screen {
       (model.copy(gallery = Gallery.onNextPage(model.gallery, GalleryLayout.defaultPageSize)), Cmd.None)
     case PrintGalleryMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
+    case PrintGalleryMsg.LoadFailed(error) =>
+      (model.copy(gallery = Gallery.onLoadFailed(model.gallery, error)), Cmd.None)
+    case PrintGalleryMsg.ClearData =>
+      val cmd = LocalStorageUtils.remove(StorageKeys.printConfigs)(
+        _ => PrintGalleryMsg.Retry,
+        (_, _) => PrintGalleryMsg.Retry
+      )
+      (model.copy(gallery = Gallery.initState), cmd)
+    case PrintGalleryMsg.Retry =>
+      init(None)
   }
 
   def view(model: Model): Html[Msg] =
@@ -57,6 +67,8 @@ object PrintGalleryScreen extends Screen {
       navMsg(ScreenFlow.nextInOverviewOrder(screenId), None),
       PrintGalleryMsg.PreviousPage,
       PrintGalleryMsg.NextPage,
+      PrintGalleryMsg.ClearData,
+      PrintGalleryMsg.Retry,
       GalleryEmptyState("No print configs saved yet.", "+ Create new", PrintGalleryMsg.CreateNew),
       button(`class` := NesCss.btnPrimary, onClick(PrintGalleryMsg.CreateNew))(text("+ Create new")),
       (item, confirming) => entryCard(item, model.buildConfigs.getOrElse(Nil), confirming)
@@ -99,6 +111,9 @@ final case class PrintGalleryModel(
 
 enum PrintGalleryMsg {
   case Loaded(list: List[StoredPrintConfig])
+  case LoadFailed(error: String)
+  case ClearData
+  case Retry
   case LoadedBuildConfigs(list: List[StoredBuildConfig])
   case CreateNew
   case Open(stored: StoredPrintConfig)

@@ -12,7 +12,7 @@ import clemniem.{
   StorageKeys,
   StoredPalette
 }
-import clemniem.common.{CmdUtils, LocalStorageUtils}
+import clemniem.common.{CmdUtils, Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
 import org.scalajs.dom.html.Input
@@ -29,7 +29,7 @@ object PalettesGalleryScreen extends Screen {
   private val pageSize: Int = 4
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val cmd = Gallery.loadCmd(StorageKeys.palettes, PalettesGalleryMsg.Loaded.apply, (_, _) => PalettesGalleryMsg.Loaded(Nil))
+    val cmd = Gallery.loadCmd(StorageKeys.palettes, PalettesGalleryMsg.Loaded.apply, (msg, _) => PalettesGalleryMsg.LoadFailed(msg))
     (Gallery.initState, cmd)
   }
 
@@ -79,7 +79,7 @@ object PalettesGalleryScreen extends Screen {
       (model, navCmd(ScreenId.PaletteId, Some(ScreenOutput.EditPalette(stored))))
     case PalettesGalleryMsg.Copy(stored) =>
       model.items match {
-        case Some(list) =>
+        case Loadable.Loaded(list) =>
           val newId   = LocalStorageUtils.newId("palette")
           val copy    = StoredPalette(id = newId, name = stored.name + " copy", colors = stored.colors)
           val idx     = list.indexWhere(_.id == stored.id)
@@ -88,8 +88,8 @@ object PalettesGalleryScreen extends Screen {
             _ => PalettesGalleryMsg.CopySaved,
             (_, _) => PalettesGalleryMsg.CopyFailed
           )
-          (model.copy(items = Some(newList)), saveCmd)
-        case None => (model, Cmd.None)
+          (model.copy(items = Loadable.Loaded(newList)), saveCmd)
+        case _ => (model, Cmd.None)
       }
     case PalettesGalleryMsg.CopySaved  => (model, Cmd.None)
     case PalettesGalleryMsg.CopyFailed => (model, Cmd.None)
@@ -107,14 +107,14 @@ object PalettesGalleryScreen extends Screen {
       val id     = LocalStorageUtils.newId("palette")
       val stored = StoredPalette(id = id, name = name, colors = colors)
       model.items match {
-        case Some(list) =>
+        case Loadable.Loaded(list) =>
           val newList = list :+ stored
           val saveCmd = LocalStorageUtils.saveList(StorageKeys.palettes, newList)(
             _ => PalettesGalleryMsg.PaletteFromImageSaved,
             (_, _) => PalettesGalleryMsg.PaletteFromImageError("Failed to save palette")
           )
-          (model.copy(items = Some(newList)), saveCmd)
-        case None =>
+          (model.copy(items = Loadable.Loaded(newList)), saveCmd)
+        case _ =>
           (model, Cmd.None)
       }
     case PalettesGalleryMsg.PaletteFromImageError(_) =>
@@ -132,6 +132,17 @@ object PalettesGalleryScreen extends Screen {
       (Gallery.onPreviousPage(model), Cmd.None)
     case PalettesGalleryMsg.NextPage =>
       (Gallery.onNextPage(model, pageSize), Cmd.None)
+    case PalettesGalleryMsg.LoadFailed(error) =>
+      (Gallery.onLoadFailed(model, error), Cmd.None)
+    case PalettesGalleryMsg.ClearData =>
+      val cmd = LocalStorageUtils.remove(StorageKeys.palettes)(
+        _ => PalettesGalleryMsg.Retry,
+        (_, _) => PalettesGalleryMsg.Retry
+      )
+      (Gallery.initState, cmd)
+    case PalettesGalleryMsg.Retry =>
+      val cmd = Gallery.loadCmd(StorageKeys.palettes, PalettesGalleryMsg.Loaded.apply, (msg, _) => PalettesGalleryMsg.LoadFailed(msg))
+      (Gallery.initState, cmd)
   }
 
   def view(model: Model): Html[Msg] = {
@@ -152,6 +163,8 @@ object PalettesGalleryScreen extends Screen {
       navMsg(ScreenFlow.nextInOverviewOrder(screenId), None),
       PalettesGalleryMsg.PreviousPage,
       PalettesGalleryMsg.NextPage,
+      PalettesGalleryMsg.ClearData,
+      PalettesGalleryMsg.Retry,
       emptyContent,
       actionRow,
       entryCard
@@ -184,6 +197,9 @@ object PalettesGalleryScreen extends Screen {
 
 enum PalettesGalleryMsg {
   case Loaded(list: List[StoredPalette])
+  case LoadFailed(error: String)
+  case ClearData
+  case Retry
   case CreateNew
   case RequestPaletteFromImage
   case PaletteFromImageDecoded(pic: PixelPic, fileName: Option[String])

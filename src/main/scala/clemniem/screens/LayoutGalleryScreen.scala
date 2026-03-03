@@ -2,7 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{Layout, Screen, ScreenId, ScreenOutput, StorageKeys, StoredLayout}
-import clemniem.common.CanvasUtils
+import clemniem.common.{CanvasUtils, Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
@@ -17,7 +17,7 @@ object LayoutGalleryScreen extends Screen {
   val screenId: ScreenId = ScreenId.LayoutsId
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val cmd = Gallery.loadCmd(StorageKeys.layouts, LayoutGalleryMsg.Loaded.apply, (_, _) => LayoutGalleryMsg.Loaded(Nil))
+    val cmd = Gallery.loadCmd(StorageKeys.layouts, LayoutGalleryMsg.Loaded.apply, (msg, _) => LayoutGalleryMsg.LoadFailed(msg))
     (Gallery.initState, cmd)
   }
 
@@ -50,6 +50,17 @@ object LayoutGalleryScreen extends Screen {
       (model, navCmd(ScreenId.OverviewId, None))
     case LayoutGalleryMsg.DrawPreview(stored) =>
       (model, Cmd.SideEffect(drawPreview(stored)))
+    case LayoutGalleryMsg.LoadFailed(error) =>
+      (Gallery.onLoadFailed(model, error), Cmd.None)
+    case LayoutGalleryMsg.ClearData =>
+      val cmd = LocalStorageUtils.remove(StorageKeys.layouts)(
+        _ => LayoutGalleryMsg.Retry,
+        (_, _) => LayoutGalleryMsg.Retry
+      )
+      (Gallery.initState, cmd)
+    case LayoutGalleryMsg.Retry =>
+      val cmd = Gallery.loadCmd(StorageKeys.layouts, LayoutGalleryMsg.Loaded.apply, (msg, _) => LayoutGalleryMsg.LoadFailed(msg))
+      (Gallery.initState, cmd)
   }
 
   def view(model: Model): Html[Msg] =
@@ -62,6 +73,8 @@ object LayoutGalleryScreen extends Screen {
       navMsg(ScreenFlow.nextInOverviewOrder(screenId), None),
       LayoutGalleryMsg.PreviousPage,
       LayoutGalleryMsg.NextPage,
+      LayoutGalleryMsg.ClearData,
+      LayoutGalleryMsg.Retry,
       GalleryEmptyState("No layouts yet.", "+ New layout", LayoutGalleryMsg.CreateNew),
       button(`class` := NesCss.btnPrimary, onClick(LayoutGalleryMsg.CreateNew))(text("+ New layout")),
       entryCard
@@ -101,7 +114,7 @@ object LayoutGalleryScreen extends Screen {
 
   private def redrawCurrentPageCmd(model: Model): Cmd[IO, Msg] =
     model.items match {
-      case Some(list) if list.nonEmpty =>
+      case Loadable.Loaded(list) if list.nonEmpty =>
         val start = (model.currentPage - 1) * GalleryLayout.defaultPageSize
         val slice = list.slice(start, start + GalleryLayout.defaultPageSize)
         Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)))
@@ -167,6 +180,9 @@ object LayoutGalleryScreen extends Screen {
 
 enum LayoutGalleryMsg {
   case Loaded(list: List[StoredLayout])
+  case LoadFailed(error: String)
+  case ClearData
+  case Retry
   case Edit(stored: StoredLayout)
   case Delete(stored: StoredLayout)
   case ConfirmDelete(id: String)

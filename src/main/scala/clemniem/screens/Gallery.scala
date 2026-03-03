@@ -2,7 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.StoredEntity
-import clemniem.common.LocalStorageUtils
+import clemniem.common.{Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import io.circe.{Decoder, Encoder}
 import tyrian.Html.*
@@ -19,13 +19,13 @@ object Gallery {
 
   /** Common gallery model fields: paginated list of entities with optional pending-delete. */
   final case class State[A](
-    items: Option[List[A]],
+    items: Loadable[List[A]],
     pendingDeleteId: Option[String],
     currentPage: Int
   )
 
   /** Initial empty gallery state (loading). */
-  def initState[A]: State[A] = State(None, None, 1)
+  def initState[A]: State[A] = State(Loadable.Loading, None, 1)
 
   /** Create a [[Cmd]] that loads a list from LocalStorage. */
   def loadCmd[A, M](
@@ -43,8 +43,12 @@ object Gallery {
   /** Handle entity list loaded: store list and clamp page. */
   def onLoaded[A](state: State[A], list: List[A], pageSize: Int): State[A] = {
     val totalPages = GalleryLayout.totalPagesFor(list.size, pageSize)
-    state.copy(items = Some(list), currentPage = GalleryLayout.clampPage(state.currentPage, totalPages))
+    state.copy(items = Loadable.Loaded(list), currentPage = GalleryLayout.clampPage(state.currentPage, totalPages))
   }
+
+  /** Handle load failure: store the error message. */
+  def onLoadFailed[A](state: State[A], error: String): State[A] =
+    state.copy(items = Loadable.Failed(error))
 
   /** Handle delete request: set pendingDeleteId. */
   def onRequestDelete[A](state: State[A], id: String): State[A] =
@@ -59,8 +63,9 @@ object Gallery {
     cancelMsg: M
   )(using Encoder[List[A]]
   ): (State[A], Cmd[IO, M]) = {
-    val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
-      state.items,
+    val listOpt = state.items.toOption
+    val (newListOpt, newPage, cmd) = LocalStorageUtils.confirmDelete(
+      listOpt,
       id,
       storageKey,
       pageSize,
@@ -68,7 +73,11 @@ object Gallery {
       cancelMsg,
       _.id
     )
-    (state.copy(items = newList, pendingDeleteId = None, currentPage = newPage), cmd)
+    val newItems = newListOpt match {
+      case Some(list) => Loadable.Loaded(list)
+      case None       => state.items
+    }
+    (state.copy(items = newItems, pendingDeleteId = None, currentPage = newPage), cmd)
   }
 
   /** Handle cancel delete: clear pendingDeleteId. */
@@ -81,15 +90,15 @@ object Gallery {
 
   /** Handle next page. */
   def onNextPage[A](state: State[A], pageSize: Int): State[A] = {
-    val totalPages = state.items.map(l => GalleryLayout.totalPagesFor(l.size, pageSize)).getOrElse(1)
+    val totalPages = state.items.toOption.map(l => GalleryLayout.totalPagesFor(l.size, pageSize)).getOrElse(1)
     state.copy(currentPage = (state.currentPage + 1).min(totalPages))
   }
 
   // ---------------------------------------------------------------------------
-  // View helper
+  // View helpers
   // ---------------------------------------------------------------------------
 
-  /** Standard gallery view with loading/empty/list branching.
+  /** Standard gallery view with loading/empty/failed/list branching.
     *
     * @param title
     *   Screen title
@@ -107,6 +116,10 @@ object Gallery {
     *   Message for pagination previous
     * @param nextPageMsg
     *   Message for pagination next
+    * @param clearDataMsg
+    *   Message emitted when user clicks "Clear data" on a failed load
+    * @param retryMsg
+    *   Message emitted when user clicks "Retry" on a failed load
     * @param emptyContent
     *   Content to show when list is empty
     * @param addAction
@@ -123,6 +136,8 @@ object Gallery {
     nextMsg: M,
     prevPageMsg: M,
     nextPageMsg: M,
+    clearDataMsg: M,
+    retryMsg: M,
     emptyContent: Html[M],
     addAction: Html[M],
     entryCard: (A, Boolean) => Html[M]
@@ -130,9 +145,11 @@ object Gallery {
     val backBtn = GalleryLayout.backButton(backMsg, "Overview")
     val nextBtn = GalleryLayout.nextButton(nextMsg)
     state.items match {
-      case None =>
+      case Loadable.Loading =>
         GalleryLayout(title, backBtn, p(`class` := NesCss.text)(text("Loading\u2026")), shortHeader, Some(nextBtn))
-      case Some(list) =>
+      case Loadable.Failed(error) =>
+        GalleryLayout(title, backBtn, failedView(error, clearDataMsg, retryMsg), shortHeader, Some(nextBtn))
+      case Loadable.Loaded(list) =>
         val content =
           if (list.isEmpty) emptyContent
           else
@@ -148,6 +165,17 @@ object Gallery {
         GalleryLayout(title, backBtn, content, shortHeader, Some(nextBtn))
     }
   }
+
+  /** Error UI for a failed load: shows the error message with Clear data and Retry buttons. */
+  def failedView[M](error: String, clearDataMsg: M, retryMsg: M): Html[M] =
+    div(`class` := s"${NesCss.container} empty-state")(
+      p(`class` := NesCss.text)(text("Could not load data.")),
+      p(`class` := "nes-text", style := "font-size: 0.75rem; word-break: break-all;")(text(error)),
+      div(`class` := "flex-row", style := "margin-top: 0.75rem;")(
+        button(`class` := NesCss.btnError, onClick(clearDataMsg))(text("Clear data")),
+        button(`class` := NesCss.btn, onClick(retryMsg))(text("Retry"))
+      )
+    )
 
   /** Delete confirmation or action buttons for an entry card. */
   def deleteOrActions[M](

@@ -2,7 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{Color, Screen, ScreenId, ScreenOutput, StorageKeys, StoredImage}
-import clemniem.common.CanvasUtils
+import clemniem.common.{CanvasUtils, Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
@@ -20,7 +20,7 @@ object ImagesGalleryScreen extends Screen {
   private val previewHeight = CanvasUtils.galleryPreviewHeight
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val cmd = Gallery.loadCmd(StorageKeys.images, ImagesGalleryMsg.Loaded.apply, (_, _) => ImagesGalleryMsg.Loaded(Nil))
+    val cmd = Gallery.loadCmd(StorageKeys.images, ImagesGalleryMsg.Loaded.apply, (msg, _) => ImagesGalleryMsg.LoadFailed(msg))
     (Gallery.initState, cmd)
   }
 
@@ -49,6 +49,17 @@ object ImagesGalleryScreen extends Screen {
     case ImagesGalleryMsg.NextPage =>
       val next = Gallery.onNextPage(model, GalleryLayout.defaultPageSize)
       (next, redrawCurrentPageCmd(next))
+    case ImagesGalleryMsg.LoadFailed(error) =>
+      (Gallery.onLoadFailed(model, error), Cmd.None)
+    case ImagesGalleryMsg.ClearData =>
+      val cmd = LocalStorageUtils.remove(StorageKeys.images)(
+        _ => ImagesGalleryMsg.Retry,
+        (_, _) => ImagesGalleryMsg.Retry
+      )
+      (Gallery.initState, cmd)
+    case ImagesGalleryMsg.Retry =>
+      val cmd = Gallery.loadCmd(StorageKeys.images, ImagesGalleryMsg.Loaded.apply, (msg, _) => ImagesGalleryMsg.LoadFailed(msg))
+      (Gallery.initState, cmd)
   }
 
   def view(model: Model): Html[Msg] =
@@ -61,6 +72,8 @@ object ImagesGalleryScreen extends Screen {
       navMsg(ScreenFlow.nextInOverviewOrder(screenId), None),
       ImagesGalleryMsg.PreviousPage,
       ImagesGalleryMsg.NextPage,
+      ImagesGalleryMsg.ClearData,
+      ImagesGalleryMsg.Retry,
       GalleryEmptyState("No images yet.", "Upload", ImagesGalleryMsg.CreateNew),
       button(`class` := NesCss.btnPrimary, onClick(ImagesGalleryMsg.CreateNew))(text("Upload")),
       entryCard
@@ -112,7 +125,7 @@ object ImagesGalleryScreen extends Screen {
 
   private def redrawCurrentPageCmd(model: Model): Cmd[IO, Msg] =
     model.items match {
-      case Some(list) if list.nonEmpty =>
+      case Loadable.Loaded(list) if list.nonEmpty =>
         val start = (model.currentPage - 1) * GalleryLayout.defaultPageSize
         val slice = list.slice(start, start + GalleryLayout.defaultPageSize)
         Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)))
@@ -135,6 +148,9 @@ object ImagesGalleryScreen extends Screen {
 
 enum ImagesGalleryMsg {
   case Loaded(list: List[StoredImage])
+  case LoadFailed(error: String)
+  case ClearData
+  case Retry
   case CreateNew
   case DrawPreview(stored: StoredImage)
   case Delete(stored: StoredImage)

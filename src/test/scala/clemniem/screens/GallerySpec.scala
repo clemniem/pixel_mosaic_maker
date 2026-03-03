@@ -1,6 +1,7 @@
 package clemniem.screens
 
 import clemniem.StoredEntity
+import clemniem.common.Loadable
 import munit.FunSuite
 
 /** Tests for Gallery update helpers — pure function tests (model + action -> model).
@@ -15,9 +16,9 @@ class GallerySpec extends FunSuite {
 
   // ---- initState ----
 
-  test("initState: items None, page 1, no pending delete") {
+  test("initState: items Loading, page 1, no pending delete") {
     val state = Gallery.initState[TestEntity]
-    assertEquals(state.items, None)
+    assertEquals(state.items, Loadable.Loading: Loadable[List[TestEntity]])
     assertEquals(state.currentPage, 1)
     assertEquals(state.pendingDeleteId, None)
   }
@@ -28,14 +29,14 @@ class GallerySpec extends FunSuite {
     val state = Gallery.initState[TestEntity]
     val items = List(TestEntity("1", "A"), TestEntity("2", "B"))
     val next  = Gallery.onLoaded(state, items, pageSize)
-    assertEquals(next.items, Some(items))
+    assertEquals(next.items, Loadable.Loaded(items))
     assertEquals(next.currentPage, 1)
   }
 
   test("onLoaded: empty list -> Some(Nil), page 1") {
     val state = Gallery.initState[TestEntity]
     val next  = Gallery.onLoaded(state, Nil, pageSize)
-    assertEquals(next.items, Some(Nil))
+    assertEquals(next.items, Loadable.Loaded(Nil): Loadable[List[TestEntity]])
     assertEquals(next.currentPage, 1)
   }
 

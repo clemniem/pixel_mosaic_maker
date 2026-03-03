@@ -30,7 +30,7 @@ object BuildConfigGalleryScreen extends Screen {
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
     val model = BuildConfigGalleryModel(Gallery.initState, None, None)
-    val loadBuildConfigs = Gallery.loadCmd(StorageKeys.buildConfigs, BuildConfigGalleryMsg.LoadedBuildConfigs.apply, (_, _) => BuildConfigGalleryMsg.LoadedBuildConfigs(Nil))
+    val loadBuildConfigs = Gallery.loadCmd(StorageKeys.buildConfigs, BuildConfigGalleryMsg.LoadedBuildConfigs.apply, (msg, _) => BuildConfigGalleryMsg.LoadFailed(msg))
     val loadImages = LocalStorageUtils.loadList(StorageKeys.images)(
       BuildConfigGalleryMsg.LoadedImages.apply,
       (_, _) => BuildConfigGalleryMsg.LoadedImages(Nil)
@@ -78,6 +78,16 @@ object BuildConfigGalleryScreen extends Screen {
       (next, cmd)
     case BuildConfigGalleryMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
+    case BuildConfigGalleryMsg.LoadFailed(error) =>
+      (model.copy(gallery = Gallery.onLoadFailed(model.gallery, error)), Cmd.None)
+    case BuildConfigGalleryMsg.ClearData =>
+      val cmd = LocalStorageUtils.remove(StorageKeys.buildConfigs)(
+        _ => BuildConfigGalleryMsg.Retry,
+        (_, _) => BuildConfigGalleryMsg.Retry
+      )
+      (model.copy(gallery = Gallery.initState), cmd)
+    case BuildConfigGalleryMsg.Retry =>
+      init(None)
   }
 
   def view(model: Model): Html[Msg] =
@@ -90,6 +100,8 @@ object BuildConfigGalleryScreen extends Screen {
       navMsg(ScreenFlow.nextInOverviewOrder(screenId), None),
       BuildConfigGalleryMsg.PreviousPage,
       BuildConfigGalleryMsg.NextPage,
+      BuildConfigGalleryMsg.ClearData,
+      BuildConfigGalleryMsg.Retry,
       GalleryEmptyState("No setups yet.", "+ New mosaic setup", BuildConfigGalleryMsg.CreateNew),
       button(`class` := NesCss.btnPrimary, onClick(BuildConfigGalleryMsg.CreateNew))(text("+ New mosaic setup")),
       entryCard
@@ -126,12 +138,12 @@ object BuildConfigGalleryScreen extends Screen {
 
   private def drawAllPreviews(model: BuildConfigGalleryModel): IO[Unit] =
     model.gallery.items
-      .getOrElse(Nil)
+      .getOrElse(Nil: List[StoredBuildConfig])
       .foldLeft(IO.unit)((acc, item) =>
         acc.flatMap(_ => drawBuildConfigPreview(item, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))))
 
   private def redrawCurrentPageCmd(model: BuildConfigGalleryModel): Cmd[IO, Msg] = {
-    val list = model.gallery.items.getOrElse(Nil)
+    val list = model.gallery.items.getOrElse(Nil: List[StoredBuildConfig])
     if (list.isEmpty) Cmd.None
     else {
       val start    = (model.gallery.currentPage - 1) * GalleryLayout.defaultPageSize
@@ -182,11 +194,14 @@ final case class BuildConfigGalleryModel(
   palettes: Option[List[StoredPalette]]
 ) {
   def canDrawPreviews: Boolean =
-    gallery.items.isDefined && images.isDefined && palettes.isDefined
+    gallery.items.isLoaded && images.isDefined && palettes.isDefined
 }
 
 enum BuildConfigGalleryMsg {
   case LoadedBuildConfigs(list: List[StoredBuildConfig])
+  case LoadFailed(error: String)
+  case ClearData
+  case Retry
   case LoadedImages(list: List[StoredImage])
   case LoadedPalettes(list: List[StoredPalette])
   case DrawPreview(stored: StoredBuildConfig)

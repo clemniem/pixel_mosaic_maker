@@ -257,12 +257,12 @@ object PdfUtils {
     val contentInstrs = request.mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
         val cover        = coverWithMosaic(request.title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
-        val backOfCover  = Instruction.AddPage :: coverMosaicImageOnly(pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        val backOfCover  = Instruction.AddPage :: coverMosaicImageOnly(pic, pageH, marginLR, marginTB, availableW, config)
         val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.contentTopOffsetMm, config)
         val chapters     = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.stepSizePx, request.contentTopOffsetMm, request.patchBackgroundColor, request.stacked, config)
         val chapterPages = chapters.count { case Instruction.AddPage => true; case _ => false }
         val padding      = if (chapterPages % 2 == 1) fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.contentTopOffsetMm, config) else Nil
-        val backCover    = Instruction.AddPage :: coverMosaicImageOnly(pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        val backCover    = Instruction.AddPage :: coverMosaicImageOnly(pic, pageH, marginLR, marginTB, availableW, config)
         cover ++ backOfCover ++ fullOverview ++ chapters ++ padding ++ backCover
       case None =>
         PdfLayout.coverInstructions(request.title, printerMarginMm, config) ++ List(Instruction.AddPage)
@@ -310,12 +310,12 @@ object PdfUtils {
     val contentInstrs = mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
         val cover        = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
-        val backOfCover  = Instruction.AddPage :: coverMosaicImageOnly(pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        val backOfCover  = Instruction.AddPage :: coverMosaicImageOnly(pic, pageH, marginLR, marginTB, availableW, config)
         val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, contentTopOffsetMm, config)
         val chapters     = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, contentTopOffsetMm, patchBgColor, stacked, config)
         val chapterPages = chapters.count { case Instruction.AddPage => true; case _ => false }
         val padding      = if (chapterPages % 2 == 1) fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, contentTopOffsetMm, config) else Nil
-        val backCover    = Instruction.AddPage :: coverMosaicImageOnly(pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        val backCover    = Instruction.AddPage :: coverMosaicImageOnly(pic, pageH, marginLR, marginTB, availableW, config)
         cover ++ backOfCover ++ fullOverview ++ chapters ++ padding ++ backCover
       case None =>
         PdfLayout.coverInstructions(title, printerMarginMm, config) ++ List(Instruction.AddPage)
@@ -391,7 +391,6 @@ object PdfUtils {
   /** Cover image only (no PageSize, no title): used for page 2 (back of front cover) and last page (back cover). */
   private def coverMosaicImageOnly(
     pic: PixelPic,
-    pageW: Double,
     pageH: Double,
     marginLR: Double,
     marginTB: Double,
