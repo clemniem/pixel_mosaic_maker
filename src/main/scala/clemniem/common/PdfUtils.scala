@@ -34,6 +34,8 @@ object PdfUtils {
     * Booklet rules:
     *   - No bar on the first 3 PDF pages (cover front, cover back, full overview) or the last page (back cover).
     *   - Pages N-1 and N-2 always show 100% — a fun flourish that ensures the bar is never empty near the end.
+    *   - Progress is calculated over the actual building pages (4…N-2) only; the 5 fixed framing pages are excluded
+    *     from the denominator so the bar starts near 0 on page 4 and reaches 100% naturally at page N-2.
     *   - Left pages fill during the first half of overall progress (0–50%).
     *   - Right pages fill during the second half (50–100%); left is fully filled once progress >= 50%.
     */
@@ -56,7 +58,9 @@ object PdfUtils {
         val fillRatio =
           if (pageIndex1Based >= totalPages - 2) 1.0
           else {
-            val overallProgress = pageIndex1Based.toDouble / totalPages
+            // Denominator = building pages only (4…N-2): excludes the 5 fixed framing pages.
+            val contentPages    = (totalPages - 5).max(1)
+            val overallProgress = (pageIndex1Based - 3).toDouble / contentPages
             val contentPageNum  = pageIndex0Based - 1
             val leftSide        = (contentPageNum % 2) == 0
             if (leftSide) math.min(1.0, overallProgress * 2)
