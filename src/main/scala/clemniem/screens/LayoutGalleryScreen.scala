@@ -2,7 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{Layout, Screen, ScreenId, ScreenOutput, StorageKeys, StoredLayout}
-import clemniem.common.{CanvasUtils, Loadable, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, CmdUtils, Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
@@ -26,7 +26,7 @@ object LayoutGalleryScreen extends Screen {
       val next = Gallery.onLoaded(model, list, GalleryLayout.defaultPageSize)
       val cmd =
         if (list.isEmpty) Cmd.None
-        else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(list)))
+        else CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(list)), LayoutGalleryMsg.NoOp, _ => LayoutGalleryMsg.NoOp)
       (next, cmd)
     case LayoutGalleryMsg.Edit(stored) =>
       (model, navCmd(ScreenId.LayoutId, Some(ScreenOutput.EditLayout(stored))))
@@ -49,7 +49,7 @@ object LayoutGalleryScreen extends Screen {
     case LayoutGalleryMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
     case LayoutGalleryMsg.DrawPreview(stored) =>
-      (model, Cmd.SideEffect(drawPreview(stored)))
+      (model, CmdUtils.fireAndForget(drawPreview(stored), LayoutGalleryMsg.NoOp, _ => LayoutGalleryMsg.NoOp))
     case LayoutGalleryMsg.LoadFailed(error) =>
       (Gallery.onLoadFailed(model, error), Cmd.None)
     case LayoutGalleryMsg.ClearData =>
@@ -61,6 +61,8 @@ object LayoutGalleryScreen extends Screen {
     case LayoutGalleryMsg.Retry =>
       val cmd = Gallery.loadCmd(StorageKeys.layouts, LayoutGalleryMsg.Loaded.apply, (msg, _) => LayoutGalleryMsg.LoadFailed(msg))
       (Gallery.initState, cmd)
+    case LayoutGalleryMsg.NoOp =>
+      (model, Cmd.None)
   }
 
   def view(model: Model): Html[Msg] =
@@ -117,7 +119,7 @@ object LayoutGalleryScreen extends Screen {
       case Loadable.Loaded(list) if list.nonEmpty =>
         val start = (model.currentPage - 1) * GalleryLayout.defaultPageSize
         val slice = list.slice(start, start + GalleryLayout.defaultPageSize)
-        Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)))
+        CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)), LayoutGalleryMsg.NoOp, _ => LayoutGalleryMsg.NoOp)
       case _ => Cmd.None
     }
 
@@ -192,4 +194,5 @@ enum LayoutGalleryMsg {
   case PreviousPage
   case NextPage
   case Back
+  case NoOp
 }

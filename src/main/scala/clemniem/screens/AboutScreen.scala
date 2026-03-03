@@ -41,7 +41,7 @@ object AboutScreen extends Screen {
     case AboutMsg.DismissSeedResult =>
       (AboutState.Idle, Cmd.None)
     case AboutMsg.OpenUrl(url) =>
-      (model, Cmd.SideEffect(IO.delay(dom.window.open(url, "_blank"))))
+      (model, CmdUtils.fireAndForget(IO.delay { val _ = dom.window.open(url, "_blank") }, AboutMsg.NoOp, _ => AboutMsg.NoOp))
     case AboutMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
     case AboutMsg.NoOp =>

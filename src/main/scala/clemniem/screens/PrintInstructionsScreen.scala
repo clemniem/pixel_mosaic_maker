@@ -15,7 +15,7 @@ import clemniem.{
   StoredPalette,
   StoredPrintConfig
 }
-import clemniem.common.{CanvasUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
+import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils, PdfUtils, PrintBookRequest}
 import clemniem.common.pdf.PdfPreviewRenderer
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
@@ -94,7 +94,7 @@ object PrintInstructionsScreen extends Screen {
         .flatMap(id => list.find(_.id == id).map(_.buildConfigRef))
         .orElse(model.selectedBuildConfigId)
       val next = model.copy(builds = Some(list), selectedBuildId = selBuildId, selectedBuildConfigId = selConfigId)
-      (next, Cmd.SideEffect(drawPreviews(next)))
+      (next, drawPreviewsCmd(next))
     case PrintInstructionsMsg.LoadedBuildConfigs(list) =>
       // Only fall back to first config if no build has already set a config id
       val selectedId = model.selectedBuildConfigId.orElse(list.headOption.map(_.id))
@@ -104,7 +104,7 @@ object PrintInstructionsScreen extends Screen {
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
       val next = nextBase.copy(stepSizePx = stepSize)
-      (next, Cmd.SideEffect(drawPreviews(next)))
+      (next, drawPreviewsCmd(next))
     case PrintInstructionsMsg.SetBuild(id) =>
       val configId = model.builds.getOrElse(Nil).find(_.id == id).map(_.buildConfigRef)
       val nextBase = model.copy(selectedBuildId = Some(id), selectedBuildConfigId = configId.orElse(model.selectedBuildConfigId))
@@ -113,13 +113,13 @@ object PrintInstructionsScreen extends Screen {
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
       val next = nextBase.copy(stepSizePx = stepSize)
-      (next, Cmd.SideEffect(drawPreviews(next)))
+      (next, drawPreviewsCmd(next))
     case PrintInstructionsMsg.LoadedImages(list) =>
       val next = model.copy(images = Some(list))
-      (next, Cmd.SideEffect(drawPreviews(next)))
+      (next, drawPreviewsCmd(next))
     case PrintInstructionsMsg.LoadedPalettes(list) =>
       val next = model.copy(palettes = Some(list))
-      (next, Cmd.SideEffect(drawPreviews(next)))
+      (next, drawPreviewsCmd(next))
     case PrintInstructionsMsg.SetBuildConfig(id) =>
       val nextBase = model.copy(selectedBuildConfigId = Some(id))
       val available =
@@ -127,38 +127,38 @@ object PrintInstructionsScreen extends Screen {
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
       val next = nextBase.copy(stepSizePx = stepSize)
-      (next, Cmd.SideEffect(drawPreviews(next)))
+      (next, drawPreviewsCmd(next))
     case PrintInstructionsMsg.DrawOverview =>
-      (model, Cmd.SideEffect(drawPreviews(model)))
+      (model, drawPreviewsCmd(model))
     case PrintInstructionsMsg.DrawPdfPreview =>
-      (model, Cmd.SideEffect(drawPdfPreview(model)))
+      (model, drawPdfPreviewCmd(model))
     case PrintInstructionsMsg.SetTitle(title) =>
       val next = model.copy(title = title)
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.SetStepSize(px) =>
       val next = model.copy(stepSizePx = px)
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.SetPageBackgroundColor(hex) =>
       val next = model.copy(pageBackgroundColorHex = hex)
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.SetPrinterMarginMm(mm) =>
       val next = model.copy(printerMarginMm = mm)
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.SetContentTopOffsetMm(mm) =>
       val next = model.copy(contentTopOffsetMm = mm)
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.SetPatchBackgroundColor(hex) =>
       val next = model.copy(patchBackgroundColorHex = hex)
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.SetStacked(value) =>
       val next = model.copy(stacked = value)
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.NextPdfPreviewPage =>
       val next = model.copy(pdfPreviewPageIdx = model.pdfPreviewPageIdx + 1)
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.PrevPdfPreviewPage =>
       val next = model.copy(pdfPreviewPageIdx = (model.pdfPreviewPageIdx - 1).max(0))
-      (next, Cmd.SideEffect(drawPdfPreview(next)))
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.LoadedPrintConfigs(list) =>
       (model.copy(printConfigs = Some(list)), Cmd.None)
     case PrintInstructionsMsg.SaveConfig =>
@@ -186,9 +186,11 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.ConfigSaved(id, newList) =>
       (model.copy(savedConfigId = Some(id), printConfigs = Some(newList)), Cmd.None)
     case PrintInstructionsMsg.PrintPdf =>
-      (model, Cmd.SideEffect(PdfUtils.printBookPdf(bookRequestForModel(model))))
+      (model, CmdUtils.fireAndForget(PdfUtils.printBookPdf(bookRequestForModel(model)), PrintInstructionsMsg.NoOp, _ => PrintInstructionsMsg.NoOp))
     case PrintInstructionsMsg.Back =>
       (model, navCmd(ScreenId.PrintConfigsId, None))
+    case PrintInstructionsMsg.NoOp =>
+      (model, Cmd.None)
   }
 
   def view(model: Model): Html[Msg] = {
@@ -489,6 +491,12 @@ object PrintInstructionsScreen extends Screen {
       }
     }
 
+  private def drawPreviewsCmd(model: Model): Cmd[IO, Msg] =
+    CmdUtils.fireAndForget(drawPreviews(model), PrintInstructionsMsg.NoOp, _ => PrintInstructionsMsg.NoOp)
+
+  private def drawPdfPreviewCmd(model: Model): Cmd[IO, Msg] =
+    CmdUtils.fireAndForget(drawPdfPreview(model), PrintInstructionsMsg.NoOp, _ => PrintInstructionsMsg.NoOp)
+
   private def drawPreviews(model: Model): IO[Unit] =
     drawOverview(model).flatMap(_ => drawPdfPreview(model))
 
@@ -576,4 +584,5 @@ enum PrintInstructionsMsg {
   case ConfigSaved(id: String, newList: List[StoredPrintConfig])
   case PrintPdf
   case Back
+  case NoOp
 }

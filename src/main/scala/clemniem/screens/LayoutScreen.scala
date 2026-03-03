@@ -12,7 +12,7 @@ import clemniem.{
   StorageKeys,
   StoredLayout
 }
-import clemniem.common.CanvasUtils
+import clemniem.common.{CanvasUtils, CmdUtils}
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
@@ -83,13 +83,13 @@ object LayoutScreen extends Screen {
           editingId = None
         )
     }
-    (model, Cmd.SideEffect(drawGrid(model.grid)))
+    (model, drawGridCmd(model.grid))
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case LayoutMsg.SetMode(mode) =>
       val next = model.copy(mode = mode, draftInputs = Map.empty)
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.AddRow =>
       val newRow = model.rowDefs.lastOption match {
@@ -97,7 +97,7 @@ object LayoutScreen extends Screen {
         case None       => RowDef(defaultRowHeight, List(defaultCellWidth))
       }
       val next = model.copy(rowDefs = model.rowDefs :+ newRow, draftInputs = Map.empty)
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.RemoveRow(idx) =>
       val next = model.copy(
@@ -105,7 +105,7 @@ object LayoutScreen extends Screen {
         anchoredRows = model.anchoredRows.filter(_ != idx).map(i => if (i > idx) i - 1 else i),
         draftInputs = Map.empty
       )
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.SetDraft(key, value) =>
       (model.copy(draftInputs = model.draftInputs.updated(key, value)), Cmd.None)
@@ -120,7 +120,7 @@ object LayoutScreen extends Screen {
       val next = model.copy(
         rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = row.cellWidths :+ defaultCellWidth)),
         draftInputs = Map.empty)
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.RemoveCellFromRow(rowIdx, cellIdx) =>
       val row = model.rowDefs(rowIdx)
@@ -129,7 +129,7 @@ object LayoutScreen extends Screen {
         val ws = row.cellWidths.patch(cellIdx, Nil, 1)
         val next =
           model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = ws)), draftInputs = Map.empty)
-        (next, Cmd.SideEffect(drawGrid(next.grid)))
+        (next, drawGridCmd(next.grid))
       }
 
     case LayoutMsg.ToggleRowAnchor(rowIdx) =>
@@ -145,7 +145,7 @@ object LayoutScreen extends Screen {
         case None       => ColumnDef(defaultColWidth, List(defaultCellHeight))
       }
       val next = model.copy(columnDefs = model.columnDefs :+ newCol, draftInputs = Map.empty)
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.RemoveColumn(idx) =>
       val next = model.copy(
@@ -153,14 +153,14 @@ object LayoutScreen extends Screen {
         anchoredColumns = model.anchoredColumns.filter(_ != idx).map(i => if (i > idx) i - 1 else i),
         draftInputs = Map.empty
       )
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.AddCellToColumn(colIdx) =>
       val col = model.columnDefs(colIdx)
       val next = model.copy(
         columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = col.cellHeights :+ defaultCellHeight)),
         draftInputs = Map.empty)
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.RemoveCellFromColumn(colIdx, cellIdx) =>
       val col = model.columnDefs(colIdx)
@@ -169,7 +169,7 @@ object LayoutScreen extends Screen {
         val hs = col.cellHeights.patch(cellIdx, Nil, 1)
         val next =
           model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = hs)), draftInputs = Map.empty)
-        (next, Cmd.SideEffect(drawGrid(next.grid)))
+        (next, drawGridCmd(next.grid))
       }
 
     case LayoutMsg.ToggleColumnAnchor(colIdx) =>
@@ -180,7 +180,7 @@ object LayoutScreen extends Screen {
       (next, Cmd.None)
 
     case LayoutMsg.DrawGrid =>
-      (model, Cmd.SideEffect(drawGrid(model.grid)))
+      (model, drawGridCmd(model.grid))
 
     case LayoutMsg.Back =>
       (model, navCmd(ScreenId.LayoutsId, None))
@@ -210,7 +210,7 @@ object LayoutScreen extends Screen {
           else model.columnDefs,
         pendingNormalizeChoice = false
       )
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.NormalizeWithNewSections =>
       val next = model.copy(
@@ -222,7 +222,7 @@ object LayoutScreen extends Screen {
           else model.columnDefs,
         pendingNormalizeChoice = false
       )
-      (next, Cmd.SideEffect(drawGrid(next.grid)))
+      (next, drawGridCmd(next.grid))
 
     case LayoutMsg.CancelNormalizeChoice =>
       (model.copy(pendingNormalizeChoice = false), Cmd.None)
@@ -271,7 +271,7 @@ object LayoutScreen extends Screen {
         else {
           val h    = raw.toIntOption.map(clampSize).getOrElse(model.rowDefs(rowIdx).height)
           val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, model.rowDefs(rowIdx).copy(height = h)))
-          (next, Cmd.SideEffect(drawGrid(next.grid)))
+          (next, drawGridCmd(next.grid))
         }
 
       case "rcw" :: ri :: ci :: Nil =>
@@ -286,7 +286,7 @@ object LayoutScreen extends Screen {
               if (model.anchoredRows.contains(rowIdx)) List.fill(row.cellWidths.length)(w)
               else row.cellWidths.patch(cellIdx, List(w), 1)
             val next = model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = ws)))
-            (next, Cmd.SideEffect(drawGrid(next.grid)))
+            (next, drawGridCmd(next.grid))
           }
         }
 
@@ -297,7 +297,7 @@ object LayoutScreen extends Screen {
           val w    = raw.toIntOption.map(clampSize).getOrElse(model.columnDefs(colIdx).width)
           val col  = model.columnDefs(colIdx)
           val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(width = w)))
-          (next, Cmd.SideEffect(drawGrid(next.grid)))
+          (next, drawGridCmd(next.grid))
         }
 
       case "cch" :: ci :: ri :: Nil =>
@@ -312,7 +312,7 @@ object LayoutScreen extends Screen {
               if (model.anchoredColumns.contains(colIdx)) List.fill(col.cellHeights.length)(h)
               else col.cellHeights.patch(cellIdx, List(h), 1)
             val next = model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = hs)))
-            (next, Cmd.SideEffect(drawGrid(next.grid)))
+            (next, drawGridCmd(next.grid))
           }
         }
 
@@ -468,6 +468,9 @@ object LayoutScreen extends Screen {
     val addColBtn = button(`class` := NesCss.btnPrimary, onClick(LayoutMsg.AddColumn))(text("+ Add column"))
     div(`class` := "grid-editor-list")((colElems :+ addColBtn)*)
   }
+
+  private def drawGridCmd(grid: Layout): Cmd[IO, Msg] =
+    CmdUtils.fireAndForget(drawGrid(grid), LayoutMsg.NoOp, _ => LayoutMsg.NoOp)
 
   /** Draw grid on canvas after the view has been applied (next frame + retries). Use for all updates. */
   def drawGrid(grid: Layout): IO[Unit] =

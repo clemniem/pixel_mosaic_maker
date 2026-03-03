@@ -12,7 +12,7 @@ import clemniem.{
   StoredImage,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, Loadable, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, CmdUtils, Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
@@ -58,29 +58,31 @@ object BuildsGalleryScreen extends Screen {
     case BuildsGalleryMsg.LoadedBuilds(list) =>
       val valid = list.filter(_.buildConfigRef.nonEmpty)
       val next  = model.copy(gallery = Gallery.onLoaded(model.gallery, valid, GalleryLayout.defaultPageSize))
-      val cmd   = if (next.canDrawPreviews) Cmd.SideEffect(drawAllBuildPreviews(next)) else Cmd.None
+      val cmd   = if (next.canDrawPreviews) drawAllPreviewsCmd(next) else Cmd.None
       (next, cmd)
     case BuildsGalleryMsg.LoadedBuildConfigs(list) =>
       val next = model.copy(buildConfigs = Some(list))
-      val cmd  = if (next.canDrawPreviews) Cmd.SideEffect(drawAllBuildPreviews(next)) else Cmd.None
+      val cmd  = if (next.canDrawPreviews) drawAllPreviewsCmd(next) else Cmd.None
       (next, cmd)
     case BuildsGalleryMsg.LoadedImages(list) =>
       val next = model.copy(images = Some(list))
-      val cmd  = if (next.canDrawPreviews) Cmd.SideEffect(drawAllBuildPreviews(next)) else Cmd.None
+      val cmd  = if (next.canDrawPreviews) drawAllPreviewsCmd(next) else Cmd.None
       (next, cmd)
     case BuildsGalleryMsg.LoadedPalettes(list) =>
       val next = model.copy(palettes = Some(list))
-      val cmd  = if (next.canDrawPreviews) Cmd.SideEffect(drawAllBuildPreviews(next)) else Cmd.None
+      val cmd  = if (next.canDrawPreviews) drawAllPreviewsCmd(next) else Cmd.None
       (next, cmd)
     case BuildsGalleryMsg.DrawBuildPreview(item) =>
       (
         model,
-        Cmd.SideEffect(
+        CmdUtils.fireAndForget(
           drawBuildPreview(
             item,
             model.buildConfigs.getOrElse(Nil),
             model.images.getOrElse(Nil),
-            model.palettes.getOrElse(Nil))))
+            model.palettes.getOrElse(Nil)),
+          BuildsGalleryMsg.NoOp,
+          _ => BuildsGalleryMsg.NoOp))
     case BuildsGalleryMsg.ShowNewBuildDropdown =>
       (model.copy(showNewBuildDropdown = true), Cmd.None)
     case BuildsGalleryMsg.SetSelectedBuildConfigId(id) =>
@@ -124,6 +126,8 @@ object BuildsGalleryScreen extends Screen {
       (model.copy(gallery = Gallery.initState), cmd)
     case BuildsGalleryMsg.Retry =>
       init(None)
+    case BuildsGalleryMsg.NoOp =>
+      (model, Cmd.None)
   }
 
   def view(model: Model): Html[Msg] = {
@@ -230,6 +234,9 @@ object BuildsGalleryScreen extends Screen {
     )
   }
 
+  private def drawAllPreviewsCmd(model: BuildsGalleryModel): Cmd[IO, Msg] =
+    CmdUtils.fireAndForget(drawAllBuildPreviews(model), BuildsGalleryMsg.NoOp, _ => BuildsGalleryMsg.NoOp)
+
   private def drawAllBuildPreviews(model: BuildsGalleryModel): IO[Unit] =
     model.gallery.items
       .getOrElse(Nil: List[StoredBuild])
@@ -250,8 +257,9 @@ object BuildsGalleryScreen extends Screen {
       val configs  = model.buildConfigs.getOrElse(Nil)
       val images   = model.images.getOrElse(Nil)
       val palettes = model.palettes.getOrElse(Nil)
-      Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(
-        slice.foldLeft(IO.unit)((acc, build) => acc.flatMap(_ => drawBuildPreview(build, configs, images, palettes)))))
+      CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(
+        slice.foldLeft(IO.unit)((acc, build) => acc.flatMap(_ => drawBuildPreview(build, configs, images, palettes)))),
+        BuildsGalleryMsg.NoOp, _ => BuildsGalleryMsg.NoOp)
     }
   }
 
@@ -347,4 +355,5 @@ enum BuildsGalleryMsg {
   case PreviousPage
   case NextPage
   case Back
+  case NoOp
 }

@@ -15,7 +15,7 @@ import clemniem.{
   StoredLayout,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
@@ -197,10 +197,12 @@ object BuildConfigScreen extends Screen {
       (model, navCmd(ScreenId.BuildConfigsId, None))
     case BuildConfigMsg.DrawPreview =>
       (model, drawPreviewCmd(model))
+    case BuildConfigMsg.NoOp =>
+      (model, Cmd.None)
   }
 
   private def drawPreviewCmd(model: Model): Cmd[IO, Msg] =
-    Cmd.SideEffect(drawOverview(model).flatMap(_ => drawPreviewRegion(model)))
+    CmdUtils.fireAndForget(drawOverview(model).flatMap(_ => drawPreviewRegion(model)), BuildConfigMsg.NoOp, _ => BuildConfigMsg.NoOp)
 
   /** Overview: full image with palette + grid overlay at offset. */
   private def drawOverview(model: Model): IO[Unit] =
@@ -440,4 +442,5 @@ enum BuildConfigMsg {
   case SaveFailed
   case Back
   case DrawPreview
+  case NoOp
 }

@@ -14,7 +14,7 @@ import clemniem.{
   StoredImage,
   StoredPalette
 }
-import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
@@ -256,7 +256,7 @@ object BuildScreen extends Screen {
   }
 
   private def drawCmd(model: Model): Cmd[IO, Msg] =
-    Cmd.SideEffect(drawOverview(model).flatMap(_ => drawPreview(model)))
+    CmdUtils.fireAndForget(drawOverview(model).flatMap(_ => drawPreview(model)), BuildScreenMsg.NoOp, _ => BuildScreenMsg.NoOp)
 
   private def picWithPalette(model: Model): Option[PixelPic] =
     for {

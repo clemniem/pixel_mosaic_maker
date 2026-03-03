@@ -276,7 +276,7 @@ object ImageUploadScreen extends Screen {
 
     case ImageUploadMsg.DrawPreview =>
       val cmd = model.pixelPic match {
-        case Some(pic) => Cmd.SideEffect(drawPreview(pic))
+        case Some(pic) => CmdUtils.fireAndForget(drawPreview(pic), ImageUploadMsg.NoOp, _ => ImageUploadMsg.NoOp)
         case None      => Cmd.None
       }
       (model, cmd)
