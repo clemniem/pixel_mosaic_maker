@@ -1,7 +1,5 @@
 package clemniem.common.image
 
-import scala.annotation.unused
-
 /** Result of color quantization: palette (RGBA bytes) and one index per pixel. */
 final case class QuantizedResult(palette: Vector[(Byte, Byte, Byte, Byte)], indices: Array[Int])
 
@@ -24,8 +22,7 @@ object NoColorDithering extends ColorDithering {
       val r = image.data(o) & 0xff
       val g = image.data(o + 1) & 0xff
       val b = image.data(o + 2) & 0xff
-      val a = image.data(o + 3) & 0xff
-      out(i) = nearestPaletteIndex(r, g, b, a, palette)
+      out(i) = nearestPaletteIndex(r, g, b, palette)
     }
     out
   }
@@ -33,7 +30,7 @@ object NoColorDithering extends ColorDithering {
   /** Find nearest palette color using perceptual weighted distance (green > red > blue). Alpha is ignored -- for opaque
     * images it's just noise, and palette colors typically have uniform alpha.
     */
-  def nearestPaletteIndex(r: Int, g: Int, b: Int, @unused _a: Int, palette: Vector[(Byte, Byte, Byte, Byte)]): Int =
+  def nearestPaletteIndex(r: Int, g: Int, b: Int, palette: Vector[(Byte, Byte, Byte, Byte)]): Int =
     if (palette.isEmpty) 0
     else
       palette.indices.minBy { idx =>
@@ -72,8 +69,7 @@ object FloydSteinbergDithering extends ColorDithering {
       val r      = buf(o).toInt.max(0).min(255)
       val g      = buf(o + 1).toInt.max(0).min(255)
       val b      = buf(o + 2).toInt.max(0).min(255)
-      val a      = buf(o + 3).toInt.max(0).min(255)
-      val palIdx = NoColorDithering.nearestPaletteIndex(r, g, b, a, palette)
+      val palIdx = NoColorDithering.nearestPaletteIndex(r, g, b, palette)
       out(idx) = palIdx
       val (pr, pg, pb, _) = palette(palIdx)
       val qr              = pr & 0xff
@@ -120,8 +116,7 @@ final case class OrderedBayerDithering(matrixSize: Int) extends ColorDithering {
       val r      = ((image.data(o) & 0xff) + thresh).max(0).min(255)
       val g      = ((image.data(o + 1) & 0xff) + thresh).max(0).min(255)
       val b      = ((image.data(o + 2) & 0xff) + thresh).max(0).min(255)
-      val a      = (image.data(o + 3) & 0xff) & 0xff
-      out(i) = NoColorDithering.nearestPaletteIndex(r, g, b, a, palette)
+      out(i) = NoColorDithering.nearestPaletteIndex(r, g, b, palette)
     }
     out
   }

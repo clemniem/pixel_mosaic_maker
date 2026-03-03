@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{NavigateNext, Screen, ScreenId}
+import clemniem.{Screen, ScreenId}
 import clemniem.common.CmdUtils
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
@@ -14,11 +14,11 @@ private val repoUrl = "https://github.com/clemniem/pixel_mosaic_maker"
 /** About page: project description, tools, GitHub link, and refresh-app with confirmation. */
 object AboutScreen extends Screen {
   type Model = Boolean
-  type Msg   = AboutMsg | NavigateNext
+  type Msg   = AboutMsg
 
   val screenId: ScreenId = ScreenId.AboutId
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) =
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) =
     (false, Cmd.None)
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
@@ -31,10 +31,8 @@ object AboutScreen extends Screen {
     case AboutMsg.OpenUrl(url) =>
       (model, Cmd.SideEffect(IO.delay(dom.window.open(url, "_blank"))))
     case AboutMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
+      (model, navCmd(ScreenId.OverviewId, None))
     case AboutMsg.NoOp =>
-      (model, Cmd.None)
-    case _: NavigateNext =>
       (model, Cmd.None)
   }
 

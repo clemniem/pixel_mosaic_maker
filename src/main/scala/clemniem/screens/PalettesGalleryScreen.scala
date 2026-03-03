@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import clemniem.{
   Color,
-  NavigateNext,
   PixelPic,
   PixelPicService,
   Screen,
@@ -20,23 +19,18 @@ import org.scalajs.dom.html.Input
 import tyrian.Html.*
 import tyrian.*
 
-
 /** Gallery of saved palettes. Empty state: "+ Create Palette". "From image" creates a palette from an image file. */
 object PalettesGalleryScreen extends Screen {
-  type Model = PalettesGalleryModel
-  type Msg   = PalettesGalleryMsg | NavigateNext
+  type Model = Gallery.State[StoredPalette]
+  type Msg   = PalettesGalleryMsg
 
   val screenId: ScreenId = ScreenId.PalettesId
 
   private val pageSize: Int = 4
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
-    val loadCmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
-      PalettesGalleryMsg.Loaded.apply,
-      _ => PalettesGalleryMsg.Loaded(Nil),
-      (_, _) => PalettesGalleryMsg.Loaded(Nil)
-    )
-    (PalettesGalleryModel(None, None, currentPage = 1), loadCmd)
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
+    val cmd = Gallery.loadCmd(StorageKeys.palettes, PalettesGalleryMsg.Loaded.apply, (_, _) => PalettesGalleryMsg.Loaded(Nil))
+    (Gallery.initState, cmd)
   }
 
   private def baseNameFromFileName(fileName: String): String = {
@@ -78,14 +72,13 @@ object PalettesGalleryScreen extends Screen {
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case PalettesGalleryMsg.Loaded(list) =>
-      val totalPages = GalleryLayout.totalPagesFor(list.size, pageSize)
-      (model.copy(list = Some(list), currentPage = GalleryLayout.clampPage(model.currentPage, totalPages)), Cmd.None)
+      (Gallery.onLoaded(model, list, pageSize), Cmd.None)
     case PalettesGalleryMsg.CreateNew =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.PaletteId, None)))
+      (model, navCmd(ScreenId.PaletteId, None))
     case PalettesGalleryMsg.Edit(stored) =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.PaletteId, Some(ScreenOutput.EditPalette(stored)))))
+      (model, navCmd(ScreenId.PaletteId, Some(ScreenOutput.EditPalette(stored))))
     case PalettesGalleryMsg.Copy(stored) =>
-      model.list match {
+      model.items match {
         case Some(list) =>
           val newId   = LocalStorageUtils.newId("palette")
           val copy    = StoredPalette(id = newId, name = stored.name + " copy", colors = stored.colors)
@@ -95,41 +88,32 @@ object PalettesGalleryScreen extends Screen {
             _ => PalettesGalleryMsg.CopySaved,
             (_, _) => PalettesGalleryMsg.CopyFailed
           )
-          (model.copy(list = Some(newList)), saveCmd)
+          (model.copy(items = Some(newList)), saveCmd)
         case None => (model, Cmd.None)
       }
     case PalettesGalleryMsg.CopySaved  => (model, Cmd.None)
     case PalettesGalleryMsg.CopyFailed => (model, Cmd.None)
     case PalettesGalleryMsg.Delete(stored) =>
-      (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
+      (Gallery.onRequestDelete(model, stored.id), Cmd.None)
     case PalettesGalleryMsg.ConfirmDelete(id) =>
-      val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
-        model.list,
-        id,
-        StorageKeys.palettes,
-        pageSize,
-        model.currentPage,
-        PalettesGalleryMsg.CancelDelete,
-        _.id
-      )
-      (model.copy(list = newList, pendingDeleteId = None, currentPage = newPage), cmd)
+      Gallery.onConfirmDelete(model, id, StorageKeys.palettes, pageSize, PalettesGalleryMsg.CancelDelete)
     case PalettesGalleryMsg.CancelDelete =>
-      (model.copy(pendingDeleteId = None), Cmd.None)
+      (Gallery.onCancelDelete(model), Cmd.None)
     case PalettesGalleryMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
+      (model, navCmd(ScreenId.OverviewId, None))
     case PalettesGalleryMsg.PaletteFromImageDecoded(pic, fileName) =>
       val name   = fileName.map(baseNameFromFileName).filter(_.nonEmpty).getOrElse("Unnamed palette")
       val colors = pic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
       val id     = LocalStorageUtils.newId("palette")
       val stored = StoredPalette(id = id, name = name, colors = colors)
-      model.list match {
+      model.items match {
         case Some(list) =>
           val newList = list :+ stored
           val saveCmd = LocalStorageUtils.saveList(StorageKeys.palettes, newList)(
             _ => PalettesGalleryMsg.PaletteFromImageSaved,
             (_, _) => PalettesGalleryMsg.PaletteFromImageError("Failed to save palette")
           )
-          (model.copy(list = Some(newList)), saveCmd)
+          (model.copy(items = Some(newList)), saveCmd)
         case None =>
           (model, Cmd.None)
       }
@@ -145,99 +129,58 @@ object PalettesGalleryScreen extends Screen {
           identity[PalettesGalleryMsg],
           e => PalettesGalleryMsg.PaletteFromImageError(e.getMessage)))
     case PalettesGalleryMsg.PreviousPage =>
-      (model.copy(currentPage = (model.currentPage - 1).max(1)), Cmd.None)
+      (Gallery.onPreviousPage(model), Cmd.None)
     case PalettesGalleryMsg.NextPage =>
-      model.list match {
-        case Some(list) =>
-          val totalPages = GalleryLayout.totalPagesFor(list.size, pageSize)
-          (model.copy(currentPage = (model.currentPage + 1).min(totalPages)), Cmd.None)
-        case None => (model, Cmd.None)
-      }
-    case _: NavigateNext =>
-      (model, Cmd.None)
+      (Gallery.onNextPage(model, pageSize), Cmd.None)
   }
 
   def view(model: Model): Html[Msg] = {
-    val backBtn = GalleryLayout.backButton(PalettesGalleryMsg.Back, "Overview")
-    val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
-    model.list match {
-      case None =>
-        GalleryLayout(
-          screenId.title,
-          backBtn,
-          p(`class` := NesCss.text)(text("Loading…")),
-          shortHeader = false,
-          Some(nextBtn))
-      case Some(list) =>
-        val content =
-          if (list.isEmpty)
-            div(`class` := GalleryLayout.galleryListClass)(
-              div(`class` := "flex-row")(
-                button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
-                button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
-              ),
-              GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew)
-            )
-          else
-            paginatedList(
-              list,
-              model.currentPage,
-              div(`class` := "flex-row")(
-                button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
-                button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
-              ),
-              item => entryCard(item, model.pendingDeleteId.contains(item.id))
-            )
-        GalleryLayout(screenId.title, backBtn, content, shortHeader = false, Some(nextBtn))
-    }
-  }
-
-  private def paginatedList(
-    list: List[StoredPalette],
-    currentPage: Int,
-    addAction: Html[Msg],
-    entryCard: StoredPalette => Html[Msg]
-  ): Html[Msg] =
-    GalleryLayout.paginatedListWith(
-      list,
-      currentPage,
-      pageSize,
-      addAction,
-      entryCard,
-      PalettesGalleryMsg.PreviousPage,
-      PalettesGalleryMsg.NextPage
+    val actionRow = div(`class` := "flex-row")(
+      button(`class` := NesCss.btnPrimary, onClick(PalettesGalleryMsg.CreateNew))(text("+ Create Palette")),
+      button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.RequestPaletteFromImage))(text("From image"))
     )
+    val emptyContent = div(`class` := GalleryLayout.galleryListClass)(
+      actionRow,
+      GalleryEmptyState("No palettes yet.", "+ Create Palette", PalettesGalleryMsg.CreateNew)
+    )
+    Gallery.view(
+      screenId.title,
+      model,
+      pageSize,
+      shortHeader = false,
+      PalettesGalleryMsg.Back,
+      navMsg(ScreenFlow.nextInOverviewOrder(screenId), None),
+      PalettesGalleryMsg.PreviousPage,
+      PalettesGalleryMsg.NextPage,
+      emptyContent,
+      actionRow,
+      entryCard
+    )
+  }
 
   private def entryCard(item: StoredPalette, confirmingDelete: Boolean): Html[Msg] =
     div(`class` := s"${NesCss.container} ${NesCss.containerRounded} gallery-card gallery-card--palette")(
       div(`class` := "gallery-card-header")(
         span(`class` := "gallery-card-title")(text(item.name)),
-        span(`class` := "gallery-card-meta nes-text")(text(s" · ${item.colors.length} colors"))
+        span(`class` := "gallery-card-meta nes-text")(text(s" \u00b7 ${item.colors.length} colors"))
       ),
       div(`class` := "gallery-card-row2")(
-        if (confirmingDelete)
-          GalleryLayout.galleryDeleteConfirm(
-            s"Delete \"${item.name}\"?",
-            PalettesGalleryMsg.ConfirmDelete(item.id),
-            PalettesGalleryMsg.CancelDelete
-          )
-        else
-          GalleryLayout.galleryActionsRow(
-            button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Edit(item)))(text("Edit")),
-            button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Copy(item)))(text("Copy")),
-            button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.Delete(item)))(text("Delete"))
-          ),
+        Gallery.deleteOrActions(
+          confirmingDelete,
+          item.name,
+          item.id,
+          PalettesGalleryMsg.ConfirmDelete.apply,
+          PalettesGalleryMsg.CancelDelete,
+          button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Edit(item)))(text("Edit")),
+          button(`class` := NesCss.btn, onClick(PalettesGalleryMsg.Copy(item)))(text("Copy")),
+          button(`class` := NesCss.btnError, onClick(PalettesGalleryMsg.Delete(item)))(text("Delete"))
+        ),
         div(`class` := "gallery-card-preview")(
           PaletteStripView.previewInline(item.colors.toList)
         )
       )
     )
 }
-
-final case class PalettesGalleryModel(
-  list: Option[List[StoredPalette]],
-  pendingDeleteId: Option[String],
-  currentPage: Int)
 
 enum PalettesGalleryMsg {
   case Loaded(list: List[StoredPalette])

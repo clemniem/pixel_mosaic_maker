@@ -9,7 +9,6 @@ import org.scalajs.dom
 import org.scalajs.dom.html.Canvas
 import org.scalajs.dom.CanvasRenderingContext2D
 
-import scala.annotation.unused
 import scala.concurrent.duration.*
 
 /** Workaround for drawing on a canvas before it is in the DOM (see gbcamutil):
@@ -140,7 +139,7 @@ object CanvasUtils {
     canvas.width = fit.width
     canvas.height = fit.height
     ctx.clearRect(0, 0, fit.width, fit.height)
-    drawPixelPic(canvas, ctx, pic, fit.width, fit.height, 0, 0)
+    drawPixelPic(ctx, pic, fit.width, fit.height, 0, 0)
     ctx.strokeStyle = Color.errorStroke.rgba(0.8)
     ctx.lineWidth = 1
     val ox = (offsetX * fit.scale).toInt
@@ -171,7 +170,6 @@ object CanvasUtils {
     *   y offset (e.g. for centering: (canvasHeight - targetHeight) / 2)
     */
   def drawPixelPic(
-    @unused canvas: Canvas,
     ctx: CanvasRenderingContext2D,
     pic: PixelPic,
     targetWidth: Int,

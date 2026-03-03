@@ -4,7 +4,6 @@ import cats.effect.IO
 import clemniem.{
   BuildConfig,
   Color,
-  NavigateNext,
   PixelPic,
   Screen,
   ScreenId,
@@ -28,7 +27,7 @@ import scala.concurrent.duration.DurationInt
   */
 object BuildScreen extends Screen {
   type Model = BuildScreenModel
-  type Msg   = BuildScreenMsg | NavigateNext
+  type Msg   = BuildScreenMsg
 
   val screenId: ScreenId = ScreenId.BuildId
 
@@ -91,7 +90,7 @@ object BuildScreen extends Screen {
     out.result()
   }
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) =
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) =
     previous match {
       case Some(ScreenOutput.StartBuild(storedConfig)) =>
         val stepIndex = 0
@@ -106,12 +105,10 @@ object BuildScreen extends Screen {
         )
         val loadImages = LocalStorageUtils.loadList(StorageKeys.images)(
           BuildScreenMsg.LoadedImages.apply,
-          _ => BuildScreenMsg.LoadedImages(Nil),
           (_, _) => BuildScreenMsg.LoadedImages(Nil)
         )
         val loadPalettes = LocalStorageUtils.loadList(StorageKeys.palettes)(
           BuildScreenMsg.LoadedPalettes.apply,
-          _ => BuildScreenMsg.LoadedPalettes(Nil),
           (_, _) => BuildScreenMsg.LoadedPalettes(Nil)
         )
         (model, Cmd.Batch(loadImages, loadPalettes))
@@ -130,17 +127,14 @@ object BuildScreen extends Screen {
         )
         val loadConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
           BuildScreenMsg.LoadedBuildConfigs.apply,
-          _ => BuildScreenMsg.LoadedBuildConfigs(Nil),
           (_, _) => BuildScreenMsg.LoadedBuildConfigs(Nil)
         )
         val loadImages = LocalStorageUtils.loadList(StorageKeys.images)(
           BuildScreenMsg.LoadedImages.apply,
-          _ => BuildScreenMsg.LoadedImages(Nil),
           (_, _) => BuildScreenMsg.LoadedImages(Nil)
         )
         val loadPalettes = LocalStorageUtils.loadList(StorageKeys.palettes)(
           BuildScreenMsg.LoadedPalettes.apply,
-          _ => BuildScreenMsg.LoadedPalettes(Nil),
           (_, _) => BuildScreenMsg.LoadedPalettes(Nil)
         )
         (model, Cmd.Batch(loadConfigs, loadImages, loadPalettes))
@@ -148,7 +142,7 @@ object BuildScreen extends Screen {
       case _ =>
         (
           BuildScreenModel(None, None, None, None, 0, None, defaultPatchBackground),
-          Cmd.Emit(NavigateNext(ScreenId.BuildsId, None)))
+          navCmd(ScreenId.BuildsId, None))
     }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
@@ -204,7 +198,7 @@ object BuildScreen extends Screen {
       (model.copy(stepIndex = idx), drawCmd(model.copy(stepIndex = idx)))
 
     case BuildScreenMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.BuildsId, None)))
+      (model, navCmd(ScreenId.BuildsId, None))
 
     case BuildScreenMsg.Save =>
       (model.buildConfig, model.currentBuild) match {
@@ -215,7 +209,6 @@ object BuildScreen extends Screen {
             StoredBuild(buildId, buildName, storedConfig.id, Some(model.stepIndex), Some(model.patchBackgroundColorHex))
           val cmd = LocalStorageUtils.loadList(StorageKeys.builds)(
             list => BuildScreenMsg.LoadedForSave(list),
-            _ => BuildScreenMsg.LoadedForSave(Nil),
             (_, _) => BuildScreenMsg.SaveFailed
           )
           (model.copy(pendingSave = Some(updated)), cmd)
@@ -242,7 +235,7 @@ object BuildScreen extends Screen {
       }
 
     case BuildScreenMsg.SaveDone =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.BuildsId, None)))
+      (model, navCmd(ScreenId.BuildsId, None))
 
     case BuildScreenMsg.SaveFailed =>
       (model.copy(pendingSave = None), Cmd.None)
@@ -259,9 +252,6 @@ object BuildScreen extends Screen {
       (model.copy(stacked = value), drawCmd(model.copy(stacked = value)))
 
     case BuildScreenMsg.NoOp =>
-      (model, Cmd.None)
-
-    case _: NavigateNext =>
       (model, Cmd.None)
   }
 
@@ -290,7 +280,7 @@ object BuildScreen extends Screen {
               canvas.width = fit.width
               canvas.height = fit.height
               ctx.clearRect(0, 0, fit.width, fit.height)
-              CanvasUtils.drawPixelPic(canvas, ctx, cropped, fit.width, fit.height, 0, 0)
+              CanvasUtils.drawPixelPic(ctx, cropped, fit.width, fit.height, 0, 0)
               ctx.strokeStyle = Color.errorStroke.rgba(0.6)
               ctx.lineWidth = 1
               stored.config.grid.parts.foreach { part =>

@@ -4,7 +4,6 @@ import cats.effect.IO
 import clemniem.{
   Color,
   Layout,
-  NavigateNext,
   PixelPic,
   Screen,
   ScreenId,
@@ -37,14 +36,14 @@ private def defaultStepSizeForAvailable(available: List[Int]): Int =
 /** Screen to generate the PDF print instructions: choose a BuildConfig and set options (e.g. title). */
 object PrintInstructionsScreen extends Screen {
   type Model = PrintInstructionsModel
-  type Msg   = PrintInstructionsMsg | NavigateNext
+  type Msg   = PrintInstructionsMsg
 
   val screenId: ScreenId         = ScreenId.PrintInstructionsId
   private val overviewCanvasId   = "print-instructions-overview"
   private val pdfPreviewCanvasId = "print-instructions-pdf-preview"
   private val pdfPreviewMaxPages = 5
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
     val base = previous.collect { case ScreenOutput.OpenPrintConfig(stored) => stored }
     val model = PrintInstructionsModel(
       builds = None,
@@ -66,27 +65,22 @@ object PrintInstructionsScreen extends Screen {
     )
     val loadBuilds = LocalStorageUtils.loadList(StorageKeys.builds)(
       PrintInstructionsMsg.LoadedBuilds.apply,
-      _ => PrintInstructionsMsg.LoadedBuilds(Nil),
       (_, _) => PrintInstructionsMsg.LoadedBuilds(Nil)
     )
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       PrintInstructionsMsg.LoadedBuildConfigs.apply,
-      _ => PrintInstructionsMsg.LoadedBuildConfigs(Nil),
       (_, _) => PrintInstructionsMsg.LoadedBuildConfigs(Nil)
     )
     val loadImages = LocalStorageUtils.loadList(StorageKeys.images)(
       PrintInstructionsMsg.LoadedImages.apply,
-      _ => PrintInstructionsMsg.LoadedImages(Nil),
       (_, _) => PrintInstructionsMsg.LoadedImages(Nil)
     )
     val loadPalettes = LocalStorageUtils.loadList(StorageKeys.palettes)(
       PrintInstructionsMsg.LoadedPalettes.apply,
-      _ => PrintInstructionsMsg.LoadedPalettes(Nil),
       (_, _) => PrintInstructionsMsg.LoadedPalettes(Nil)
     )
     val loadPrintConfigs = LocalStorageUtils.loadList(StorageKeys.printConfigs)(
       PrintInstructionsMsg.LoadedPrintConfigs.apply,
-      _ => PrintInstructionsMsg.LoadedPrintConfigs(Nil),
       (_, _) => PrintInstructionsMsg.LoadedPrintConfigs(Nil)
     )
     (model, Cmd.Batch(loadBuilds, loadBuildConfigs, loadImages, loadPalettes, loadPrintConfigs))
@@ -194,9 +188,7 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.PrintPdf =>
       (model, Cmd.SideEffect(PdfUtils.printBookPdf(bookRequestForModel(model))))
     case PrintInstructionsMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.PrintConfigsId, None)))
-    case _: NavigateNext =>
-      (model, Cmd.None)
+      (model, navCmd(ScreenId.PrintConfigsId, None))
   }
 
   def view(model: Model): Html[Msg] = {

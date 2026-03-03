@@ -3,6 +3,12 @@ package clemniem
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 
+/** Common trait for all stored entities: each has an id and a display name. */
+trait StoredEntity {
+  def id: String
+  def name: String
+}
+
 /** Stored entities for galleries: each has id and display name for listing. */
 
 final case class StoredLayout(
@@ -11,25 +17,25 @@ final case class StoredLayout(
   config: Layout,
   mode: Option[GridDefMode] = None,
   rowDefs: Option[List[RowDef]] = None,
-  columnDefs: Option[List[ColumnDef]] = None)
+  columnDefs: Option[List[ColumnDef]] = None) extends StoredEntity
 object StoredLayout {
   given Encoder[StoredLayout] = deriveEncoder
   given Decoder[StoredLayout] = deriveDecoder
 }
 
-final case class StoredPalette(id: String, name: String, colors: Vector[Color])
+final case class StoredPalette(id: String, name: String, colors: Vector[Color]) extends StoredEntity
 object StoredPalette {
   given Encoder[StoredPalette] = deriveEncoder
   given Decoder[StoredPalette] = deriveDecoder
 }
 
-final case class StoredImage(id: String, name: String, pixelPic: PixelPic)
+final case class StoredImage(id: String, name: String, pixelPic: PixelPic) extends StoredEntity
 object StoredImage {
   given Encoder[StoredImage] = deriveEncoder
   given Decoder[StoredImage] = deriveDecoder
 }
 
-final case class StoredBuildConfig(id: String, name: String, config: BuildConfig, savedStepIndex: Option[Int] = None)
+final case class StoredBuildConfig(id: String, name: String, config: BuildConfig, savedStepIndex: Option[Int] = None) extends StoredEntity
 object StoredBuildConfig {
   given Encoder[StoredBuildConfig] = deriveEncoder
   given Decoder[StoredBuildConfig] = deriveDecoder
@@ -41,7 +47,7 @@ final case class StoredBuild(
   name: String,
   buildConfigRef: String,
   savedStepIndex: Option[Int] = None,
-  patchBackgroundColorHex: Option[String] = None)
+  patchBackgroundColorHex: Option[String] = None) extends StoredEntity
 object StoredBuild {
   given Encoder[StoredBuild] = deriveEncoder
   given Decoder[StoredBuild] = deriveDecoder
@@ -59,7 +65,7 @@ final case class StoredPrintConfig(
   stacked: Boolean,
   printerMarginMm: Double,
   contentTopOffsetMm: Double
-)
+) extends StoredEntity
 object StoredPrintConfig {
   given Encoder[StoredPrintConfig] = deriveEncoder
   given Decoder[StoredPrintConfig] = deriveDecoder

@@ -4,7 +4,7 @@ import cats.effect.IO
 import clemniem.{
   BuildConfig,
   Color,
-  NavigateNext,
+  Layout,
   PixelPic,
   Screen,
   ScreenId,
@@ -26,30 +26,46 @@ import tyrian.*
 /** Build config editor: select one Layout, one Image, one Palette, and offset; preview updates when palette changes. */
 object BuildConfigScreen extends Screen {
   type Model = BuildConfigModel
-  type Msg   = BuildConfigMsg | NavigateNext
+  type Msg   = BuildConfigMsg
 
   val screenId: ScreenId = ScreenId.BuildConfigId
 
   private val overviewCanvasId = "build-config-overview"
   private val previewCanvasId  = "build-config-preview"
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
+  /** Resolve a [[PrefillSpec]] against the loaded lists to determine which IDs to preselect. */
+  private def resolvePrefill(
+    spec: PrefillSpec,
+    grids: List[StoredLayout],
+    images: List[StoredImage],
+    palettes: List[StoredPalette]
+  ): (Option[String], Option[String], Option[String]) =
+    spec match {
+      case PrefillSpec.FromExisting(gridConfig, imageRef, paletteRef) =>
+        (
+          gridConfig.flatMap(gc => grids.find(_.config == gc).map(_.id)),
+          imageRef.filter(id => images.exists(_.id == id)).orElse(images.headOption.map(_.id)),
+          paletteRef.filter(id => palettes.exists(_.id == id)).orElse(palettes.headOption.map(_.id))
+        )
+      case PrefillSpec.Empty =>
+        (None, None, None)
+    }
+
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
     val (name, ox, oy, editingId, prefill) = previous match {
       case Some(ScreenOutput.EditBuildConfig(stored)) =>
-        val pf = (g: List[StoredLayout], i: List[StoredImage], p: List[StoredPalette]) =>
-          (
-            g.find(_.config == stored.config.grid).map(_.id),
-            Some(stored.config.imageRef).filter(id => i.exists(_.id == id)).orElse(i.headOption.map(_.id)),
-            Some(stored.config.paletteRef).filter(id => p.exists(_.id == id)).orElse(p.headOption.map(_.id))
-          )
-        (stored.name, stored.config.offsetX, stored.config.offsetY, Some(stored.id), pf)
-      case _ =>
         (
-          "Unnamed build",
-          0,
-          0,
-          None,
-          (_: List[StoredLayout], _: List[StoredImage], _: List[StoredPalette]) => (None, None, None))
+          stored.name,
+          stored.config.offsetX,
+          stored.config.offsetY,
+          Some(stored.id),
+          PrefillSpec.FromExisting(
+            gridConfig = Some(stored.config.grid),
+            imageRef = Some(stored.config.imageRef),
+            paletteRef = Some(stored.config.paletteRef)
+          ))
+      case _ =>
+        ("Unnamed build", 0, 0, None, PrefillSpec.Empty)
     }
     val model = BuildConfigModel(
       layouts = None,
@@ -66,17 +82,14 @@ object BuildConfigScreen extends Screen {
     )
     val loadGrid = LocalStorageUtils.loadList(StorageKeys.layouts)(
       BuildConfigMsg.LoadedLayouts.apply,
-      _ => BuildConfigMsg.LoadedLayouts(Nil),
       (_, _) => BuildConfigMsg.LoadedLayouts(Nil)
     )
     val loadImages = LocalStorageUtils.loadList(StorageKeys.images)(
       BuildConfigMsg.LoadedImages.apply,
-      _ => BuildConfigMsg.LoadedImages(Nil),
       (_, _) => BuildConfigMsg.LoadedImages(Nil)
     )
     val loadPalettes = LocalStorageUtils.loadList(StorageKeys.palettes)(
       BuildConfigMsg.LoadedPalettes.apply,
-      _ => BuildConfigMsg.LoadedPalettes(Nil),
       (_, _) => BuildConfigMsg.LoadedPalettes(Nil)
     )
     (model, Cmd.Batch(loadGrid, loadImages, loadPalettes))
@@ -85,21 +98,21 @@ object BuildConfigScreen extends Screen {
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case BuildConfigMsg.LoadedLayouts(list) =>
       val next    = model.copy(layouts = Some(list))
-      val sel     = model.prefill(list, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
+      val sel     = resolvePrefill(model.prefill, list, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))
       val withSel = next.copy(selectedGridId = sel._1.orElse(next.selectedGridId).orElse(list.headOption.map(_.id)))
       val clamped = clampOffsets(withSel)
       (clamped, drawPreviewCmd(clamped))
 
     case BuildConfigMsg.LoadedImages(list) =>
       val next    = model.copy(images = Some(list))
-      val sel     = model.prefill(model.layouts.getOrElse(Nil), list, model.palettes.getOrElse(Nil))
+      val sel     = resolvePrefill(model.prefill, model.layouts.getOrElse(Nil), list, model.palettes.getOrElse(Nil))
       val withSel = next.copy(selectedImageId = sel._2.orElse(next.selectedImageId).orElse(list.headOption.map(_.id)))
       val clamped = clampOffsets(withSel)
       (clamped, drawPreviewCmd(clamped))
 
     case BuildConfigMsg.LoadedPalettes(list) =>
       val next = model.copy(palettes = Some(list))
-      val sel  = model.prefill(model.layouts.getOrElse(Nil), model.images.getOrElse(Nil), list)
+      val sel  = resolvePrefill(model.prefill, model.layouts.getOrElse(Nil), model.images.getOrElse(Nil), list)
       val withSel =
         next.copy(selectedPaletteId = sel._3.orElse(next.selectedPaletteId).orElse(list.headOption.map(_.id)))
       val clamped = clampOffsets(withSel)
@@ -143,7 +156,6 @@ object BuildConfigScreen extends Screen {
         case Some(config) =>
           val cmd = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
             BuildConfigMsg.LoadedForSave.apply,
-            _ => BuildConfigMsg.LoadedForSave(Nil),
             (_, _) => BuildConfigMsg.LoadedForSave(Nil)
           )
           (model, cmd)
@@ -167,7 +179,7 @@ object BuildConfigScreen extends Screen {
           case None      => list :+ stored
         }
         LocalStorageUtils.saveList(StorageKeys.buildConfigs, newList)(
-          _ => NavigateNext(ScreenId.BuildConfigsId, None),
+          _ => BuildConfigMsg.Saved,
           (_, _) => BuildConfigMsg.SaveFailed
         )
       }) match {
@@ -175,16 +187,16 @@ object BuildConfigScreen extends Screen {
         case None          => (model, Cmd.None)
       }
 
+    case BuildConfigMsg.Saved =>
+      (model, navCmd(ScreenId.BuildConfigsId, None))
+
     case BuildConfigMsg.SaveFailed =>
       (model, Cmd.None)
 
     case BuildConfigMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.BuildConfigsId, None)))
+      (model, navCmd(ScreenId.BuildConfigsId, None))
     case BuildConfigMsg.DrawPreview =>
       (model, drawPreviewCmd(model))
-
-    case _: NavigateNext =>
-      (model, Cmd.None)
   }
 
   private def drawPreviewCmd(model: Model): Cmd[IO, Msg] =
@@ -220,7 +232,7 @@ object BuildConfigScreen extends Screen {
               canvas.width = fit.width
               canvas.height = fit.height
               ctx.clearRect(0, 0, fit.width, fit.height)
-              CanvasUtils.drawPixelPic(canvas, ctx, cropped, fit.width, fit.height, 0, 0)
+              CanvasUtils.drawPixelPic(ctx,cropped, fit.width, fit.height, 0, 0)
               ctx.strokeStyle = Color.errorStroke.rgba(0.8)
               ctx.lineWidth = 1
               storedGrid.config.parts.foreach { part =>
@@ -249,7 +261,7 @@ object BuildConfigScreen extends Screen {
     canvas.width = fit.width
     canvas.height = fit.height
     ctx.clearRect(0, 0, fit.width, fit.height)
-    CanvasUtils.drawPixelPic(canvas, ctx, pic, fit.width, fit.height, 0, 0)
+    CanvasUtils.drawPixelPic(ctx,pic, fit.width, fit.height, 0, 0)
   }
 
   /** Max (offsetX, offsetY) so that the grid stays inside the image; (0, 0) if no image/grid or grid larger than image.
@@ -399,11 +411,18 @@ final case class BuildConfigModel(
   offsetY: Int,
   name: String,
   editingId: Option[String],
-  prefill: (List[StoredLayout], List[StoredImage], List[StoredPalette]) => (
-    Option[String],
-    Option[String],
-    Option[String]
-  ))
+  prefill: PrefillSpec)
+
+/** Data-only description of which selections to prefill when editing an existing build config.
+  * Replaces the function `(List[...], ...) => (Option[String], ...)` that was stored in the model.
+  */
+enum PrefillSpec {
+  case Empty
+  case FromExisting(
+    gridConfig: Option[Layout],
+    imageRef: Option[String],
+    paletteRef: Option[String])
+}
 
 enum BuildConfigMsg {
   case LoadedLayouts(list: List[StoredLayout])
@@ -417,6 +436,7 @@ enum BuildConfigMsg {
   case SetName(name: String)
   case Save
   case LoadedForSave(list: List[StoredBuildConfig])
+  case Saved
   case SaveFailed
   case Back
   case DrawPreview

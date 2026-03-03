@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{Color, LegoColor, NavigateNext, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
+import clemniem.{Color, LegoColor, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
@@ -11,7 +11,7 @@ import tyrian.*
 /** Palette editor: list of colors (default 4, max 16), editable by hex or color picker; reorder with arrows. */
 object PaletteScreen extends Screen {
   type Model = PaletteModel
-  type Msg   = PaletteMsg | NavigateNext
+  type Msg   = PaletteMsg
 
   val screenId: ScreenId = ScreenId.PaletteId
 
@@ -19,7 +19,7 @@ object PaletteScreen extends Screen {
     Vector(Color(0, 0, 0), Color(255, 255, 255), Color(200, 50, 50), Color(50, 120, 200))
   private val maxColors = 16
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
     val model = previous match {
       case Some(ScreenOutput.EditPalette(stored)) =>
         val colors =
@@ -96,7 +96,6 @@ object PaletteScreen extends Screen {
     case PaletteMsg.Save =>
       val cmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
         PaletteMsg.LoadedForSave.apply,
-        _ => PaletteMsg.LoadedForSave(Nil),
         (_, _) => PaletteMsg.LoadedForSave(Nil)
       )
       (model, cmd)
@@ -109,16 +108,19 @@ object PaletteScreen extends Screen {
         case None         => list :+ stored
       }
       val saveCmd = LocalStorageUtils.saveList(StorageKeys.palettes, newList)(
-        _ => NavigateNext(ScreenId.PalettesId, None),
+        _ => PaletteMsg.Saved,
         (_, _) => PaletteMsg.SaveFailed
       )
       (model, saveCmd)
+
+    case PaletteMsg.Saved =>
+      (model, navCmd(ScreenId.PalettesId, None))
 
     case PaletteMsg.SaveFailed =>
       (model, Cmd.None)
 
     case PaletteMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.PalettesId, None)))
+      (model, navCmd(ScreenId.PalettesId, None))
 
     case PaletteMsg.ToggleLegoPickerForAdd =>
       val next =
@@ -144,9 +146,6 @@ object PaletteScreen extends Screen {
         (model.copy(colors = model.colors :+ lc.color, legoPickerForAdd = false), Cmd.None)
 
     case PaletteMsg.NoOp =>
-      (model, Cmd.None)
-
-    case _: NavigateNext =>
       (model, Cmd.None)
   }
 
@@ -290,6 +289,7 @@ enum PaletteMsg {
   case PickLegoColorForAdd(lc: LegoColor)
   case Save
   case LoadedForSave(list: List[StoredPalette])
+  case Saved
   case SaveFailed
   case Back
   case NoOp

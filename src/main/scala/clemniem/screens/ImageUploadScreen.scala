@@ -6,7 +6,6 @@ import clemniem.{
   AutoQuantize,
   Color,
   FromPalette,
-  NavigateNext,
   PaletteMode,
   PixelPic,
   PixelPicService,
@@ -39,7 +38,7 @@ import scala.concurrent.duration.DurationInt
 /** Upload image: max 5000×5000, auto downscale to 500×500 with optional dithering, optional palette 4–16 colors. */
 object ImageUploadScreen extends Screen {
   type Model = ImageUploadModel
-  type Msg   = ImageUploadMsg | NavigateNext
+  type Msg   = ImageUploadMsg
 
   val screenId: ScreenId = ScreenId.ImageUploadId
 
@@ -58,7 +57,7 @@ object ImageUploadScreen extends Screen {
       OrderedBayerDithering.Size4,
       OrderedBayerDithering.Size8)
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
     val model = ImageUploadModel(
       name = "Unnamed image",
       pixelPic = None,
@@ -80,7 +79,6 @@ object ImageUploadScreen extends Screen {
     )
     val palettesCmd = LocalStorageUtils.loadList(StorageKeys.palettes)(
       ImageUploadMsg.LoadedPalettes.apply,
-      _ => ImageUploadMsg.LoadedPalettes(Nil),
       (_, _) => ImageUploadMsg.LoadedPalettes(Nil)
     )
     (model, Cmd.Batch(fileCmd, palettesCmd))
@@ -247,7 +245,6 @@ object ImageUploadScreen extends Screen {
         case Some(_) =>
           val cmd = LocalStorageUtils.loadList(StorageKeys.images)(
             ImageUploadMsg.LoadedForSave.apply,
-            _ => ImageUploadMsg.LoadedForSave(Nil),
             (_, _) => ImageUploadMsg.LoadedForSave(Nil)
           )
           (model.copy(loading = true), cmd)
@@ -260,7 +257,7 @@ object ImageUploadScreen extends Screen {
           val stored  = StoredImage(id = id, name = model.name, pixelPic = pic)
           val newList = list :+ stored
           val saveCmd = LocalStorageUtils.saveList(StorageKeys.images, newList)(
-            _ => NavigateNext(ScreenId.ImagesId, None),
+            _ => ImageUploadMsg.Saved,
             (_, _) => ImageUploadMsg.SaveFailed
           )
           (model.copy(loading = false), saveCmd)
@@ -268,11 +265,14 @@ object ImageUploadScreen extends Screen {
           (model.copy(loading = false), Cmd.None)
       }
 
+    case ImageUploadMsg.Saved =>
+      (model.copy(loading = false), navCmd(ScreenId.ImagesId, None))
+
     case ImageUploadMsg.SaveFailed =>
       (model.copy(loading = false, error = Some("Failed to save")), Cmd.None)
 
     case ImageUploadMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.ImagesId, None)))
+      (model, navCmd(ScreenId.ImagesId, None))
 
     case ImageUploadMsg.DrawPreview =>
       val cmd = model.pixelPic match {
@@ -282,9 +282,6 @@ object ImageUploadScreen extends Screen {
       (model, cmd)
 
     case ImageUploadMsg.NoOp =>
-      (model, Cmd.None)
-
-    case _: NavigateNext =>
       (model, Cmd.None)
   }
 
@@ -296,7 +293,7 @@ object ImageUploadScreen extends Screen {
       canvas.width = pic.width
       canvas.height = pic.height
       ctx.clearRect(0, 0, pic.width, pic.height)
-      clemniem.common.CanvasUtils.drawPixelPic(canvas, ctx, pic, pic.width, pic.height, 0, 0)
+      clemniem.common.CanvasUtils.drawPixelPic(ctx, pic, pic.width, pic.height, 0, 0)
     }
 
   def view(model: Model): Html[Msg] =
@@ -522,6 +519,7 @@ enum ImageUploadMsg {
   case SetColorDithering(dithering: ColorDithering)
   case Save
   case LoadedForSave(list: List[StoredImage])
+  case Saved
   case SaveFailed
   case DrawPreview
   case Back

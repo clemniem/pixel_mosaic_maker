@@ -5,7 +5,6 @@ import clemniem.{
   ColumnDef,
   GridDefMode,
   Layout,
-  NavigateNext,
   RowDef,
   Screen,
   ScreenId,
@@ -26,7 +25,7 @@ import tyrian.*
   */
 object LayoutScreen extends Screen {
   type Model = LayoutModel
-  type Msg   = LayoutMsg | NavigateNext
+  type Msg   = LayoutMsg
 
   val screenId: ScreenId = ScreenId.LayoutId
 
@@ -60,7 +59,7 @@ object LayoutScreen extends Screen {
       }
     }
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
     val model = previous match {
       case Some(ScreenOutput.EditLayout(stored)) =>
         val mode = stored.mode.getOrElse(GridDefMode.ByRows)
@@ -184,7 +183,7 @@ object LayoutScreen extends Screen {
       (model, Cmd.SideEffect(drawGrid(model.grid)))
 
     case LayoutMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.LayoutsId, None)))
+      (model, navCmd(ScreenId.LayoutsId, None))
 
     case LayoutMsg.SetName(name) =>
       (model.copy(name = name), Cmd.None)
@@ -196,7 +195,6 @@ object LayoutScreen extends Screen {
       else {
         val cmd = LocalStorageUtils.loadList(StorageKeys.layouts)(
           LayoutMsg.LoadedForSave.apply,
-          _ => LayoutMsg.LoadedForSave(Nil),
           (_, _) => LayoutMsg.LoadedForSave(Nil)
         )
         (model, cmd)
@@ -245,18 +243,18 @@ object LayoutScreen extends Screen {
         case None         => list :+ stored
       }
       val saveCmd = LocalStorageUtils.saveList(StorageKeys.layouts, newList)(
-        _ => NavigateNext(ScreenId.LayoutsId, None),
+        _ => LayoutMsg.Saved,
         (msg, _) => LayoutMsg.SaveFailed(msg)
       )
       (model, saveCmd)
+
+    case LayoutMsg.Saved =>
+      (model, navCmd(ScreenId.LayoutsId, None))
 
     case LayoutMsg.SaveFailed(_) =>
       (model, Cmd.None)
 
     case LayoutMsg.NoOp =>
-      (model, Cmd.None)
-
-    case _: NavigateNext =>
       (model, Cmd.None)
   }
 
@@ -540,6 +538,7 @@ enum LayoutMsg {
   case SetName(name: String)
   case Save
   case LoadedForSave(list: List[StoredLayout])
+  case Saved
   case SaveFailed(message: String)
   case NormalizeWithEnlarging
   case NormalizeWithNewSections

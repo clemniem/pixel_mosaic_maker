@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{NavigateNext, Screen, ScreenId}
+import clemniem.{Screen, ScreenId}
 import clemniem.common.CmdUtils
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
@@ -13,22 +13,20 @@ import tyrian.*
   */
 object OverviewScreen extends Screen {
   type Model = Unit
-  type Msg   = OverviewMsg | NavigateNext
+  type Msg   = OverviewMsg
 
   val screenId: ScreenId = ScreenId.OverviewId
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) =
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) =
     ((), Cmd.None)
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case OverviewMsg.GoTo(screenId) =>
-      (model, Cmd.Emit(NavigateNext(screenId, None)))
+      (model, navCmd(screenId, None))
     case OverviewMsg.ToggleTheme =>
       val run = IO(dom.document.body.classList.toggle("theme-gameboy"))
       (model, CmdUtils.fireAndForget(run.void, OverviewMsg.NoOp, _ => OverviewMsg.NoOp))
     case OverviewMsg.NoOp =>
-      (model, Cmd.None)
-    case _: NavigateNext =>
       (model, Cmd.None)
   }
 
@@ -45,8 +43,8 @@ object OverviewScreen extends Screen {
         text("Pick a step to manage your saved items or create new ones.")
       ),
       div(`class` := "flex-col flex-col--gap-1 screen-container-inner")(
-        ScreenId.overviewScreenIds.flatMap { id =>
-          id.overviewDescription.map(desc => linkCard(id.title, id, desc))
+        ScreenFlow.overviewScreenIds.flatMap { id =>
+          ScreenFlow.overviewDescription(id).map(desc => linkCard(id.title, id, desc))
         }*
       ),
       div(`class` := "screen-about-link", onClick(OverviewMsg.GoTo(ScreenId.AboutId)))(text("about"))

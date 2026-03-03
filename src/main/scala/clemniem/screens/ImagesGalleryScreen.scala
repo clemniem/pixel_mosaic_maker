@@ -1,8 +1,8 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{Color, NavigateNext, PixelPic, Screen, ScreenId, ScreenOutput, StorageKeys, StoredImage}
-import clemniem.common.{CanvasUtils, LocalStorageUtils}
+import clemniem.{Color, Screen, ScreenId, ScreenOutput, StorageKeys, StoredImage}
+import clemniem.common.CanvasUtils
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
 import org.scalajs.dom.html.Canvas
@@ -11,120 +11,59 @@ import tyrian.*
 
 /** Gallery of saved images. Empty state: "Upload". */
 object ImagesGalleryScreen extends Screen {
-  type Model = ImagesGalleryModel
-  type Msg   = ImagesGalleryMsg | NavigateNext
+  type Model = Gallery.State[StoredImage]
+  type Msg   = ImagesGalleryMsg
 
   val screenId: ScreenId = ScreenId.ImagesId
 
   private val previewWidth  = CanvasUtils.galleryPreviewWidth
   private val previewHeight = CanvasUtils.galleryPreviewHeight
 
-  def init(previous: Option[clemniem.ScreenOutput]): (Model, Cmd[IO, Msg]) = {
-    val cmd = LocalStorageUtils.loadList(StorageKeys.images)(
-      ImagesGalleryMsg.Loaded.apply,
-      _ => ImagesGalleryMsg.Loaded(Nil),
-      (_, _) => ImagesGalleryMsg.Loaded(Nil)
-    )
-    (ImagesGalleryModel(None, None, currentPage = 1), cmd)
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
+    val cmd = Gallery.loadCmd(StorageKeys.images, ImagesGalleryMsg.Loaded.apply, (_, _) => ImagesGalleryMsg.Loaded(Nil))
+    (Gallery.initState, cmd)
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case ImagesGalleryMsg.Loaded(list) =>
-      val drawPreviews =
+      val next = Gallery.onLoaded(model, list, GalleryLayout.defaultPageSize)
+      val cmd =
         if (list.isEmpty) Cmd.None
-        else
-          Cmd.SideEffect(
-            CanvasUtils.runAfterFrames(3)(
-              list.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
-            )
-          )
-      val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
-      val page       = GalleryLayout.clampPage(model.currentPage, totalPages)
-      (model.copy(list = Some(list), currentPage = page), drawPreviews)
+        else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(list)))
+      (next, cmd)
     case ImagesGalleryMsg.CreateNew =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.ImageUploadId, None)))
+      (model, navCmd(ScreenId.ImageUploadId, None))
     case ImagesGalleryMsg.Back =>
-      (model, Cmd.Emit(NavigateNext(ScreenId.OverviewId, None)))
+      (model, navCmd(ScreenId.OverviewId, None))
     case ImagesGalleryMsg.DrawPreview(stored) =>
       (model, Cmd.SideEffect(drawPreview(stored)))
     case ImagesGalleryMsg.Delete(stored) =>
-      (model.copy(pendingDeleteId = Some(stored.id)), Cmd.None)
+      (Gallery.onRequestDelete(model, stored.id), Cmd.None)
     case ImagesGalleryMsg.ConfirmDelete(id) =>
-      val (newList, newPage, cmd) = LocalStorageUtils.confirmDelete(
-        model.list,
-        id,
-        StorageKeys.images,
-        GalleryLayout.defaultPageSize,
-        model.currentPage,
-        ImagesGalleryMsg.CancelDelete,
-        _.id
-      )
-      (model.copy(list = newList, pendingDeleteId = None, currentPage = newPage), cmd)
+      Gallery.onConfirmDelete(model, id, StorageKeys.images, GalleryLayout.defaultPageSize, ImagesGalleryMsg.CancelDelete)
     case ImagesGalleryMsg.CancelDelete =>
-      (model.copy(pendingDeleteId = None), Cmd.None)
+      (Gallery.onCancelDelete(model), Cmd.None)
     case ImagesGalleryMsg.PreviousPage =>
-      val next = model.copy(currentPage = (model.currentPage - 1).max(1))
-      val cmd = next.list match {
-        case Some(list) if list.nonEmpty =>
-          Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
-        case _ => Cmd.None
-      }
-      (next, cmd)
+      val next = Gallery.onPreviousPage(model)
+      (next, redrawCurrentPageCmd(next))
     case ImagesGalleryMsg.NextPage =>
-      model.list match {
-        case Some(list) =>
-          val totalPages = GalleryLayout.totalPagesFor(list.size, GalleryLayout.defaultPageSize)
-          val next       = model.copy(currentPage = (model.currentPage + 1).min(totalPages))
-          val cmd =
-            if (list.isEmpty) Cmd.None
-            else Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsForCurrentPage(next)))
-          (next, cmd)
-        case None => (model, Cmd.None)
-      }
-    case _: NavigateNext =>
-      (model, Cmd.None)
+      val next = Gallery.onNextPage(model, GalleryLayout.defaultPageSize)
+      (next, redrawCurrentPageCmd(next))
   }
 
-  def view(model: Model): Html[Msg] = {
-    val backBtn = GalleryLayout.backButton(ImagesGalleryMsg.Back, "Overview")
-    val nextBtn = GalleryLayout.nextButton(NavigateNext(ScreenId.nextInOverviewOrder(screenId), None))
-    model.list match {
-      case None =>
-        GalleryLayout(
-          screenId.title,
-          backBtn,
-          p(`class` := NesCss.text)(text("Loading…")),
-          shortHeader = true,
-          Some(nextBtn))
-      case Some(list) =>
-        val content =
-          if (list.isEmpty)
-            GalleryEmptyState("No images yet.", "Upload", ImagesGalleryMsg.CreateNew)
-          else
-            paginatedList(
-              list,
-              model.currentPage,
-              button(`class` := NesCss.btnPrimary, onClick(ImagesGalleryMsg.CreateNew))(text("Upload")),
-              item => entryCard(item, model.pendingDeleteId.contains(item.id))
-            )
-        GalleryLayout(screenId.title, backBtn, content, shortHeader = true, Some(nextBtn))
-    }
-  }
-
-  private def paginatedList(
-    list: List[StoredImage],
-    currentPage: Int,
-    addAction: Html[Msg],
-    entryCard: StoredImage => Html[Msg]
-  ): Html[Msg] =
-    GalleryLayout.paginatedListWith(
-      list,
-      currentPage,
+  def view(model: Model): Html[Msg] =
+    Gallery.view(
+      screenId.title,
+      model,
       GalleryLayout.defaultPageSize,
-      addAction,
-      entryCard,
+      shortHeader = true,
+      ImagesGalleryMsg.Back,
+      navMsg(ScreenFlow.nextInOverviewOrder(screenId), None),
       ImagesGalleryMsg.PreviousPage,
-      ImagesGalleryMsg.NextPage
+      ImagesGalleryMsg.NextPage,
+      GalleryEmptyState("No images yet.", "Upload", ImagesGalleryMsg.CreateNew),
+      button(`class` := NesCss.btnPrimary, onClick(ImagesGalleryMsg.CreateNew))(text("Upload")),
+      entryCard
     )
 
   private def entryCard(item: StoredImage, confirmingDelete: Boolean): Html[Msg] =
@@ -132,19 +71,17 @@ object ImagesGalleryScreen extends Screen {
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),
         span(`class` := "gallery-card-meta nes-text")(
-          text(s"${item.pixelPic.width}×${item.pixelPic.height} px · ${item.pixelPic.paletteLookup.size} colors")
+          text(s"${item.pixelPic.width}\u00d7${item.pixelPic.height} px \u00b7 ${item.pixelPic.paletteLookup.size} colors")
         ),
         paletteRow(item),
-        if (confirmingDelete)
-          GalleryLayout.galleryDeleteConfirm(
-            s"Delete \"${item.name}\"?",
-            ImagesGalleryMsg.ConfirmDelete(item.id),
-            ImagesGalleryMsg.CancelDelete
-          )
-        else
-          GalleryLayout.galleryActionsRow(
-            button(`class` := NesCss.btnError, onClick(ImagesGalleryMsg.Delete(item)))(text("Delete"))
-          )
+        Gallery.deleteOrActions(
+          confirmingDelete,
+          item.name,
+          item.id,
+          ImagesGalleryMsg.ConfirmDelete.apply,
+          ImagesGalleryMsg.CancelDelete,
+          button(`class` := NesCss.btnError, onClick(ImagesGalleryMsg.Delete(item)))(text("Delete"))
+        )
       ),
       div(`class` := "gallery-card-preview")(
         div(`class` := "gallery-preview-wrap")(
@@ -167,40 +104,34 @@ object ImagesGalleryScreen extends Screen {
     div(style := "margin-top: 0.35rem;", title := "Click to save as palette")(
       button(
         `class` := s"${NesCss.btn} palette-button-inline",
-        onClick(NavigateNext(ScreenId.PaletteId, Some(output))))(
+        onClick(navMsg(ScreenId.PaletteId, Some(output))))(
         PaletteStripView.swatches(colors)*
       )
     )
   }
 
-  private def drawPreviewsForCurrentPage(model: Model): IO[Unit] =
-    model.list match {
+  private def redrawCurrentPageCmd(model: Model): Cmd[IO, Msg] =
+    model.items match {
       case Some(list) if list.nonEmpty =>
-        val pageSize = GalleryLayout.defaultPageSize
-        val start    = (model.currentPage - 1) * pageSize
-        val slice    = list.slice(start, start + pageSize)
-        slice.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
-      case _ => IO.unit
+        val start = (model.currentPage - 1) * GalleryLayout.defaultPageSize
+        val slice = list.slice(start, start + GalleryLayout.defaultPageSize)
+        Cmd.SideEffect(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)))
+      case _ => Cmd.None
     }
+
+  private def drawPreviewsIO(items: List[StoredImage]): IO[Unit] =
+    items.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
 
   private def drawPreview(stored: StoredImage): IO[Unit] =
-    CanvasUtils.drawGalleryPreview(s"image-preview-${stored.id}")((canvas: Canvas, ctx: CanvasRenderingContext2D) =>
-      drawPixelPicScaled(canvas, ctx, stored.pixelPic))
-
-  private def drawPixelPicScaled(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
-    ctx.clearRect(0, 0, previewWidth, previewHeight)
-    if (pic.width > 0 && pic.height > 0) {
-      val fit = CanvasUtils.scaleToFit(pic.width, pic.height, previewWidth, previewHeight, Double.MaxValue)
-      CanvasUtils.drawPixelPic(canvas, ctx, pic, fit.width, fit.height, fit.offsetX, fit.offsetY)
-    }
-  }
-
+    CanvasUtils.drawGalleryPreview(s"image-preview-${stored.id}")((_: Canvas, ctx: CanvasRenderingContext2D) => {
+      ctx.clearRect(0, 0, previewWidth, previewHeight)
+      val pic = stored.pixelPic
+      if (pic.width > 0 && pic.height > 0) {
+        val fit = CanvasUtils.scaleToFit(pic.width, pic.height, previewWidth, previewHeight, Double.MaxValue)
+        CanvasUtils.drawPixelPic(ctx, pic, fit.width, fit.height, fit.offsetX, fit.offsetY)
+      }
+    })
 }
-
-final case class ImagesGalleryModel(
-  list: Option[List[StoredImage]],
-  pendingDeleteId: Option[String],
-  currentPage: Int)
 
 enum ImagesGalleryMsg {
   case Loaded(list: List[StoredImage])

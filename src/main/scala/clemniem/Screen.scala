@@ -3,149 +3,44 @@ package clemniem
 import cats.effect.IO
 import tyrian.{Cmd, Html, Sub}
 
-/** Identifies a screen in the SPA. See docs/FLOW.md for the six-step flow. */
-trait ScreenId {
-  def name: String
-
-  /** Display title used in the UI (e.g. header, document title, overview link card). */
-  def title: String
-
-  /** Short description for the overview page link card. None = screen is not shown on overview. */
-  def overviewDescription: Option[String] = None
+/** Identifies a screen in the SPA. Scala 3 enum enables exhaustive matching. */
+enum ScreenId(val name: String, val title: String) {
+  case OverviewId         extends ScreenId("overview", "Overview")
+  case LayoutsId          extends ScreenId("grid-configs", "Layout")
+  case LayoutId           extends ScreenId("grid-config", "Edit layout")
+  case PalettesId         extends ScreenId("palettes", "Palettes")
+  case PaletteId          extends ScreenId("palette", "Palette")
+  case ImagesId           extends ScreenId("images", "Images")
+  case BuildConfigsId     extends ScreenId("build-configs", "Mosaic setup")
+  case BuildsId           extends ScreenId("builds", "Build")
+  case ImageUploadId      extends ScreenId("image-upload", "Upload image")
+  case BuildConfigId      extends ScreenId("build-config", "Mosaic setup")
+  case BuildId            extends ScreenId("build", "Building steps")
+  case PrintConfigsId     extends ScreenId("print-configs", "Print")
+  case PrintInstructionsId extends ScreenId("print-instructions", "Print")
+  case AboutId            extends ScreenId("about", "About")
 }
 
-/** All screen IDs: Overview (home), galleries (list of saved items), and flow/editor screens. */
-object ScreenId {
-  case object OverviewId extends ScreenId { val name = "overview"; val title = "Overview" }
-  case object LayoutsId extends ScreenId {
-    val name                         = "grid-configs"; val title = "Layout";
-    override val overviewDescription = Some("How your mosaic is split into sections")
-  }
-  case object LayoutId extends ScreenId { val name = "grid-config"; val title = "Edit layout" }
-  case object PalettesId extends ScreenId {
-    val name = "palettes"; val title = "Palettes"; override val overviewDescription = Some("Color palettes")
-  }
-  case object PaletteId extends ScreenId { val name = "palette"; val title = "Palette" }
-  case object ImagesId extends ScreenId {
-    val name = "images"; val title = "Images"; override val overviewDescription = Some("Upload and manage your images")
-  }
-  case object BuildConfigsId extends ScreenId {
-    val name                         = "build-configs"; val title = "Mosaic setup";
-    override val overviewDescription = Some("Choose layout, image and colors")
-  }
-  case object BuildsId extends ScreenId {
-    val name                         = "builds"; val title = "Build";
-    override val overviewDescription = Some("Step-by-step building instructions")
-  }
-  case object ImageUploadId extends ScreenId { val name = "image-upload"; val title = "Upload image" }
-  case object BuildConfigId extends ScreenId { val name = "build-config"; val title = "Mosaic setup" }
-  case object BuildId       extends ScreenId { val name = "build"; val title = "Building steps"      }
-  case object PrintConfigsId extends ScreenId {
-    val name                         = "print-configs"; val title = "Print";
-    override val overviewDescription = Some("Create a printable PDF guide")
-  }
-  case object PrintInstructionsId extends ScreenId {
-    val name = "print-instructions"; val title = "Print"
-  }
-  case object AboutId extends ScreenId { val name = "about"; val title = "About" }
-
-  /** Screen IDs shown on the overview page as link cards, in order. */
-  val overviewScreenIds: List[ScreenId] =
-    List(ImagesId, PalettesId, LayoutsId, BuildConfigsId, BuildsId, PrintConfigsId)
-
-  /** Next screen in the overview flow (for the "Next →" button). Overview → first in list; last → Overview; editors →
-    * next after their gallery.
-    */
-  def nextInOverviewOrder(current: ScreenId): ScreenId =
-    if (current == OverviewId) overviewScreenIds.head
-    else {
-      val idx = overviewScreenIds.indexOf(current)
-      if (idx >= 0) {
-        if (idx + 1 < overviewScreenIds.length) overviewScreenIds(idx + 1)
-        else OverviewId
-      } else
-        current match {
-          case LayoutId      => PalettesId
-          case PaletteId     => LayoutsId
-          case ImageUploadId => BuildConfigsId
-          case BuildConfigId => BuildsId
-          case BuildId       => PrintConfigsId
-          case AboutId       => OverviewId
-          case _             => OverviewId
-        }
-    }
-}
-
-/** Data passed from one screen to the next when navigating. See docs/FLOW.md for the six-step flow. */
-sealed trait ScreenOutput
-
-object ScreenOutput {
-
-  /** Step 1 → next: chosen layout of sections. */
-  final case class LayoutDone(grid: Layout) extends ScreenOutput
-
-  /** Step 2 → next: uploaded and prepped pixel image (pixel-true, palette-reduced). */
-  final case class ImageUploaded(name: String) extends ScreenOutput
-  // TODO: add pixelImage: PixelImage when type exists (see gbcamutil PixelPic)
-
-  /** Step 3 → next: chosen palette combination. */
-  final case class PaletteChosen(paletteId: String) extends ScreenOutput
-  // TODO: add palette type when Palettes screen exists (see gbcamutil ChangePalette / LegoColor)
-
-  /** Step 4 → next: build = Palette + Layout + Image + Offset (stateless). */
-  final case class BuildConfigDone(config: BuildConfig) extends ScreenOutput
-
-  /** Step 5 → Print: same config, for PDF generation. */
-  final case class BuildStarted(config: BuildConfig) extends ScreenOutput
-
-  /** Open layout editor to edit an existing stored layout. */
-  final case class EditLayout(stored: StoredLayout) extends ScreenOutput
-
-  /** Open palette editor to edit an existing stored palette. */
-  final case class EditPalette(stored: StoredPalette) extends ScreenOutput
-
-  /** Open palette editor with colors from an image (e.g. from Images gallery) so the user can save as a palette. */
-  final case class NewPaletteFromImage(name: String, colors: Vector[Color]) extends ScreenOutput
-
-  /** Open build config editor to edit an existing stored config. */
-  final case class EditBuildConfig(stored: StoredBuildConfig) extends ScreenOutput
-
-  /** Start the step-by-step build with the selected build config (sections → 16×16 cells). */
-  final case class StartBuild(stored: StoredBuildConfig) extends ScreenOutput
-
-  /** Resume a build from the builds list (has buildConfigRef + savedStepIndex). */
-  final case class ResumeBuild(stored: StoredBuild) extends ScreenOutput
-
-  /** Open the print instructions screen with a previously saved print config. */
-  final case class OpenPrintConfig(stored: StoredPrintConfig) extends ScreenOutput
-}
-
-/** Root-level messages: navigation or delegation to the current screen. */
+/** Root-level messages: navigation or delegation to the current screen.
+  * The `output` in [[NavigateTo]] is `Any` so the framework has no dependency on application-level output types.
+  * Each screen's `init` casts it to the expected type via pattern matching.
+  */
 sealed trait RootMsg
 object RootMsg {
-  case class NavigateTo(screenId: ScreenId, output: Option[ScreenOutput]) extends RootMsg
-  case class HandleScreenMsg(screenId: ScreenId, msg: Any)                extends RootMsg
+  case class NavigateTo(screenId: ScreenId, output: Option[Any]) extends RootMsg
+  case class HandleScreenMsg(screenId: ScreenId, msg: Any)       extends RootMsg
 }
 
-/** Message a screen can emit to request navigation to another screen with optional output. Include this in your
-  * screen's Msg type (e.g. `enum MyMsg { case A; case B; case GoNext(s: ScreenId, o: Option[ScreenOutput]) }`) or use
-  * [[NavigateNext]] directly so the root app can handle it and switch screens.
+/** Message a screen can emit to request navigation to another screen with optional output data.
+  * Intercepted in [[Screen.wrapMsg]] and converted to [[RootMsg.NavigateTo]].
   */
-case class NavigateNext(screenId: ScreenId, output: Option[ScreenOutput])
+case class NavigateNext(screenId: ScreenId, output: Option[Any])
 
 /** Abstraction for a single screen in the SPA. Each screen has its own Model, Msg, init, update, view, and
   * subscriptions. Use [[wrapMsg]] to lift screen messages to [[RootMsg]] so the root app can run [[Cmd]]/[[Sub]].
   *
-  * To add a new screen:
-  *   1. Define a [[ScreenId]] case object (e.g. in the same file as the screen).
-  *   2. Extend [[ScreenOutput]] with a case class for the data this screen receives from the previous step (if any).
-  *   3. Implement a [[Screen]] (object or class) with init/update/view/subscriptions.
-  *   4. Register the screen in [[ScreenRegistry]] and set [[ScreenRegistry.initialScreenId]] or navigate via
-  *      [[RootMsg.NavigateTo]].
-  *
-  * To navigate to the next screen from within a screen: include [[NavigateNext]] in your screen's Msg type and emit
-  * `Cmd.Emit(NavigateNext(nextScreenId, Some(yourOutput)))`. The root app will run the next screen's
-  * `init(Some(yourOutput))`. You can also emit [[RootMsg.NavigateTo]] from outside (e.g. router) if needed.
+  * The framework is decoupled from application-level output types: `init` receives `Option[Any]` and each screen
+  * pattern-matches on the expected type. Use [[navCmd]] / [[navMsg]] helpers to navigate between screens.
   */
 trait Screen {
   type Model
@@ -154,8 +49,10 @@ trait Screen {
   /** Unique identifier for this screen (use this, not `id`, to avoid shadowing HTML's `id` attribute). */
   val screenId: ScreenId
 
-  /** Initial state and optional command. `previous` is the output from the previous screen, if any. */
-  def init(previous: Option[ScreenOutput]): (Model, Cmd[IO, Msg])
+  /** Initial state and optional command. `previous` is the navigation output from the previous screen (if any).
+    * Cast to the expected application-level output type via pattern matching.
+    */
+  def init(previous: Option[Any]): (Model, Cmd[IO, Msg])
 
   /** Update state and optional command in response to a message. */
   def update(model: Model): Msg => (Model, Cmd[IO, Msg])
@@ -166,6 +63,55 @@ trait Screen {
   /** Optional subscriptions. Default: none. */
   def subscriptions(model: Model): Sub[IO, Msg] = Sub.None
 
-  /** Lifts a screen message to [[RootMsg]] so the root app can dispatch it. */
-  def wrapMsg(msg: Msg): RootMsg = RootMsg.HandleScreenMsg(screenId, msg)
+  /** Lifts a screen message to [[RootMsg]] so the root app can dispatch it.
+    * [[NavigateNext]] is intercepted and converted to [[RootMsg.NavigateTo]] so the root handler never needs
+    * to dig into `Any` to find navigation requests.
+    */
+  def wrapMsg(msg: Msg): RootMsg = (msg: Any) match {
+    case n: NavigateNext => RootMsg.NavigateTo(n.screenId, n.output)
+    case _               => RootMsg.HandleScreenMsg(screenId, msg)
+  }
+
+  /** Create a [[Cmd]] that navigates to another screen. The emitted [[NavigateNext]] is converted to
+    * [[RootMsg.NavigateTo]] by [[wrapMsg]], so it never reaches any screen's update function.
+    */
+  protected def navCmd(target: ScreenId, output: Option[Any]): Cmd[IO, Msg] =
+    Cmd.Emit(NavigateNext(target, output).asInstanceOf[Msg])
+
+  /** Create a [[NavigateNext]] typed as this screen's [[Msg]]. For use in `onClick` handlers and callbacks.
+    * [[wrapMsg]] will convert it to [[RootMsg.NavigateTo]].
+    */
+  protected def navMsg(target: ScreenId, output: Option[Any]): Msg =
+    NavigateNext(target, output).asInstanceOf[Msg]
+}
+
+/** Type-safe wrapper that pairs a [[Screen]] with its model, encapsulating the `asInstanceOf` casts in one place.
+  * The rest of the application (root update, view, subscriptions) works with `ActiveScreen` and never sees `Any`.
+  *
+  * The message cast is the only remaining unsafe boundary — under JVM/JS type erasure the screen-level Msg type
+  * cannot be checked at runtime. The guard `screenId == model.currentScreenId` in the root update prevents stale
+  * messages from reaching the wrong screen.
+  */
+final class ActiveScreen private (val screen: Screen, private val modelValue: Any) {
+
+  def view: Html[RootMsg] =
+    screen.view(modelValue.asInstanceOf[screen.Model]).map(screen.wrapMsg)
+
+  def subscriptions: Sub[IO, RootMsg] =
+    screen.subscriptions(modelValue.asInstanceOf[screen.Model]).map(screen.wrapMsg)
+
+  def update(msg: Any): (ActiveScreen, Cmd[IO, RootMsg]) = {
+    val (newModel, cmd) =
+      screen.update(modelValue.asInstanceOf[screen.Model])(msg.asInstanceOf[screen.Msg])
+    (new ActiveScreen(screen, newModel), cmd.map(screen.wrapMsg))
+  }
+}
+
+object ActiveScreen {
+
+  /** Create an [[ActiveScreen]] by running a screen's `init`. */
+  def fromInit(screen: Screen, output: Option[Any]): (ActiveScreen, Cmd[IO, RootMsg]) = {
+    val (model, cmd) = screen.init(output)
+    (new ActiveScreen(screen, model), cmd.map(screen.wrapMsg))
+  }
 }

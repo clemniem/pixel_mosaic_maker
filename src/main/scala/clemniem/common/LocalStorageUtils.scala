@@ -1,13 +1,11 @@
 package clemniem.common
 
 import cats.effect.IO
-import clemniem.screens.GalleryLayout
 import io.circe.syntax.*
 import io.circe.{Decoder, Encoder}
 import tyrian.Cmd
 import tyrian.cmds.LocalStorage
 
-import scala.annotation.unused
 import scala.scalajs.js
 
 /** Generic LocalStorage helpers to save/load case classes (JSON via circe). Use these to persist multiple outputs per
@@ -77,7 +75,6 @@ object LocalStorageUtils {
   def loadList[A, M](
     key: String
   )(success: List[A] => M,
-    @unused notFound: String => M,
     failure: (String, String) => M
   )(using Decoder[List[A]]
   ): Cmd[IO, M] =
@@ -111,8 +108,8 @@ object LocalStorageUtils {
       case Some(list) =>
         val newList    = list.filterNot(a => getId(a) == id)
         val saveCmd    = saveList(storageKey, newList)(_ => cancelMsg, (_, _) => cancelMsg)
-        val totalPages = GalleryLayout.totalPagesFor(newList.size, pageSize)
-        (Some(newList), GalleryLayout.clampPage(currentPage, totalPages), saveCmd)
+        val totalPages = Pagination.totalPagesFor(newList.size, pageSize)
+        (Some(newList), Pagination.clampPage(currentPage, totalPages), saveCmd)
       case None =>
         (listOpt, currentPage, Cmd.None)
     }
