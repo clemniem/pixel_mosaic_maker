@@ -143,7 +143,7 @@ object PdfUtils {
     * Unfilled area is the page background (no separate track/shadow).
     *
     * Booklet rules:
-    *   - No bar on the first 3 PDF pages (cover front, cover back, first content right-hand page).
+    *   - No bar on the first 3 PDF pages (cover front, cover back, full overview) or the last page (back cover).
     *   - Left pages fill during the first half of overall progress (0–50%).
     *   - Right pages fill during the second half (50–100%); left is fully filled once progress >= 50%.
     */
@@ -155,7 +155,7 @@ object PdfUtils {
     printerMarginMm: Double
   ): List[Instruction] = {
     val pageIndex0Based = pageIndex1Based - 1
-    if (totalPages <= 0 || pageIndex0Based < 3) Nil
+    if (totalPages <= 0 || pageIndex0Based < 3 || pageIndex1Based == totalPages) Nil
     else {
       val m    = printerMarginMm.max(0.0)
       val barX = m
@@ -254,19 +254,21 @@ object PdfUtils {
     val availableW      = pageW - 2 * marginLR
     val availableH      = pageH - 2 * marginTB
 
-    val (coverInstrs, afterCoverInstrs, chapterInstrs) = request.mosaicPicAndGridOpt match {
+    val contentInstrs = request.mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
         val cover        = coverWithMosaic(request.title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
-        val emptyPage    = List(Instruction.AddPage)
+        val backOfCover  = Instruction.AddPage :: coverMosaicImageOnly(pic, pageW, pageH, marginLR, marginTB, availableW, config)
         val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.contentTopOffsetMm, config)
-        val chapters =
-          allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.stepSizePx, request.contentTopOffsetMm, request.patchBackgroundColor, request.stacked, config)
-        (cover, emptyPage ++ fullOverview, chapters)
+        val chapters     = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.stepSizePx, request.contentTopOffsetMm, request.patchBackgroundColor, request.stacked, config)
+        val chapterPages = chapters.count { case Instruction.AddPage => true; case _ => false }
+        val padding      = if (chapterPages % 2 == 1) fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.contentTopOffsetMm, config) else Nil
+        val backCover    = Instruction.AddPage :: coverMosaicImageOnly(pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        cover ++ backOfCover ++ fullOverview ++ chapters ++ padding ++ backCover
       case None =>
-        (PdfLayout.coverInstructions(request.title, printerMarginMm, config), List(Instruction.AddPage), Nil)
+        PdfLayout.coverInstructions(request.title, printerMarginMm, config) ++ List(Instruction.AddPage)
     }
 
-    val rawInstructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save("__preview__.pdf")
+    val rawInstructions = contentInstrs :+ Instruction.Save("__preview__.pdf")
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
     val withBars        = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm)
     val noSave          = withBars.filterNot { case Instruction.Save(_) => true; case _ => false }
@@ -305,19 +307,21 @@ object PdfUtils {
     val availableW     = pageW - 2 * marginLR
     val availableH     = pageH - 2 * marginTB
 
-    val (coverInstrs, afterCoverInstrs, chapterInstrs) = mosaicPicAndGridOpt match {
+    val contentInstrs = mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
         val cover        = coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
-        val emptyPage    = List(Instruction.AddPage)
+        val backOfCover  = Instruction.AddPage :: coverMosaicImageOnly(pic, pageW, pageH, marginLR, marginTB, availableW, config)
         val fullOverview = fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, contentTopOffsetMm, config)
-        val chapters =
-          allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, contentTopOffsetMm, patchBgColor, stacked, config)
-        (cover, emptyPage ++ fullOverview, chapters)
+        val chapters     = allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, contentTopOffsetMm, patchBgColor, stacked, config)
+        val chapterPages = chapters.count { case Instruction.AddPage => true; case _ => false }
+        val padding      = if (chapterPages % 2 == 1) fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, contentTopOffsetMm, config) else Nil
+        val backCover    = Instruction.AddPage :: coverMosaicImageOnly(pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        cover ++ backOfCover ++ fullOverview ++ chapters ++ padding ++ backCover
       case None =>
-        (PdfLayout.coverInstructions(title, printerMarginMm, config), List(Instruction.AddPage), Nil)
+        PdfLayout.coverInstructions(title, printerMarginMm, config) ++ List(Instruction.AddPage)
     }
     val filename = filenameFromTitle(title) + ".pdf"
-    val rawInstructions = coverInstrs ++ afterCoverInstrs ++ chapterInstrs :+ Instruction.Save(filename)
+    val rawInstructions = contentInstrs :+ Instruction.Save(filename)
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
     val instructions    = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm)
     JsPDF.run(instructions, pageBackgroundColor, printerMarginMm)
@@ -381,6 +385,53 @@ object PdfUtils {
         Color.white.r,
         Color.white.g,
         Color.white.b)
+    )
+  }
+
+  /** Cover image only (no PageSize, no title): used for page 2 (back of front cover) and last page (back cover). */
+  private def coverMosaicImageOnly(
+    pic: PixelPic,
+    pageW: Double,
+    pageH: Double,
+    marginLR: Double,
+    marginTB: Double,
+    availableW: Double,
+    config: PdfLayoutConfig
+  ): List[Instruction] = {
+    val c                 = config.cover
+    val availableH        = pageH - 2 * marginTB
+    val (pw, ph, rgbFlat) = pixelPicToRgbFlat(pic)
+    val scale             = (availableW / pw).min(availableH / ph)
+    val imageW            = pw * scale
+    val imageH            = ph * scale
+    val x0                = marginLR + (availableW - imageW) / 2
+    val y0                = marginTB + (availableH - imageH) / 2
+    val m                 = c.frameWhiteMarginMm
+    val frameX            = x0 - m
+    val frameY            = y0 - m
+    val frameW            = imageW + 2 * m
+    val frameH            = imageH + 2 * m
+    List(
+      Instruction.RoundedFillRect(
+        frameX,
+        frameY,
+        frameW,
+        frameH,
+        c.frameCornerRadiusMm,
+        Color.white.r,
+        Color.white.g,
+        Color.white.b),
+      Instruction.RoundedStrokeRect(
+        frameX,
+        frameY,
+        frameW,
+        frameH,
+        c.frameCornerRadiusMm,
+        Color.black.r,
+        Color.black.g,
+        Color.black.b,
+        c.frameStrokeLineWidthMm),
+      Instruction.DrawPixelGrid(x0, y0, imageW, imageH, pw, ph, rgbFlat)
     )
   }
 
