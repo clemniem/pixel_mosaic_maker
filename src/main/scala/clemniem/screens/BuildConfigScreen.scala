@@ -3,7 +3,6 @@ package clemniem.screens
 import cats.effect.IO
 import clemniem.{
   BuildConfig,
-  Color,
   Layout,
   PixelPic,
   Screen,
@@ -17,8 +16,6 @@ import clemniem.{
 }
 import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
-import org.scalajs.dom.CanvasRenderingContext2D
-import org.scalajs.dom.html.Canvas
 import tyrian.Html.*
 import tyrian.*
 
@@ -213,7 +210,7 @@ object BuildConfigScreen extends Screen {
         case (Some(pic), Some(storedGrid)) =>
           CanvasUtils.drawFullImageWithGrid(canvas, ctx, pic, storedGrid.config, model.offsetX, model.offsetY, 400)
         case (Some(pic), None) =>
-          drawFullImageOnly(canvas, ctx, pic)
+          renderers.BuildConfigRenderer.drawFullImage(canvas, ctx, pic, 400)
         case _ =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Select an image and colors for preview")
       }
@@ -226,27 +223,7 @@ object BuildConfigScreen extends Screen {
       val gridOpt = model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
       (picOpt, gridOpt) match {
         case (Some(pic), Some(storedGrid)) =>
-          val gw = storedGrid.config.width
-          val gh = storedGrid.config.height
-          pic.crop(model.offsetX, model.offsetY, gw, gh) match {
-            case Some(cropped) =>
-              val fit = CanvasUtils.scaleToFit(cropped.width, cropped.height, 300, 300, 1.0)
-              canvas.width = fit.width
-              canvas.height = fit.height
-              ctx.clearRect(0, 0, fit.width, fit.height)
-              CanvasUtils.drawPixelPic(ctx,cropped, fit.width, fit.height, 0, 0)
-              ctx.strokeStyle = Color.errorStroke.rgba(0.8)
-              ctx.lineWidth = 1
-              storedGrid.config.parts.foreach { part =>
-                ctx.strokeRect(
-                  part.x * fit.scale,
-                  part.y * fit.scale,
-                  (part.width * fit.scale).max(1),
-                  (part.height * fit.scale).max(1))
-              }
-            case None =>
-              CanvasUtils.drawPlaceholder(canvas, ctx, 300, 200, "Layout area is outside the image")
-          }
+          renderers.BuildConfigRenderer.drawCroppedRegion(canvas, ctx, pic, storedGrid.config, model.offsetX, model.offsetY, 300)
         case _ =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 300, 200, "Select image, colors and layout for preview")
       }
@@ -257,14 +234,6 @@ object BuildConfigScreen extends Screen {
       img     <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
       palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
     } yield clemniem.PaletteUtils.applyPaletteToPixelPic(img.pixelPic, palette)
-
-  private def drawFullImageOnly(canvas: Canvas, ctx: CanvasRenderingContext2D, pic: PixelPic): Unit = {
-    val fit = CanvasUtils.scaleToFit(pic.width, pic.height, 400, 400, 1.0)
-    canvas.width = fit.width
-    canvas.height = fit.height
-    ctx.clearRect(0, 0, fit.width, fit.height)
-    CanvasUtils.drawPixelPic(ctx,pic, fit.width, fit.height, 0, 0)
-  }
 
   /** Max (offsetX, offsetY) so that the grid stays inside the image; (0, 0) if no image/grid or grid larger than image.
     */

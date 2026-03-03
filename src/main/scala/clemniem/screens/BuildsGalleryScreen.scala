@@ -2,7 +2,6 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{
-  Color,
   Screen,
   ScreenId,
   ScreenOutput,
@@ -284,41 +283,9 @@ object BuildsGalleryScreen extends Screen {
 
         CanvasUtils.drawGalleryPreview(s"builds-preview-${build.id}")(
           (_: Canvas, ctx: CanvasRenderingContext2D) =>
-            picOpt match {
-              case Some(pic) =>
-                val gw  = stored.config.grid.width
-                val gh  = stored.config.grid.height
-                val fit = CanvasUtils.scaleToFit(gw, gh, buildPreviewWidth, buildPreviewHeight, 1.0)
-                ctx.clearRect(0, 0, buildPreviewWidth, buildPreviewHeight)
-                pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
-                  case Some(cropped) =>
-                    CanvasUtils.drawPixelPic(ctx, cropped, fit.width, fit.height, fit.offsetX, fit.offsetY)
-                    ctx.strokeStyle = Color.errorStroke.rgba(0.6)
-                    ctx.lineWidth = 1
-                    stored.config.grid.parts.foreach { part =>
-                      ctx.strokeRect(
-                        fit.offsetX + part.x * fit.scale,
-                        fit.offsetY + part.y * fit.scale,
-                        (part.width * fit.scale).max(1),
-                        (part.height * fit.scale).max(1))
-                    }
-                    currentStep.foreach { case (sx, sy) =>
-                      val rx = sx - stored.config.offsetX
-                      val ry = sy - stored.config.offsetY
-                      ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
-                      ctx.lineWidth = 2
-                      ctx.strokeRect(
-                        fit.offsetX + rx * fit.scale,
-                        fit.offsetY + ry * fit.scale,
-                        (patchSize * fit.scale).max(1),
-                        (patchSize * fit.scale).max(1))
-                    }
-                  case None =>
-                    CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Grid out of bounds")
-                }
-              case _ =>
-                CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Missing image/palette")
-            })
+            renderers.BuildPreviewRenderer.drawGalleryPreview(
+              ctx, picOpt, stored.config.grid, stored.config.offsetX, stored.config.offsetY,
+              currentStep, patchSize, buildPreviewWidth, buildPreviewHeight))
     }
   }
 }

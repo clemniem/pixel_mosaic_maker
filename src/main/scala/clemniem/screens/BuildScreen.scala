@@ -272,202 +272,26 @@ object BuildScreen extends Screen {
       val cfgOpt = model.buildConfig
       (picOpt, cfgOpt) match {
         case (Some(pic), Some(stored)) =>
-          val gw = stored.config.grid.width
-          val gh = stored.config.grid.height
-          pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
-            case Some(cropped) =>
-              val fit = CanvasUtils.scaleToFit(cropped.width, cropped.height, 400, 400, 1.0)
-              canvas.width = fit.width
-              canvas.height = fit.height
-              ctx.clearRect(0, 0, fit.width, fit.height)
-              CanvasUtils.drawPixelPic(ctx, cropped, fit.width, fit.height, 0, 0)
-              ctx.strokeStyle = Color.errorStroke.rgba(0.6)
-              ctx.lineWidth = 1
-              stored.config.grid.parts.foreach { part =>
-                ctx.strokeRect(
-                  part.x * fit.scale,
-                  part.y * fit.scale,
-                  (part.width * fit.scale).max(1),
-                  (part.height * fit.scale).max(1))
-              }
-              model.currentStep.foreach { case (sx, sy) =>
-                val rx = sx - stored.config.offsetX
-                val ry = sy - stored.config.offsetY
-                ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
-                ctx.lineWidth = 2
-                ctx.strokeRect(
-                  rx * fit.scale,
-                  ry * fit.scale,
-                  (patchSize * fit.scale).max(1),
-                  (patchSize * fit.scale).max(1))
-              }
-            case None =>
-              CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Grid region out of bounds")
-          }
+          renderers.BuildStepRenderer.drawOverview(
+            canvas, ctx, pic, stored.config.grid, stored.config.offsetX, stored.config.offsetY,
+            model.currentStep, patchSize, 400)
         case _ =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Loading…")
       }
     }
 
-  /** Colors in patch sorted by count ascending (least to most); each gets its own 16×16 patch drawn. */
-  private def colorsByCountAsc(patch: PixelPic): Vector[(Int, Int)] =
-    patch.palette.toVector.sortBy(_._2)
-
-  /** Preview: current 16×16 patch split by color (least→most); each color drawn as its own 16×16 patch. Up to 16
-    * colors; 2 cols on small screens, 4 otherwise.
-    */
   private val previewColsSmall      = 2
   private val previewColsWide       = 4
   private val previewColsBreakpoint = 600
 
-  private def patchBackgroundRgb(hex: String): (Int, Int, Int) = {
-    val h = Color.normalizeHex(hex, defaultPatchBackground)
-    def parse(s: String): Int = {
-      val n = java.lang.Integer.parseInt(s, 16)
-      if (n >= 0 && n <= 255) n else 238
-    }
-    if (h.length != 7) (238, 238, 238)
-    else
-      try (parse(h.substring(1, 3)), parse(h.substring(3, 5)), parse(h.substring(5, 7)))
-      catch { case _: Exception => (238, 238, 238) }
-  }
-
   private def drawPreview(model: Model): IO[Unit] =
     CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
-      val picOpt = picWithPalette(model)
-      model.currentStep match {
-        case Some((sx, sy)) =>
-          picOpt.flatMap(_.crop(sx, sy, patchSize, patchSize)) match {
-            case Some(patch) =>
-              val sortedColors    = colorsByCountAsc(patch)
-              val cellPx          = 8
-              val cellW           = patchSize * cellPx
-              val cellH           = patchSize * cellPx
-              val gap             = 8
-              val gridStep        = 4
-              val (bgR, bgG, bgB) = patchBackgroundRgb(model.patchBackgroundColorHex)
-
-              if (model.stacked) {
-                /* Stacked: one cell per color, each cell shows cumulative layers (like PDF). Layer 0 = color 0 only; Layer 1 = colors 0+1; etc. */
-                val n      = sortedColors.size.min(16)
-                val cols   = if (window.innerWidth <= previewColsBreakpoint) previewColsSmall else previewColsWide
-                val rows   = if (n <= 0) 0 else (n + cols - 1) / cols
-                val totalW = if (cols <= 0) 1 else cols * cellW + (cols - 1) * gap
-                val totalH = if (rows <= 0) 1 else rows * cellH + (rows - 1) * gap
-                canvas.width = totalW.max(1)
-                canvas.height = totalH.max(1)
-                ctx.clearRect(0, 0, canvas.width, canvas.height)
-                sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), layerIdx) =>
-                  val col      = layerIdx % cols
-                  val row      = layerIdx / cols
-                  val ox       = col * (cellW + gap)
-                  val oy       = row * (cellH + gap)
-                  val colorSet = sortedColors.take(layerIdx + 1).map(_._1).toSet
-                  val imgData  = ctx.createImageData(cellW, cellH)
-                  val data     = imgData.data
-                  for {
-                    y <- 0 until patchSize
-                    x <- 0 until patchSize
-                  } {
-                    val idx = y * patchSize + x
-                    val (r, g, b) =
-                      if (colorSet.contains(patch.pixels(idx))) {
-                        val px = patch.paletteLookup(patch.pixels(idx))
-                        (px.r, px.g, px.b)
-                      } else (bgR, bgG, bgB)
-                    for {
-                      py    <- 0 until cellPx
-                      pxOff <- 0 until cellPx
-                    } {
-                      val off = ((y * cellPx + py) * cellW + (x * cellPx + pxOff)) * 4
-                      data(off) = r
-                      data(off + 1) = g
-                      data(off + 2) = b
-                      data(off + 3) = 255
-                    }
-                  }
-                  ctx.putImageData(imgData, ox, oy)
-                  ctx.strokeStyle = Color.black.rgba(0.45)
-                  ctx.lineWidth = 1
-                  for (g <- 1 until 4) {
-                    val pos = g * gridStep * cellPx
-                    ctx.beginPath()
-                    ctx.moveTo(ox + pos, oy)
-                    ctx.lineTo(ox + pos, oy + cellH)
-                    ctx.stroke()
-                    ctx.beginPath()
-                    ctx.moveTo(ox, oy + pos)
-                    ctx.lineTo(ox + cellW, oy + pos)
-                    ctx.stroke()
-                  }
-                }
-              } else {
-                /* Grid: each color in its own cell */
-                val n      = sortedColors.size.min(16)
-                val cols   = if (window.innerWidth <= previewColsBreakpoint) previewColsSmall else previewColsWide
-                val rows   = if (n <= 0) 0 else (n + cols - 1) / cols
-                val totalW = if (cols <= 0) 1 else cols * cellW + (cols - 1) * gap
-                val totalH = if (rows <= 0) 1 else rows * cellH + (rows - 1) * gap
-                canvas.width = totalW.max(1)
-                canvas.height = totalH.max(1)
-                ctx.clearRect(0, 0, canvas.width, canvas.height)
-                sortedColors.zipWithIndex.take(16).foreach { case ((paletteIndex, _), i) =>
-                  val px      = patch.paletteLookup(paletteIndex)
-                  val col     = i % cols
-                  val row     = i / cols
-                  val ox      = col * (cellW + gap)
-                  val oy      = row * (cellH + gap)
-                  val imgData = ctx.createImageData(cellW, cellH)
-                  val data    = imgData.data
-                  for {
-                    y <- 0 until patchSize
-                    x <- 0 until patchSize
-                  } {
-                    val idx = y * patchSize + x
-                    val (r, g, b) =
-                      if (patch.pixels(idx) == paletteIndex) (px.r, px.g, px.b)
-                      else (bgR, bgG, bgB)
-                    for {
-                      py    <- 0 until cellPx
-                      pxOff <- 0 until cellPx
-                    } {
-                      val off = ((y * cellPx + py) * cellW + (x * cellPx + pxOff)) * 4
-                      data(off) = r
-                      data(off + 1) = g
-                      data(off + 2) = b
-                      data(off + 3) = 255
-                    }
-                  }
-                  ctx.putImageData(imgData, ox, oy)
-                  ctx.strokeStyle = Color.black.rgba(0.45)
-                  ctx.lineWidth = 1
-                  for (g <- 1 until 4) {
-                    val pos = g * gridStep * cellPx
-                    ctx.beginPath()
-                    ctx.moveTo(ox + pos, oy)
-                    ctx.lineTo(ox + pos, oy + cellH)
-                    ctx.stroke()
-                    ctx.beginPath()
-                    ctx.moveTo(ox, oy + pos)
-                    ctx.lineTo(ox + cellW, oy + pos)
-                    ctx.stroke()
-                  }
-                }
-              }
-            case None =>
-              canvas.width = patchSize
-              canvas.height = patchSize
-              val (r, g, b) = patchBackgroundRgb(model.patchBackgroundColorHex)
-              ctx.fillStyle = s"rgb($r,$g,$b)"
-              ctx.fillRect(0, 0, patchSize, patchSize)
-          }
-        case None =>
-          canvas.width = patchSize
-          canvas.height = patchSize
-          val (r, g, b) = patchBackgroundRgb(model.patchBackgroundColorHex)
-          ctx.fillStyle = s"rgb($r,$g,$b)"
-          ctx.fillRect(0, 0, patchSize, patchSize)
+      val picOpt  = picWithPalette(model)
+      val patchOpt = model.currentStep.flatMap { case (sx, sy) =>
+        picOpt.flatMap(_.crop(sx, sy, patchSize, patchSize))
       }
+      val cols = if (window.innerWidth <= previewColsBreakpoint) previewColsSmall else previewColsWide
+      renderers.BuildStepRenderer.drawStepPreview(canvas, ctx, patchOpt, model.patchBackgroundColorHex, model.stacked, cols, patchSize)
     }
 
   def view(model: Model): Html[Msg] = {

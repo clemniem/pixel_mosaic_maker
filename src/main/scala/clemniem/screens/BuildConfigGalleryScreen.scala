@@ -2,7 +2,6 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{
-  Color,
   Screen,
   ScreenId,
   ScreenOutput,
@@ -165,33 +164,13 @@ object BuildConfigGalleryScreen extends Screen {
     stored: StoredBuildConfig,
     images: List[StoredImage],
     palettes: List[StoredPalette]
-  ): IO[Unit] =
+  ): IO[Unit] = {
+    val picOpt = clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
     CanvasUtils.drawGalleryPreview(s"buildconfig-preview-${stored.id}")(
       (_: Canvas, ctx: CanvasRenderingContext2D) =>
-        clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes) match {
-          case Some(pic) =>
-            val gw = stored.config.grid.width
-            val gh = stored.config.grid.height
-            pic.crop(stored.config.offsetX, stored.config.offsetY, gw, gh) match {
-              case Some(cropped) =>
-                val fit = CanvasUtils.scaleToFit(cropped.width, cropped.height, previewWidth, previewHeight, 1.0)
-                ctx.clearRect(0, 0, previewWidth, previewHeight)
-                CanvasUtils.drawPixelPic(ctx, cropped, fit.width, fit.height, fit.offsetX, fit.offsetY)
-                ctx.strokeStyle = Color.errorStroke.rgba(0.7)
-                ctx.lineWidth = 1
-                stored.config.grid.parts.foreach { part =>
-                  ctx.strokeRect(
-                    fit.offsetX + part.x * fit.scale,
-                    fit.offsetY + part.y * fit.scale,
-                    (part.width * fit.scale).max(1),
-                    (part.height * fit.scale).max(1))
-                }
-              case None =>
-                CanvasUtils.drawCenteredErrorText(ctx, previewWidth, previewHeight, "Grid out of bounds")
-            }
-          case _ =>
-            CanvasUtils.drawCenteredErrorText(ctx, previewWidth, previewHeight, "Missing image/palette")
-        })
+        renderers.BuildConfigRenderer.drawGalleryPreview(
+          ctx, picOpt, stored.config.grid, stored.config.offsetX, stored.config.offsetY, previewWidth, previewHeight))
+  }
 }
 
 final case class BuildConfigGalleryModel(

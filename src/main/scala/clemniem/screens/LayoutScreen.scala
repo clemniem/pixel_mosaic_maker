@@ -475,16 +475,7 @@ object LayoutScreen extends Screen {
   /** Draw grid on canvas after the view has been applied (next frame + retries). Use for all updates. */
   def drawGrid(grid: Layout): IO[Unit] =
     CanvasUtils.drawAfterViewReady("grid-canvas", maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
-      canvas.width = grid.width
-      canvas.height = grid.height
-      ctx.clearRect(0, 0, grid.width, grid.height)
-      ctx.lineWidth = 1
-      grid.parts.zipWithIndex.foreach { case (part, i) =>
-        ctx.fillStyle = if (i % 2 == 0) "#f5f5f5" else "#eee"
-        ctx.fillRect(part.x, part.y, part.width, part.height)
-        ctx.strokeStyle = "#333"
-        ctx.strokeRect(part.x, part.y, part.width, part.height)
-      }
+      renderers.LayoutRenderer.drawEditorGrid(canvas, ctx, grid)
     }
 }
 

@@ -290,10 +290,7 @@ object ImageUploadScreen extends Screen {
 
   private def drawPreview(pic: PixelPic): IO[Unit] =
     CanvasUtils.drawAfterViewReady("image-upload-preview", maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
-      canvas.width = pic.width
-      canvas.height = pic.height
-      ctx.clearRect(0, 0, pic.width, pic.height)
-      clemniem.common.CanvasUtils.drawPixelPic(ctx, pic, pic.width, pic.height, 0, 0)
+      renderers.ImagePreviewRenderer.drawFullPreview(canvas, ctx, pic)
     }
 
   def view(model: Model): Html[Msg] =

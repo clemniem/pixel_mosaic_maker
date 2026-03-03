@@ -138,14 +138,8 @@ object ImagesGalleryScreen extends Screen {
     items.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawPreview(item)))
 
   private def drawPreview(stored: StoredImage): IO[Unit] =
-    CanvasUtils.drawGalleryPreview(s"image-preview-${stored.id}")((_: Canvas, ctx: CanvasRenderingContext2D) => {
-      ctx.clearRect(0, 0, previewWidth, previewHeight)
-      val pic = stored.pixelPic
-      if (pic.width > 0 && pic.height > 0) {
-        val fit = CanvasUtils.scaleToFit(pic.width, pic.height, previewWidth, previewHeight, Double.MaxValue)
-        CanvasUtils.drawPixelPic(ctx, pic, fit.width, fit.height, fit.offsetX, fit.offsetY)
-      }
-    })
+    CanvasUtils.drawGalleryPreview(s"image-preview-${stored.id}")((_: Canvas, ctx: CanvasRenderingContext2D) =>
+      renderers.ImagePreviewRenderer.drawGalleryPreview(ctx, stored.pixelPic, previewWidth, previewHeight))
 }
 
 enum ImagesGalleryMsg {

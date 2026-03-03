@@ -1,7 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{Layout, Screen, ScreenId, ScreenOutput, StorageKeys, StoredLayout}
+import clemniem.{Screen, ScreenId, ScreenOutput, StorageKeys, StoredLayout}
 import clemniem.common.{CanvasUtils, CmdUtils, Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
@@ -128,56 +128,7 @@ object LayoutGalleryScreen extends Screen {
 
   private def drawPreview(stored: StoredLayout): IO[Unit] =
     CanvasUtils.drawGalleryPreview(s"grid-preview-${stored.id}")((_: Canvas, ctx: CanvasRenderingContext2D) =>
-      drawGridScaled(ctx, stored.config))
-
-  /** NES.css-style grid preview: thick dark borders, checkerboard fills, pixel-art bevel. */
-  private def drawGridScaled(ctx: CanvasRenderingContext2D, grid: Layout): Unit = {
-    ctx.imageSmoothingEnabled = false
-    ctx.clearRect(0, 0, previewWidth, previewHeight)
-    if (grid.parts.nonEmpty && grid.width > 0 && grid.height > 0) {
-      val margin = 4
-      val fit = CanvasUtils.scaleToFit(
-        grid.width,
-        grid.height,
-        previewWidth - margin * 2,
-        previewHeight - margin * 2,
-        Double.MaxValue)
-      val ox = fit.offsetX + margin
-      val oy = fit.offsetY + margin
-
-      grid.parts.zipWithIndex.foreach { case (part, i) =>
-        val cx = ox + (part.x * fit.scale).toInt
-        val cy = oy + (part.y * fit.scale).toInt
-        val cw = (part.width * fit.scale).toInt.max(1)
-        val ch = (part.height * fit.scale).toInt.max(1)
-        ctx.fillStyle = if (i % 2 == 0) "#d4d4d8" else "#e4e4e7"
-        ctx.fillRect(cx, cy, cw, ch)
-        ctx.fillStyle = "rgba(0,0,0,0.18)"
-        ctx.fillRect(cx + cw - 1, cy, 1, ch)
-        ctx.fillRect(cx, cy + ch - 1, cw, 1)
-        ctx.fillStyle = "rgba(255,255,255,0.45)"
-        ctx.fillRect(cx, cy, cw, 1)
-        ctx.fillRect(cx, cy, 1, ch)
-      }
-
-      val borderW = (2.0 / fit.scale).max(1.5).min(3.0)
-      ctx.strokeStyle = "#212529"
-      ctx.lineWidth = borderW * fit.scale
-      grid.parts.foreach { part =>
-        val cx = ox + (part.x * fit.scale).toInt
-        val cy = oy + (part.y * fit.scale).toInt
-        val cw = (part.width * fit.scale).toInt.max(1)
-        val ch = (part.height * fit.scale).toInt.max(1)
-        ctx.strokeRect(cx, cy, cw, ch)
-      }
-
-      val totalW = (grid.width * fit.scale).toInt.max(1)
-      val totalH = (grid.height * fit.scale).toInt.max(1)
-      ctx.lineWidth = (borderW * fit.scale * 1.25).min(4.0)
-      ctx.strokeStyle = "#212529"
-      ctx.strokeRect(ox, oy, totalW, totalH)
-    }
-  }
+      renderers.LayoutRenderer.drawGalleryPreview(ctx, stored.config, previewWidth, previewHeight))
 }
 
 enum LayoutGalleryMsg {
