@@ -11,23 +11,35 @@ import scala.scalajs.js
 
 private val repoUrl = "https://github.com/clemniem/pixel_mosaic_maker"
 
-/** About page: project description, tools, GitHub link, and refresh-app with confirmation. */
+/** About page: project description, tools, GitHub link, refresh-app, and load sample data. */
 object AboutScreen extends Screen {
-  type Model = Boolean
+  type Model = AboutState
   type Msg   = AboutMsg
 
   val screenId: ScreenId = ScreenId.AboutId
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) =
-    (false, Cmd.None)
+    (AboutState.Idle, Cmd.None)
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case AboutMsg.ShowRefreshConfirm =>
-      (true, Cmd.None)
+      (AboutState.ConfirmRefresh, Cmd.None)
     case AboutMsg.ConfirmRefresh =>
-      (model, CmdUtils.fireAndForget(refreshAppFromSW, AboutMsg.NoOp, _ => AboutMsg.NoOp))
+      (AboutState.Idle, CmdUtils.fireAndForget(refreshAppFromSW, AboutMsg.NoOp, _ => AboutMsg.NoOp))
     case AboutMsg.CancelRefresh =>
-      (false, Cmd.None)
+      (AboutState.Idle, Cmd.None)
+    case AboutMsg.ShowSeedConfirm =>
+      (AboutState.ConfirmSeed, Cmd.None)
+    case AboutMsg.ConfirmSeed =>
+      (AboutState.SeedLoading, CmdUtils.run(SeedData.seed(), AboutMsg.SeedDone.apply, _ => AboutMsg.SeedFailed))
+    case AboutMsg.CancelSeed =>
+      (AboutState.Idle, Cmd.None)
+    case AboutMsg.SeedDone(count) =>
+      (AboutState.SeedResult(Some(count)), Cmd.None)
+    case AboutMsg.SeedFailed =>
+      (AboutState.SeedResult(None), Cmd.None)
+    case AboutMsg.DismissSeedResult =>
+      (AboutState.Idle, Cmd.None)
     case AboutMsg.OpenUrl(url) =>
       (model, Cmd.SideEffect(IO.delay(dom.window.open(url, "_blank"))))
     case AboutMsg.Back =>
@@ -64,6 +76,9 @@ object AboutScreen extends Screen {
           "You get a PDF book: cover, overview, per-section chapters with swatches, and layer-by-layer patch pages.")),
         p(`class` := NesCss.text)(text("Everything runs in the browser.")),
         p(`class` := NesCss.text)(text("Data is stored in LocalStorage. No server or account required.")),
+        h2(`class` := "about-heading")(text("Sample data")),
+        p(`class` := NesCss.text)(text("Load demo images, palettes, layouts, and builds to explore the full workflow.")),
+        seedSection(model),
         h2(`class` := "about-heading")(text("Libraries & tools")),
         div(`class` := "about-tools")(
           toolsTable
@@ -81,22 +96,60 @@ object AboutScreen extends Screen {
         p(`class` := NesCss.text)(text("After a deploy you might still see an old version.")),
         p(`class` := NesCss.text)(text("The browser may be serving cached files.")),
         p(`class` := NesCss.text)(text("The button below unregisters the cache and reloads the page.")),
-        (
-          if (model)
-            div(`class` := "about-refresh-confirm")(
-              p(`class` := "about-refresh-confirm-text")(
-                text("Unregister cache and reload now? The page will refresh.")
-              ),
-              div(`class` := "flex-row flex-row--tight")(
-                button(`class` := NesCss.btnPrimary, onClick(AboutMsg.ConfirmRefresh))(text("Yes, refresh")),
-                button(`class` := NesCss.btn, onClick(AboutMsg.CancelRefresh))(text("Cancel"))
-              )
-            )
-          else
-            button(`class` := NesCss.btn, onClick(AboutMsg.ShowRefreshConfirm))(text("Refresh app"))
-        )
+        refreshSection(model)
       )
     )
+
+  private def seedSection(model: Model): Html[Msg] =
+    model match {
+      case AboutState.ConfirmSeed =>
+        div(`class` := "about-refresh-confirm")(
+          p(`class` := "about-refresh-confirm-text")(
+            text("Load sample data into all galleries? Existing items are kept.")
+          ),
+          div(`class` := "flex-row flex-row--tight")(
+            button(`class` := NesCss.btnPrimary, onClick(AboutMsg.ConfirmSeed))(text("Yes, load")),
+            button(`class` := NesCss.btn, onClick(AboutMsg.CancelSeed))(text("Cancel"))
+          )
+        )
+      case AboutState.SeedLoading =>
+        p(`class` := NesCss.text)(text("Loading\u2026"))
+      case AboutState.SeedResult(Some(count)) =>
+        div(`class` := "about-refresh-confirm")(
+          p(`class` := "about-refresh-confirm-text")(
+            text(if (count > 0) s"Added $count sample item(s). Reload to see them." else "Sample data already loaded.")
+          ),
+          div(`class` := "flex-row flex-row--tight")(
+            (if (count > 0)
+              button(`class` := NesCss.btnPrimary, onClick(AboutMsg.ConfirmRefresh))(text("Reload now"))
+            else
+              button(`class` := NesCss.btn, onClick(AboutMsg.DismissSeedResult))(text("OK")))
+          )
+        )
+      case AboutState.SeedResult(None) =>
+        div(`class` := "about-refresh-confirm")(
+          p(`class` := "about-refresh-confirm-text")(text("Failed to load sample data.")),
+          button(`class` := NesCss.btn, onClick(AboutMsg.DismissSeedResult))(text("OK"))
+        )
+      case _ =>
+        button(`class` := NesCss.btn, onClick(AboutMsg.ShowSeedConfirm))(text("Load sample data"))
+    }
+
+  private def refreshSection(model: Model): Html[Msg] =
+    model match {
+      case AboutState.ConfirmRefresh =>
+        div(`class` := "about-refresh-confirm")(
+          p(`class` := "about-refresh-confirm-text")(
+            text("Unregister cache and reload now? The page will refresh.")
+          ),
+          div(`class` := "flex-row flex-row--tight")(
+            button(`class` := NesCss.btnPrimary, onClick(AboutMsg.ConfirmRefresh))(text("Yes, refresh")),
+            button(`class` := NesCss.btn, onClick(AboutMsg.CancelRefresh))(text("Cancel"))
+          )
+        )
+      case _ =>
+        button(`class` := NesCss.btn, onClick(AboutMsg.ShowRefreshConfirm))(text("Refresh app"))
+    }
 
   private def toolsTable: Html[Msg] = {
     val rows = List(
@@ -132,10 +185,24 @@ object AboutScreen extends Screen {
   }
 }
 
+enum AboutState {
+  case Idle
+  case ConfirmRefresh
+  case ConfirmSeed
+  case SeedLoading
+  case SeedResult(count: Option[Int])
+}
+
 enum AboutMsg {
   case ShowRefreshConfirm
   case ConfirmRefresh
   case CancelRefresh
+  case ShowSeedConfirm
+  case ConfirmSeed
+  case CancelSeed
+  case SeedDone(count: Int)
+  case SeedFailed
+  case DismissSeedResult
   case OpenUrl(url: String)
   case Back
   case NoOp
