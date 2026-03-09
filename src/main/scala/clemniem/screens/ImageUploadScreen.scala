@@ -48,7 +48,7 @@ object ImageUploadScreen extends Screen {
 
   val downscaleStrategies: List[DownscaleStrategy] =
     List(DownscaleAverage, DownscaleBayer.Size2, DownscaleBayer.Size4)
-  val paletteColorCounts: List[Int] = (4 to 16).toList
+  val paletteColorCounts: List[Int]               = (4 to 16).toList
   val colorDitheringOptions: List[ColorDithering] =
     List(
       NoColorDithering,
@@ -114,9 +114,9 @@ object ImageUploadScreen extends Screen {
   private def runPipeline(model: Model): Cmd[IO, Msg] =
     (model.sourceDataUrl, model.sourceFileName) match {
       case (Some(url), Some(fileName)) =>
-        val runId = model.pipelineRunId
+        val runId                    = model.pipelineRunId
         val paletteMode: PaletteMode = model.paletteMode match {
-          case UploadPaletteMode.Auto(n) => AutoQuantize(n)
+          case UploadPaletteMode.Auto(n)       => AutoQuantize(n)
           case UploadPaletteMode.FromSaved(id) =>
             val colors = model.savedPalettes.flatMap(_.find(_.id == id)).map(_.colors).getOrElse(Vector.empty)
             FromPalette(colors.map(c => (c.r.toByte, c.g.toByte, c.b.toByte, 255.toByte)))

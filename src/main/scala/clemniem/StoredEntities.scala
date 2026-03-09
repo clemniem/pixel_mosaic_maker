@@ -11,7 +11,8 @@ final case class StoredLayout(
   config: Layout,
   mode: Option[GridDefMode] = None,
   rowDefs: Option[List[RowDef]] = None,
-  columnDefs: Option[List[ColumnDef]] = None) extends StoredEntity
+  columnDefs: Option[List[ColumnDef]] = None)
+  extends StoredEntity
 object StoredLayout {
   given Encoder[StoredLayout] = deriveEncoder
   given Decoder[StoredLayout] = deriveDecoder
@@ -29,7 +30,8 @@ object StoredImage {
   given Decoder[StoredImage] = deriveDecoder
 }
 
-final case class StoredBuildConfig(id: String, name: String, config: BuildConfig, savedStepIndex: Option[Int] = None) extends StoredEntity
+final case class StoredBuildConfig(id: String, name: String, config: BuildConfig, savedStepIndex: Option[Int] = None)
+  extends StoredEntity
 object StoredBuildConfig {
   given Encoder[StoredBuildConfig] = deriveEncoder
   given Decoder[StoredBuildConfig] = deriveDecoder
@@ -41,7 +43,8 @@ final case class StoredBuild(
   name: String,
   buildConfigRef: String,
   savedStepIndex: Option[Int] = None,
-  patchBackgroundColorHex: Option[String] = None) extends StoredEntity
+  patchBackgroundColorHex: Option[String] = None)
+  extends StoredEntity
 object StoredBuild {
   given Encoder[StoredBuild] = deriveEncoder
   given Decoder[StoredBuild] = deriveDecoder
@@ -58,8 +61,8 @@ final case class StoredPrintConfig(
   patchBackgroundColorHex: String,
   stacked: Boolean,
   printerMarginMm: Double,
-  contentTopOffsetMm: Double
-) extends StoredEntity
+  contentTopOffsetMm: Double)
+  extends StoredEntity
 object StoredPrintConfig {
   given Encoder[StoredPrintConfig] = deriveEncoder
   given Decoder[StoredPrintConfig] = deriveDecoder

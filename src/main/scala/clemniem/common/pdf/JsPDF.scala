@@ -31,7 +31,7 @@ object JsPDF {
     * (same as gbcamutil).
     */
   def run(instructions: List[Instruction], bgR: Int, bgG: Int, bgB: Int, printerMarginMm: Double): Unit = {
-    val base64Val = js.Dynamic.global.selectDynamic("pressStartBase64")
+    val base64Val     = js.Dynamic.global.selectDynamic("pressStartBase64")
     val fontBase64Opt =
       if (js.typeOf(base64Val) == "undefined") None
       else Some(base64Val.asInstanceOf[String]).filter(_.nonEmpty)
@@ -87,7 +87,7 @@ object JsPDF {
           val (docOpt, (pageW, pageH), pageIndex) = state
           inst match {
             case Instruction.PageSize(w, h) =>
-              val _ = docOpt
+              val _    = docOpt
               val opts = js.Dynamic.literal(
                 orientation = "p",
                 unit = "mm",

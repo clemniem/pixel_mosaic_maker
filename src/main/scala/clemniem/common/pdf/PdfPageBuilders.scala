@@ -130,12 +130,12 @@ private[common] object PdfPageBuilders {
     val contentTopY = marginTB + fo.titleOffsetFromTopMm + contentTopOffsetMm
     val imageAreaW  = availableW - fo.colorListReservedWidthMm
     val imageAreaH  = availableH - fo.titleOffsetFromTopMm - contentTopOffsetMm
-    val colorRows = fullPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
+    val colorRows   = fullPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
       val px = fullPic.paletteLookup(idx)
       (px.r, px.g, px.b, count)
     }
     val colorCountInstrs = PdfDrawHelpers.drawSwatchRows(marginLR, contentTopY, colorRows, sw)
-    val imageInstrs = if (grid.parts.nonEmpty) {
+    val imageInstrs      = if (grid.parts.nonEmpty) {
       explodedOverviewInstructions(
         fullPic,
         grid,
@@ -194,7 +194,7 @@ private[common] object PdfPageBuilders {
     val topTextY   = baseY - dimGapMm - 2.0
     val rightDimX  = baseX + totalWmm + dimGapMm
     val rightTextX = rightDimX + 2.0
-    val topDims = (0 until uniqueXs.size).flatMap { c =>
+    val topDims    = (0 until uniqueXs.size).flatMap { c =>
       val colStartX = baseX + colOffsetPx(c) * scale + c * gapMm
       val colEndX   = colStartX + colWidthsPx(c) * scale
       val centerX   = baseX + (colOffsetPx(c) + colWidthsPx(c) / 2.0) * scale + c * gapMm
@@ -265,18 +265,18 @@ private[common] object PdfPageBuilders {
     val totalHpx     = rowHeightsPx.sum.toDouble
     val numGapsX     = (uniqueXs.size - 1).max(0)
     val numGapsY     = (uniqueYs.size - 1).max(0)
-    val scale = (
+    val scale        = (
       (areaW - numGapsX * gapMm) / totalWpx
     ).min((areaH - numGapsY * gapMm) / totalHpx)
     val totalWmm = totalWpx * scale + numGapsX * gapMm
-    val baseX = align match {
+    val baseX    = align match {
       case "right" => areaX + areaW - totalWmm
       case "left"  => areaX
       case _       => areaX + (areaW - totalWmm) / 2
     }
-    val baseY       = areaY
-    val colOffsetPx = colWidthsPx.scanLeft(0)(_ + _).dropRight(1)
-    val rowOffsetPx = rowHeightsPx.scanLeft(0)(_ + _).dropRight(1)
+    val baseY                   = areaY
+    val colOffsetPx             = colWidthsPx.scanLeft(0)(_ + _).dropRight(1)
+    val rowOffsetPx             = rowHeightsPx.scanLeft(0)(_ + _).dropRight(1)
     val (gridInstrs, partRects) =
       parts.foldLeft((List.empty[Instruction], List.empty[(Double, Double, Double, Double)])) {
         case ((accInstrs, accRects), part) =>
@@ -379,7 +379,7 @@ private[common] object PdfPageBuilders {
     else {
       val sectionPic  = sectionPicOpt.get
       val contentTopY = marginTB + co.contentTopOffsetFromTopMm + contentTopOffsetMm
-      val colorRows = sectionPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
+      val colorRows   = sectionPic.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
         val px = fullPic.paletteLookup(idx)
         (px.r, px.g, px.b, count)
       }
@@ -390,8 +390,7 @@ private[common] object PdfPageBuilders {
         PdfDrawHelpers.smallOverviewLayoutParams(fullPic, gridOverviewY, marginLR, co)
       val greyRectsMm = parts.toList
         .filter(_ != part)
-        .map(p =>
-          (smallX0 + p.x * smallScale, smallY0 + p.y * smallScale, p.width * smallScale, p.height * smallScale))
+        .map(p => (smallX0 + p.x * smallScale, smallY0 + p.y * smallScale, p.width * smallScale, p.height * smallScale))
       val highlightedRectMm = (
         smallX0 + part.x * smallScale,
         smallY0 + part.y * smallScale,
@@ -406,15 +405,15 @@ private[common] object PdfPageBuilders {
         greyRectsMm,
         highlightedRectMm,
         grid)
-      val areaX            = marginLR + co.colorListReservedWidthMm
-      val areaY            = contentTopY
-      val areaW            = availableW - co.colorListReservedWidthMm
-      val areaH            = availableH - co.contentTopOffsetFromTopMm - contentTopOffsetMm
-      val rightAreaW       = areaW * co.explodedAreaScaleFactor
-      val rightAreaH       = areaH * co.explodedAreaScaleFactor
-      val rightAreaX       = areaX + areaW - rightAreaW
-      val nColsStepSection = sectionPic.width / stepSizePx
-      val nRowsStepSection = sectionPic.height / stepSizePx
+      val areaX              = marginLR + co.colorListReservedWidthMm
+      val areaY              = contentTopY
+      val areaW              = availableW - co.colorListReservedWidthMm
+      val areaH              = availableH - co.contentTopOffsetFromTopMm - contentTopOffsetMm
+      val rightAreaW         = areaW * co.explodedAreaScaleFactor
+      val rightAreaH         = areaH * co.explodedAreaScaleFactor
+      val rightAreaX         = areaX + areaW - rightAreaW
+      val nColsStepSection   = sectionPic.width / stepSizePx
+      val nRowsStepSection   = sectionPic.height / stepSizePx
       val stepGridForSection =
         if (nColsStepSection >= 1 && nRowsStepSection >= 1) {
           val stepParts = (0 until nRowsStepSection).flatMap { cy =>
@@ -440,7 +439,7 @@ private[common] object PdfPageBuilders {
         "right"
       )
       val allSectionsDivisible = parts.forall(p => p.width % stepSizePx == 0 && p.height % stepSizePx == 0)
-      val divisibilityNote =
+      val divisibilityNote     =
         if (allSectionsDivisible) Nil
         else {
           val noteY = gridOverviewY + smallOverviewH + 4.0
@@ -456,7 +455,7 @@ private[common] object PdfPageBuilders {
         List(Instruction.AddPage) ++ colorCountInstrs ++ smallOverviewInstrs ++ divisibilityNote ++ explodedInstrs
 
       val thisSectionDivisible = sectionPic.width % stepSizePx == 0 && sectionPic.height % stepSizePx == 0
-      val sectionInstrs = if (!thisSectionDivisible) {
+      val sectionInstrs        = if (!thisSectionDivisible) {
         val msg =
           s"Section $sectionIndex: size (${sectionPic.width}×${sectionPic.height}) doesn't work with the step size ($stepSizePx). Step-by-step pages are skipped for it."
         List(
@@ -554,7 +553,7 @@ private[common] object PdfPageBuilders {
     val sw          = co.swatch
     val parts       = grid.parts
     val contentTopY = marginTB + co.contentTopOffsetFromTopMm + contentTopOffsetMm
-    val colorRows = patch.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
+    val colorRows   = patch.palette.toVector.sortBy(-_._2).map { case (idx, count) =>
       val px = fullPic.paletteLookup(idx)
       (px.r, px.g, px.b, count)
     }
@@ -565,10 +564,9 @@ private[common] object PdfPageBuilders {
       PdfDrawHelpers.smallOverviewLayoutParams(fullPic, gridOverviewY, marginLR, co)
     val greyRectsOtherSections = parts.toList
       .filter(_ != part)
-      .map(p =>
-        (smallX0 + p.x * smallScale, smallY0 + p.y * smallScale, p.width * smallScale, p.height * smallScale))
-    val nColsSection = part.width / stepSizePx
-    val nRowsSection = part.height / stepSizePx
+      .map(p => (smallX0 + p.x * smallScale, smallY0 + p.y * smallScale, p.width * smallScale, p.height * smallScale))
+    val nColsSection        = part.width / stepSizePx
+    val nRowsSection        = part.height / stepSizePx
     val greyRectsOtherSteps = (0 until nRowsSection).flatMap { cy =>
       (0 until nColsSection).filter(cx => cx != stepCx || cy != stepCy).map { cx =>
         val gx = part.x + cx * stepSizePx
@@ -576,9 +574,9 @@ private[common] object PdfPageBuilders {
         (smallX0 + gx * smallScale, smallY0 + gy * smallScale, stepSizePx * smallScale, stepSizePx * smallScale)
       }
     }.toList
-    val greyRectsMm = greyRectsOtherSections ++ greyRectsOtherSteps
-    val stepGlobalX = part.x + stepCx * stepSizePx
-    val stepGlobalY = part.y + stepCy * stepSizePx
+    val greyRectsMm       = greyRectsOtherSections ++ greyRectsOtherSteps
+    val stepGlobalX       = part.x + stepCx * stepSizePx
+    val stepGlobalY       = part.y + stepCy * stepSizePx
     val highlightedRectMm = (
       smallX0 + stepGlobalX * smallScale,
       smallY0 + stepGlobalY * smallScale,
@@ -628,31 +626,29 @@ private[common] object PdfPageBuilders {
     val effectiveW     = rightAreaW * layerGridScale
     val effectiveH     = rightAreaH * layerGridScale
     val patchRows      = (lp.patchesPerPage + lp.patchGridCols - 1) / lp.patchGridCols
-    val patchCellMm = (
+    val patchCellMm    = (
       (effectiveW - (lp.patchGridCols - 1) * lp.patchGapMm) / lp.patchGridCols
     ).min((effectiveH - (patchRows - 1) * lp.patchGapMm) / patchRows)
-    val totalGridW      = lp.patchGridCols * patchCellMm + (lp.patchGridCols - 1) * lp.patchGapMm
-    val startX          = rightAreaX + rightAreaW - totalGridW
-    val startY          = rightAreaY
-    val bgRgb = (patchBgColor.r, patchBgColor.g, patchBgColor.b)
-    val colorIndicesAsc = patch.getIndexByCount
+    val totalGridW         = lp.patchGridCols * patchCellMm + (lp.patchGridCols - 1) * lp.patchGapMm
+    val startX             = rightAreaX + rightAreaW - totalGridW
+    val startY             = rightAreaY
+    val bgRgb              = (patchBgColor.r, patchBgColor.g, patchBgColor.b)
+    val colorIndicesAsc    = patch.getIndexByCount
     val (_, layerRgbFlats) = if (stacked) {
-      colorIndicesAsc.foldLeft((Set.empty[Int], Vector.empty[Vector[Int]])) {
-        case ((set, acc), idx) =>
-          val newSet = set + idx
-          (newSet, acc :+ PdfDrawHelpers.buildLayerRgb(patch, newSet, (i: Int) => fullPic.paletteLookup(i), bgRgb))
+      colorIndicesAsc.foldLeft((Set.empty[Int], Vector.empty[Vector[Int]])) { case ((set, acc), idx) =>
+        val newSet = set + idx
+        (newSet, acc :+ PdfDrawHelpers.buildLayerRgb(patch, newSet, (i: Int) => fullPic.paletteLookup(i), bgRgb))
       }
     } else {
-      colorIndicesAsc.foldLeft((Set.empty[Int], Vector.empty[Vector[Int]])) {
-        case ((set, acc), idx) =>
-          val newSet = set + idx
-          (newSet, acc :+ PdfDrawHelpers.buildLayerRgb(patch, Set(idx), (i: Int) => fullPic.paletteLookup(i), bgRgb))
+      colorIndicesAsc.foldLeft((Set.empty[Int], Vector.empty[Vector[Int]])) { case ((set, acc), idx) =>
+        val newSet = set + idx
+        (newSet, acc :+ PdfDrawHelpers.buildLayerRgb(patch, Set(idx), (i: Int) => fullPic.paletteLookup(i), bgRgb))
       }
     }
     val layerRgbFlatsList = layerRgbFlats.toList
     val patchW            = patch.width
     val patchH            = patch.height
-    val leftColumnInstrs =
+    val leftColumnInstrs  =
       stepPageLeftColumnInstructions(
         fullPic,
         grid,
@@ -666,9 +662,9 @@ private[common] object PdfPageBuilders {
         contentTopOffsetMm,
         config)
     layerRgbFlatsList.grouped(lp.patchesPerPage).toList.zipWithIndex.flatMap { case (layerBatch, batchIdx) =>
-      val scale  = (patchCellMm / patchW).min(patchCellMm / patchH)
-      val imageW = patchW * scale
-      val imageH = patchH * scale
+      val scale   = (patchCellMm / patchW).min(patchCellMm / patchH)
+      val imageW  = patchW * scale
+      val imageH  = patchH * scale
       val perPage = layerBatch.zipWithIndex.map { case (rgbFlat, i) =>
         val col   = i % lp.patchGridCols
         val row   = i / lp.patchGridCols
@@ -685,7 +681,7 @@ private[common] object PdfPageBuilders {
         val grid4x4Rects  = PdfDrawHelpers.grid4x4StrokeRects(x0, y0, w, h, lp.grid4x4LineWidthMm)
         val grid16Dashed  = PdfDrawHelpers.dashedStrokeRectsInstructions(grid16Rects, 0.9, 1.0)
         val grid4x4Dashed = PdfDrawHelpers.dashedStrokeRectsInstructions(grid4x4Rects, 0.9, 1.0)
-        val borderInstr = Instruction.DrawStrokeRects(
+        val borderInstr   = Instruction.DrawStrokeRects(
           List((x0, y0, w, h)),
           Color.black.r,
           Color.black.g,
