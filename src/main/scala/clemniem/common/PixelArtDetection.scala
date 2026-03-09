@@ -5,8 +5,8 @@ import org.scalajs.dom.ImageData
 import scala.util.boundary
 import scala.util.boundary.break
 
-/** Pixel-art nearest-neighbor scale detection. Extracted from [[ImageUtils]] so the framework module has no
-  * domain-type imports.
+/** Pixel-art nearest-neighbor scale detection. Extracted from [[ImageUtils]] so the framework module has no domain-type
+  * imports.
   */
 object PixelArtDetection {
 
@@ -35,7 +35,7 @@ object PixelArtDetection {
               (0 until scaleFactor).forall { dy =>
                 (0 until scaleFactor).forall { dx =>
                   val testIndex = ((y * scaleFactor + dy) * width + (x * scaleFactor + dx)) * 4
-                  val test =
+                  val test      =
                     (getByte(testIndex), getByte(testIndex + 1), getByte(testIndex + 2), getByte(testIndex + 3))
                   test == ref
                 }

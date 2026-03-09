@@ -120,8 +120,8 @@ object Layout {
 
   /** Uniform grid: same column widths for all rows, same row heights for all columns. */
   def make(rowHeights: Seq[Int], columnWidths: Seq[Int]): Layout = {
-    val rowOffsets = rowHeights.scanLeft(0)(_ + _).dropRight(1)
-    val colOffsets = columnWidths.scanLeft(0)(_ + _).dropRight(1)
+    val rowOffsets             = rowHeights.scanLeft(0)(_ + _).dropRight(1)
+    val colOffsets             = columnWidths.scanLeft(0)(_ + _).dropRight(1)
     val parts: Array[GridPart] =
       (for {
         (rowHeight, y) <- rowHeights.zip(rowOffsets)
@@ -134,8 +134,8 @@ object Layout {
   def fromRowDefs(rowDefs: List[RowDef]): Layout =
     if (rowDefs.isEmpty) Layout(0, 0, Array.empty)
     else {
-      val cols = rowDefs.map(_.cellWidths.length).max
-      val rows = rowDefs.length
+      val cols       = rowDefs.map(_.cellWidths.length).max
+      val rows       = rowDefs.length
       val (_, parts) = rowDefs.foldLeft((0, Vector.empty[GridPart])) { case ((y, acc), row) =>
         val (_, rowParts) = row.cellWidths.foldLeft((0, Vector.empty[GridPart])) { case ((x, pacc), w) =>
           (x + w, pacc :+ GridPart(x = x, y = y, width = w, height = row.height))
@@ -149,8 +149,8 @@ object Layout {
   def fromColumnDefs(colDefs: List[ColumnDef]): Layout =
     if (colDefs.isEmpty) Layout(0, 0, Array.empty)
     else {
-      val rows = colDefs.map(_.cellHeights.length).max
-      val cols = colDefs.length
+      val rows       = colDefs.map(_.cellHeights.length).max
+      val cols       = colDefs.length
       val (_, parts) = colDefs.foldLeft((0, Vector.empty[GridPart])) { case ((x, acc), col) =>
         val (_, colParts) = col.cellHeights.foldLeft((0, Vector.empty[GridPart])) { case ((y, pacc), h) =>
           (y + h, pacc :+ GridPart(x = x, y = y, width = col.width, height = h))

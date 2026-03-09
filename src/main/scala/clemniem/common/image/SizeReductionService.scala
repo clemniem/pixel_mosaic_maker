@@ -64,10 +64,10 @@ object SizeReductionService {
       dy <- 0 until nh
       dx <- 0 until nw
     } {
-      val x0 = (dx * w) / nw
-      val y0 = (dy * h) / nh
-      val x1 = ((dx + 1) * w).min(w)
-      val y1 = ((dy + 1) * h).min(h)
+      val x0              = (dx * w) / nw
+      val y0              = (dy * h) / nh
+      val x1              = ((dx + 1) * w).min(w)
+      val y1              = ((dy + 1) * h).min(h)
       val (r, g, b, a, n) =
         (y0 until y1).flatMap(sy => (x0 until x1).map(sx => (sy, sx))).foldLeft((0L, 0L, 0L, 0L, 0L)) {
           case ((r0, g0, b0, a0, n0), (sy, sx)) =>

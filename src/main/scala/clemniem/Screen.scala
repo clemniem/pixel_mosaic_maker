@@ -3,9 +3,9 @@ package clemniem
 import cats.effect.IO
 import tyrian.{Cmd, Html, Sub}
 
-/** Root-level messages: navigation or delegation to the current screen.
-  * The `output` in [[NavigateTo]] is `Any` so the framework has no dependency on application-level output types.
-  * Each screen's `init` casts it to the expected type via pattern matching.
+/** Root-level messages: navigation or delegation to the current screen. The `output` in [[NavigateTo]] is `Any` so the
+  * framework has no dependency on application-level output types. Each screen's `init` casts it to the expected type
+  * via pattern matching.
   */
 sealed trait RootMsg
 object RootMsg {
@@ -13,8 +13,8 @@ object RootMsg {
   case class HandleScreenMsg(screenId: ScreenId, msg: Any)       extends RootMsg
 }
 
-/** Message a screen can emit to request navigation to another screen with optional output data.
-  * Intercepted in [[Screen.wrapMsg]] and converted to [[RootMsg.NavigateTo]].
+/** Message a screen can emit to request navigation to another screen with optional output data. Intercepted in
+  * [[Screen.wrapMsg]] and converted to [[RootMsg.NavigateTo]].
   */
 case class NavigateNext(screenId: ScreenId, output: Option[Any])
 
@@ -31,8 +31,8 @@ trait Screen {
   /** Unique identifier for this screen (use this, not `id`, to avoid shadowing HTML's `id` attribute). */
   val screenId: ScreenId
 
-  /** Initial state and optional command. `previous` is the navigation output from the previous screen (if any).
-    * Cast to the expected application-level output type via pattern matching.
+  /** Initial state and optional command. `previous` is the navigation output from the previous screen (if any). Cast to
+    * the expected application-level output type via pattern matching.
     */
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg])
 
@@ -45,9 +45,8 @@ trait Screen {
   /** Optional subscriptions. Default: none. */
   def subscriptions(model: Model): Sub[IO, Msg] = Sub.None
 
-  /** Lifts a screen message to [[RootMsg]] so the root app can dispatch it.
-    * [[NavigateNext]] is intercepted and converted to [[RootMsg.NavigateTo]] so the root handler never needs
-    * to dig into `Any` to find navigation requests.
+  /** Lifts a screen message to [[RootMsg]] so the root app can dispatch it. [[NavigateNext]] is intercepted and
+    * converted to [[RootMsg.NavigateTo]] so the root handler never needs to dig into `Any` to find navigation requests.
     */
   def wrapMsg(msg: Msg): RootMsg = (msg: Any) match {
     case n: NavigateNext => RootMsg.NavigateTo(n.screenId, n.output)
@@ -60,19 +59,19 @@ trait Screen {
   protected def navCmd(target: ScreenId, output: Option[Any]): Cmd[IO, Msg] =
     Cmd.Emit(NavigateNext(target, output).asInstanceOf[Msg])
 
-  /** Create a [[NavigateNext]] typed as this screen's [[Msg]]. For use in `onClick` handlers and callbacks.
-    * [[wrapMsg]] will convert it to [[RootMsg.NavigateTo]].
+  /** Create a [[NavigateNext]] typed as this screen's [[Msg]]. For use in `onClick` handlers and callbacks. [[wrapMsg]]
+    * will convert it to [[RootMsg.NavigateTo]].
     */
   protected def navMsg(target: ScreenId, output: Option[Any]): Msg =
     NavigateNext(target, output).asInstanceOf[Msg]
 }
 
-/** Type-safe wrapper that pairs a [[Screen]] with its model, encapsulating the `asInstanceOf` casts in one place.
-  * The rest of the application (root update, view, subscriptions) works with `ActiveScreen` and never sees `Any`.
+/** Type-safe wrapper that pairs a [[Screen]] with its model, encapsulating the `asInstanceOf` casts in one place. The
+  * rest of the application (root update, view, subscriptions) works with `ActiveScreen` and never sees `Any`.
   *
-  * The message cast is the only remaining unsafe boundary — under JVM/JS type erasure the screen-level Msg type
-  * cannot be checked at runtime. The guard `screenId == model.currentScreenId` in the root update prevents stale
-  * messages from reaching the wrong screen.
+  * The message cast is the only remaining unsafe boundary — under JVM/JS type erasure the screen-level Msg type cannot
+  * be checked at runtime. The guard `screenId == model.currentScreenId` in the root update prevents stale messages from
+  * reaching the wrong screen.
   */
 final class ActiveScreen private (val screen: Screen, private val modelValue: Any) {
 
