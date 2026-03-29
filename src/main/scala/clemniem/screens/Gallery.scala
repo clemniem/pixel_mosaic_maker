@@ -158,7 +158,7 @@ object Gallery {
               state.currentPage,
               pageSize,
               addAction,
-              item => entryCard(item, state.pendingDeleteId.contains(item.id)),
+              item => entryCard(item, state.pendingDeleteId.contains(item.id)).setKey(item.id),
               prevPageMsg,
               nextPageMsg
             )
