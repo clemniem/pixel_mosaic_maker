@@ -2,6 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.*
+import clemniem.common.PdfUtils
 import io.circe.{Decoder, Encoder}
 import io.circe.syntax.*
 import org.scalajs.dom
@@ -142,11 +143,11 @@ object SeedData {
       selectedBuildId = Some("sample-build-quilt"),
       selectedBuildConfigId = Some("sample-buildconfig-quilt"),
       title = "My First Quilt Mosaic",
-      stepSizePx = 16,
-      pageBackgroundColorHex = "#fdfbe6",
-      patchBackgroundColorHex = "#dcdcdc",
-      stacked = true,
-      printerMarginMm = 3.0,
-      contentTopOffsetMm = 2.0)
+      stepSizePx = PdfUtils.defaultStepSizePx,
+      pageBackgroundColorHex = PdfUtils.defaultPageBackgroundColor.toHex,
+      patchBackgroundColorHex = Color.layerPatchBackground.toHex,
+      stacked = PdfUtils.defaultStacked,
+      printerMarginMm = PdfUtils.defaultPrinterMarginMm,
+      contentTopOffsetMm = PdfUtils.defaultContentTopOffsetMm)
   )
 }

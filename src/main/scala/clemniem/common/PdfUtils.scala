@@ -10,12 +10,12 @@ import clemniem.common.pdf.{Instruction, JsPDF, PdfLayout, PdfLayoutConfig, PdfP
 final case class PrintBookRequest(
   title: String,
   mosaicPicAndGridOpt: Option[(PixelPic, Layout)],
-  stepSizePx: Int = 16,
+  stepSizePx: Int = PdfUtils.defaultStepSizePx,
   pageBackgroundColor: Color = PdfUtils.defaultPageBackgroundColor,
-  printerMarginMm: Double = 3.0,
-  contentTopOffsetMm: Double = 2.0,
+  printerMarginMm: Double = PdfUtils.defaultPrinterMarginMm,
+  contentTopOffsetMm: Double = PdfUtils.defaultContentTopOffsetMm,
   patchBackgroundColor: Color = Color.layerPatchBackground,
-  stacked: Boolean = true,
+  stacked: Boolean = PdfUtils.defaultStacked,
   layoutConfig: Option[PdfLayoutConfig] = None)
 
 /** High-level PDF helpers. Build [[Instruction]]s and run them via [[JsPDF]]. */
@@ -24,7 +24,11 @@ object PdfUtils {
   /** Default page background: light pastel yellow (old LEGO-catalog style). */
   val defaultPageBackgroundColor: Color = Color.defaultPageBackground
 
-  val defaultContentTopOffsetMm = 2.0
+  val defaultPrinterMarginMm: Double  = 6.0
+  val defaultContentTopOffsetMm: Double = 2.0
+  val defaultStepSizePx: Int          = 16
+  val defaultTitle: String            = "Mosaic"
+  val defaultStacked: Boolean         = true
 
   private val progressBarHeightMm = 3.0
 
