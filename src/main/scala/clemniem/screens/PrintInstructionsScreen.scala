@@ -59,6 +59,7 @@ object PrintInstructionsScreen extends Screen {
       stacked = base.map(_.stacked).getOrElse(PdfUtils.defaultStacked),
       printerMarginMm = base.map(_.printerMarginMm).getOrElse(PdfUtils.defaultPrinterMarginMm),
       contentTopOffsetMm = base.map(_.contentTopOffsetMm).getOrElse(PdfUtils.defaultContentTopOffsetMm),
+      innerMargin = base.map(_.innerMargin).getOrElse(PdfUtils.defaultInnerMargin),
       pdfPreviewPageIdx = 0,
       savedConfigId = base.map(_.id),
       printConfigs = None
@@ -153,6 +154,9 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.SetStacked(value) =>
       val next = model.copy(stacked = value)
       (next, drawPdfPreviewCmd(next))
+    case PrintInstructionsMsg.SetInnerMargin(value) =>
+      val next = model.copy(innerMargin = value)
+      (next, drawPdfPreviewCmd(next))
     case PrintInstructionsMsg.NextPdfPreviewPage =>
       val next = model.copy(pdfPreviewPageIdx = model.pdfPreviewPageIdx + 1)
       (next, drawPdfPreviewCmd(next))
@@ -174,7 +178,8 @@ object PrintInstructionsScreen extends Screen {
         patchBackgroundColorHex = model.patchBackgroundColorHex,
         stacked = model.stacked,
         printerMarginMm = model.printerMarginMm,
-        contentTopOffsetMm = model.contentTopOffsetMm
+        contentTopOffsetMm = model.contentTopOffsetMm,
+        innerMargin = model.innerMargin
       )
       val existing = model.printConfigs.getOrElse(Nil)
       val updated  = stored :: existing.filterNot(_.id == id)
@@ -346,7 +351,35 @@ object PrintInstructionsScreen extends Screen {
           step    := "1",
           onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s)))
         ),
-        span(`class` := s"${NesCss.text} helper-text--inline")(text("White border around each page. Default 3 mm."))
+        span(`class` := s"${NesCss.text} helper-text--inline")(text("White border around each page. Default 6 mm."))
+      ),
+      div(`class` := s"${NesCss.field} field-block--lg build-stacked-block")(
+        label(`class` := "label-block")(text("Inner page margin")),
+        div(`class` := "stacked-radios")(
+          label(`class` := "stacked-radio-option")(
+            input(
+              `type`  := "radio",
+              `class` := NesCss.radio,
+              name    := "pdf-inner-margin",
+              value   := "on",
+              checked := model.innerMargin,
+              onClick(PrintInstructionsMsg.SetInnerMargin(true))
+            ),
+            span(text("On"))
+          ),
+          label(`class` := "stacked-radio-option")(
+            input(
+              `type`  := "radio",
+              `class` := NesCss.radio,
+              name    := "pdf-inner-margin",
+              value   := "off",
+              checked := !model.innerMargin,
+              onClick(PrintInstructionsMsg.SetInnerMargin(false))
+            ),
+            span(text("Off"))
+          )
+        ),
+        span(`class` := s"${NesCss.text} helper-text")(text("Off = no white gap where pages meet. On = uniform margins."))
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
         label(`class` := "label-block")(
@@ -487,6 +520,7 @@ object PrintInstructionsScreen extends Screen {
             pageBg.g,
             pageBg.b,
             preview.printerMarginMm,
+            preview.removeInnerMargin,
             pageIndex0Based = idx,
             preview.totalPages
           )
@@ -518,7 +552,8 @@ object PrintInstructionsScreen extends Screen {
       printerMarginMm = model.printerMarginMm,
       contentTopOffsetMm = model.contentTopOffsetMm,
       patchBackgroundColor = patchBg,
-      stacked = model.stacked
+      stacked = model.stacked,
+      innerMargin = model.innerMargin
     )
   }
 
@@ -556,6 +591,7 @@ final case class PrintInstructionsModel(
   stacked: Boolean,
   printerMarginMm: Double,
   contentTopOffsetMm: Double,
+  innerMargin: Boolean,
   pdfPreviewPageIdx: Int,
   savedConfigId: Option[String],
   printConfigs: Option[List[StoredPrintConfig]]) {
@@ -578,6 +614,7 @@ enum PrintInstructionsMsg {
   case SetContentTopOffsetMm(mm: Double)
   case SetPatchBackgroundColor(hex: String)
   case SetStacked(value: Boolean)
+  case SetInnerMargin(value: Boolean)
   case DrawOverview
   case DrawPdfPreview
   case NextPdfPreviewPage

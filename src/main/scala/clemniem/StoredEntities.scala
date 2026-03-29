@@ -58,11 +58,30 @@ final case class StoredPrintConfig(
   patchBackgroundColorHex: String,
   stacked: Boolean,
   printerMarginMm: Double,
-  contentTopOffsetMm: Double
+  contentTopOffsetMm: Double,
+  innerMargin: Boolean
 ) extends StoredEntity
 object StoredPrintConfig {
   given Encoder[StoredPrintConfig] = deriveEncoder
-  given Decoder[StoredPrintConfig] = deriveDecoder
+  given Decoder[StoredPrintConfig] = Decoder.instance { c =>
+    for {
+      id                     <- c.get[String]("id")
+      name                   <- c.get[String]("name")
+      selectedBuildId        <- c.get[Option[String]]("selectedBuildId")
+      selectedBuildConfigId  <- c.get[Option[String]]("selectedBuildConfigId")
+      title                  <- c.get[String]("title")
+      stepSizePx             <- c.get[Int]("stepSizePx")
+      pageBackgroundColorHex <- c.get[String]("pageBackgroundColorHex")
+      patchBackgroundColorHex <- c.get[String]("patchBackgroundColorHex")
+      stacked                <- c.get[Boolean]("stacked")
+      printerMarginMm        <- c.get[Double]("printerMarginMm")
+      contentTopOffsetMm     <- c.get[Double]("contentTopOffsetMm")
+      innerMargin            <- c.getOrElse[Boolean]("innerMargin")(false)
+    } yield StoredPrintConfig(
+      id, name, selectedBuildId, selectedBuildConfigId, title, stepSizePx,
+      pageBackgroundColorHex, patchBackgroundColorHex, stacked, printerMarginMm,
+      contentTopOffsetMm, innerMargin)
+  }
 }
 
 /** LocalStorage keys for gallery lists. */

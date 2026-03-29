@@ -13,11 +13,26 @@ object JsPDF {
   private val pressStart2PVfsName  = "PressStart2P.ttf"
   private val pressStart2PFontName = "PressStart"
 
-  private def fillPageBackground(doc: js.Dynamic, w: Double, h: Double, r: Int, g: Int, b: Int, printerMarginMm: Double)
-    : Unit = {
+  private def fillPageBackground(
+    doc: js.Dynamic,
+    w: Double,
+    h: Double,
+    r: Int,
+    g: Int,
+    b: Int,
+    printerMarginMm: Double,
+    removeInnerMargin: Boolean,
+    pageIndex0Based: Int
+  ): Unit = {
     val _ = doc.setFillColor(r, g, b)
     if (printerMarginMm <= 0) {
       val _ = doc.rect(0, 0, w, h, "F")
+    } else if (removeInnerMargin) {
+      val isRightHand = pageIndex0Based % 2 == 0
+      val x  = if (isRightHand) 0.0 else printerMarginMm
+      val rw = (w - printerMarginMm).max(0)
+      val rh = (h - 2 * printerMarginMm).max(0)
+      val _  = doc.rect(x, printerMarginMm, rw, rh, "F")
     } else {
       val x  = printerMarginMm
       val y  = printerMarginMm
@@ -30,12 +45,19 @@ object JsPDF {
   /** Execute instructions after a short delay (so jsPDF global is ready). Uses window.pressStartBase64 from fontData.js
     * (same as gbcamutil).
     */
-  def run(instructions: List[Instruction], bgR: Int, bgG: Int, bgB: Int, printerMarginMm: Double): Unit = {
+  def run(
+    instructions: List[Instruction],
+    bgR: Int,
+    bgG: Int,
+    bgB: Int,
+    printerMarginMm: Double,
+    removeInnerMargin: Boolean
+  ): Unit = {
     val base64Val = js.Dynamic.global.selectDynamic("pressStartBase64")
     val fontBase64Opt =
       if (js.typeOf(base64Val) == "undefined") None
       else Some(base64Val.asInstanceOf[String]).filter(_.nonEmpty)
-    val _ = setTimeout(0)(runNow(instructions, bgR, bgG, bgB, printerMarginMm, fontBase64Opt))
+    val _ = setTimeout(0)(runNow(instructions, bgR, bgG, bgB, printerMarginMm, removeInnerMargin, fontBase64Opt))
   }
 
   /** Total page count: 1 + number of AddPage (Save is not a page). */
@@ -75,6 +97,7 @@ object JsPDF {
     bgG: Int,
     bgB: Int,
     printerMarginMm: Double,
+    removeInnerMargin: Boolean,
     fontBase64Opt: Option[String]
   ): Unit =
     getJsPDFConstructor match {
@@ -94,7 +117,7 @@ object JsPDF {
                 format = js.Array(w, h)
               )
               val doc = js.Dynamic.newInstance(ctor)(opts)
-              fillPageBackground(doc, w, h, bgR, bgG, bgB, printerMarginMm)
+              fillPageBackground(doc, w, h, bgR, bgG, bgB, printerMarginMm, removeInnerMargin, 0)
               fontBase64Opt.foreach { base64 =>
                 val _ = doc.addFileToVFS(pressStart2PVfsName, base64)
                 val _ = doc.addFont(pressStart2PVfsName, pressStart2PFontName, "normal")
@@ -147,7 +170,7 @@ object JsPDF {
               docOpt.foreach { doc =>
                 drawPageNumberIfNeeded(doc, pageW, pageH, pageIndex, totalPages, printerMarginMm)
                 val _ = doc.addPage()
-                fillPageBackground(doc, pageW, pageH, bgR, bgG, bgB, printerMarginMm)
+                fillPageBackground(doc, pageW, pageH, bgR, bgG, bgB, printerMarginMm, removeInnerMargin, pageIndex + 1)
               }
               (docOpt, (pageW, pageH), pageIndex + 1)
             case Instruction.DrawPixelGrid(x0, y0, wMm, hMm, cols, rows, rgbFlat) =>

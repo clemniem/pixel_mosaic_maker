@@ -72,6 +72,7 @@ object PdfPreviewRenderer {
     bgG: Int,
     bgB: Int,
     printerMarginMm: Double,
+    removeInnerMargin: Boolean,
     pageIndex0Based: Int,
     totalPages: Int
   ): Unit = {
@@ -89,9 +90,14 @@ object PdfPreviewRenderer {
       ctx.fillRect(0, 0, wPx, hPx)
 
       val mPx = mmToPx(printerMarginMm.max(0.0), pxPerMm)
-      val bgX = mPx
+      val (bgX, bgW) = if (removeInnerMargin && mPx > 0) {
+        val isRightHand = pageIndex0Based % 2 == 0
+        val x = if (isRightHand) 0.0 else mPx
+        (x, (wPx - mPx).max(0.0))
+      } else {
+        (mPx, (wPx - 2 * mPx).max(0.0))
+      }
       val bgY = mPx
-      val bgW = (wPx - 2 * mPx).max(0.0)
       val bgH = (hPx - 2 * mPx).max(0.0)
       ctx.fillStyle = s"rgb($bgR,$bgG,$bgB)"
       ctx.fillRect(bgX, bgY, bgW, bgH)

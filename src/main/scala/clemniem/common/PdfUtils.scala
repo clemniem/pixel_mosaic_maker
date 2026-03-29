@@ -16,6 +16,7 @@ final case class PrintBookRequest(
   contentTopOffsetMm: Double = PdfUtils.defaultContentTopOffsetMm,
   patchBackgroundColor: Color = Color.layerPatchBackground,
   stacked: Boolean = PdfUtils.defaultStacked,
+  innerMargin: Boolean = PdfUtils.defaultInnerMargin,
   layoutConfig: Option[PdfLayoutConfig] = None)
 
 /** High-level PDF helpers. Build [[Instruction]]s and run them via [[JsPDF]]. */
@@ -29,6 +30,7 @@ object PdfUtils {
   val defaultStepSizePx: Int          = 16
   val defaultTitle: String            = "Mosaic"
   val defaultStacked: Boolean         = true
+  val defaultInnerMargin: Boolean     = false
 
   private val progressBarHeightMm = 3.0
 
@@ -48,14 +50,20 @@ object PdfUtils {
     totalPages: Int,
     pageW: Double,
     pageH: Double,
-    printerMarginMm: Double
+    printerMarginMm: Double,
+    removeInnerMargin: Boolean
   ): List[Instruction] = {
     val pageIndex0Based = pageIndex1Based - 1
     if (totalPages <= 0 || pageIndex0Based < 3 || pageIndex1Based == totalPages) Nil
     else {
-      val m    = printerMarginMm.max(0.0)
-      val barX = m
-      val barW = (pageW - 2 * m).max(0.0)
+      val m = printerMarginMm.max(0.0)
+      val (barX, barW) = if (removeInnerMargin && m > 0) {
+        val isRightHand = pageIndex0Based % 2 == 0
+        val x = if (isRightHand) 0.0 else m
+        (x, (pageW - m).max(0.0))
+      } else {
+        (m, (pageW - 2 * m).max(0.0))
+      }
       val barY = pageH - m - progressBarHeightMm
       if (barY < 0) Nil
       else {
@@ -95,16 +103,17 @@ object PdfUtils {
     totalPages: Int,
     pageW: Double,
     pageH: Double,
-    printerMarginMm: Double
+    printerMarginMm: Double,
+    removeInnerMargin: Boolean
   ): List[Instruction] = {
     type State = (Int, List[Instruction]) // currentPage, reversed result
     val (_, revResult) = instructions.foldLeft[State]((1, Nil)) { case ((currentPage, acc), inst) =>
       inst match {
         case Instruction.AddPage =>
-          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, printerMarginMm)
+          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, printerMarginMm, removeInnerMargin)
           (currentPage + 1, Instruction.AddPage :: (bar.reverse ++ acc))
         case s @ Instruction.Save(_) =>
-          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, printerMarginMm)
+          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, printerMarginMm, removeInnerMargin)
           (currentPage, s :: (bar.reverse ++ acc))
         case other =>
           (currentPage, other :: acc)
@@ -132,6 +141,7 @@ object PdfUtils {
       request.contentTopOffsetMm,
       request.patchBackgroundColor,
       request.stacked,
+      request.innerMargin,
       config
     )
   }
@@ -140,6 +150,7 @@ object PdfUtils {
     pageWmm: Double,
     pageHmm: Double,
     printerMarginMm: Double,
+    removeInnerMargin: Boolean,
     totalPages: Int,
     pages: Vector[List[Instruction]])
 
@@ -168,12 +179,13 @@ object PdfUtils {
         PdfLayout.coverInstructions(request.title, printerMarginMm, config) ++ List(Instruction.AddPage)
     }
 
+    val removeInner     = !request.innerMargin
     val rawInstructions = contentInstrs :+ Instruction.Save("__preview__.pdf")
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
-    val withBars        = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm)
+    val withBars        = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm, removeInner)
     val noSave          = withBars.filterNot { case Instruction.Save(_) => true; case _ => false }
     val pages           = splitIntoPages(noSave).take(maxPages.max(1))
-    BookPreview(pageW, pageH, printerMarginMm, totalPages, pages)
+    BookPreview(pageW, pageH, printerMarginMm, removeInner, totalPages, pages)
   }
 
   /** Split a full instruction list into per-page lists (AddPage is the boundary). */
@@ -213,6 +225,7 @@ object PdfUtils {
     contentTopOffsetMm: Double,
     patchBgColor: Color,
     stacked: Boolean,
+    innerMargin: Boolean,
     config: PdfLayoutConfig
   ): Unit = {
     val (pageW, pageH) = (config.global.pageSizeMm, config.global.pageSizeMm)
@@ -236,8 +249,9 @@ object PdfUtils {
     val filename        = filenameFromTitle(title) + ".pdf"
     val rawInstructions = contentInstrs :+ Instruction.Save(filename)
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
-    val instructions    = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm)
+    val removeInner     = !innerMargin
+    val instructions    = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm, removeInner)
     val (bgR, bgG, bgB) = pageBackgroundColor.rgb
-    JsPDF.run(instructions, bgR, bgG, bgB, printerMarginMm)
+    JsPDF.run(instructions, bgR, bgG, bgB, printerMarginMm, removeInner)
   }
 }
