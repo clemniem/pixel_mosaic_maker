@@ -1,11 +1,9 @@
 package clemniem
 
-/** Application-level data passed from one screen to the next when navigating.
-  * See docs/FLOW.md for the six-step flow.
+/** Application-level data passed from one screen to the next when navigating. See docs/FLOW.md for the six-step flow.
   *
-  * This is an application concern, not a framework concern — the [[Screen]] trait and [[RootMsg]]
-  * use `Option[Any]` so the framework has no dependency on these types. Each screen pattern-matches
-  * on the expected variant in its `init`.
+  * This is an application concern, not a framework concern — the [[Screen]] trait and [[RootMsg]] use `Option[Any]` so
+  * the framework has no dependency on these types. Each screen pattern-matches on the expected variant in its `init`.
   */
 sealed trait ScreenOutput
 

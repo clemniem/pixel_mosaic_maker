@@ -89,10 +89,10 @@ object PdfPreviewRenderer {
       ctx.fillStyle = "rgb(255,255,255)"
       ctx.fillRect(0, 0, wPx, hPx)
 
-      val mPx = mmToPx(printerMarginMm.max(0.0), pxPerMm)
+      val mPx        = mmToPx(printerMarginMm.max(0.0), pxPerMm)
       val (bgX, bgW) = if (removeInnerMargin && mPx > 0) {
         val isRightHand = pageIndex0Based % 2 == 0
-        val x = if (isRightHand) 0.0 else mPx
+        val x           = if (isRightHand) 0.0 else mPx
         (x, (wPx - mPx).max(0.0))
       } else {
         (mPx, (wPx - 2 * mPx).max(0.0))

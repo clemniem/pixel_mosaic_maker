@@ -46,16 +46,15 @@ object SeedData {
       y <- 0 until 32
       x <- 0 until 32
     } yield {
-      val dx     = x - cx; val dy = y - cy
-      val inFace = (dx * dx + dy * dy) <= r2
+      val dx         = x - cx; val dy = y - cy
+      val inFace     = (dx * dx + dy * dy) <= r2
       val leftEye    = (x >= 10 && x <= 11) && (y >= 11 && y <= 12)
       val rightEye   = (x >= 20 && x <= 21) && (y >= 11 && y <= 12)
       val leftCheek  = inFace && (x >= 6 && x <= 9) && (y >= 17 && y <= 18)
       val rightCheek = inFace && (x >= 22 && x <= 25) && (y >= 17 && y <= 18)
-      val smile = inFace && (
-        ((x == 9 || x == 10) && (y >= 20 && y <= 21)) ||
-          ((x == 21 || x == 22) && (y >= 20 && y <= 21)) ||
-          ((x >= 11 && x <= 20) && (y >= 22 && y <= 23)))
+      val smile      = inFace && (((x == 9 || x == 10) && (y >= 20 && y <= 21)) ||
+        ((x == 21 || x == 22) && (y >= 20 && y <= 21)) ||
+        ((x >= 11 && x <= 20) && (y >= 22 && y <= 23)))
       if (!inFace) 0
       else if (leftEye || rightEye) 2
       else if (smile) 2
@@ -67,12 +66,12 @@ object SeedData {
   /** 32x32 quilt pattern. Palette: 0=white, 1=red, 2=blue, 3=green, 4=gold. */
   private def makeQuiltPixels(): Vector[Int] = {
     val tc = Vector(Vector(1, 2, 3, 4), Vector(2, 3, 4, 1), Vector(3, 4, 1, 2), Vector(4, 1, 2, 3))
-    (for {
-      y <- 0 until 32
-      x <- 0 until 32
-    } yield {
-      if (x % 8 == 0 || y % 8 == 0) 0 else tc(y / 8)(x / 8)
-    }).toVector
+    (
+      for {
+        y <- 0 until 32
+        x <- 0 until 32
+      } yield if (x % 8 == 0 || y % 8 == 0) 0 else tc(y / 8)(x / 8)
+    ).toVector
   }
 
   private def mkPic(w: Int, h: Int, palette: Vector[Pixel], pixels: Vector[Int], name: String): Option[PixelPic] = {
@@ -103,10 +102,8 @@ object SeedData {
   private lazy val quiltPic: Option[PixelPic]  = mkPic(32, 32, quiltPalette, makeQuiltPixels(), "Sample: Quilt Pattern")
 
   private val palettes: List[StoredPalette] = List(
-    StoredPalette("sample-palette-smiley", "Sample: Smiley Colors",
-      smileyPalette.map(p => Color(p.r, p.g, p.b))),
-    StoredPalette("sample-palette-quilt", "Sample: Quilt Colors",
-      quiltPalette.map(p => Color(p.r, p.g, p.b)))
+    StoredPalette("sample-palette-smiley", "Sample: Smiley Colors", smileyPalette.map(p => Color(p.r, p.g, p.b))),
+    StoredPalette("sample-palette-quilt", "Sample: Quilt Colors", quiltPalette.map(p => Color(p.r, p.g, p.b)))
   )
 
   private lazy val images: List[StoredImage] = List(
@@ -115,9 +112,10 @@ object SeedData {
   ).flatten
 
   private val singlePanel: Layout = Layout(1, 1, Array(GridPart(0, 0, 32, 32)))
-  private val grid2x2: Layout = Layout(2, 2, Array(
-    GridPart(0, 0, 16, 16), GridPart(16, 0, 16, 16),
-    GridPart(0, 16, 16, 16), GridPart(16, 16, 16, 16)))
+  private val grid2x2: Layout     = Layout(
+    2,
+    2,
+    Array(GridPart(0, 0, 16, 16), GridPart(16, 0, 16, 16), GridPart(0, 16, 16, 16), GridPart(16, 16, 16, 16)))
 
   private val layouts: List[StoredLayout] = List(
     StoredLayout("sample-layout-single", "Sample: Single Panel", singlePanel, None, None, None),
@@ -125,10 +123,16 @@ object SeedData {
   )
 
   private val buildConfigs: List[StoredBuildConfig] = List(
-    StoredBuildConfig("sample-buildconfig-smiley", "Sample: Smiley Mosaic",
-      BuildConfig(singlePanel, "sample-image-smiley", "sample-palette-smiley", 0, 0), None),
-    StoredBuildConfig("sample-buildconfig-quilt", "Sample: Quilt Mosaic",
-      BuildConfig(grid2x2, "sample-image-quilt", "sample-palette-quilt", 0, 0), None)
+    StoredBuildConfig(
+      "sample-buildconfig-smiley",
+      "Sample: Smiley Mosaic",
+      BuildConfig(singlePanel, "sample-image-smiley", "sample-palette-smiley", 0, 0),
+      None),
+    StoredBuildConfig(
+      "sample-buildconfig-quilt",
+      "Sample: Quilt Mosaic",
+      BuildConfig(grid2x2, "sample-image-quilt", "sample-palette-quilt", 0, 0),
+      None)
   )
 
   private val builds: List[StoredBuild] = List(
@@ -149,6 +153,7 @@ object SeedData {
       stacked = PdfUtils.defaultStacked,
       printerMarginMm = PdfUtils.defaultPrinterMarginMm,
       contentTopOffsetMm = PdfUtils.defaultContentTopOffsetMm,
-      innerMargin = PdfUtils.defaultInnerMargin)
+      innerMargin = PdfUtils.defaultInnerMargin
+    )
   )
 }

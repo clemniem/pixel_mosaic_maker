@@ -2,14 +2,20 @@ package clemniem.screens
 
 import clemniem.ScreenId
 
-/** Application-level workflow config: which screens appear on the overview page, their descriptions,
-  * and the "Next →" navigation order. Separated from [[ScreenId]] (framework) so the enum stays generic.
+/** Application-level workflow config: which screens appear on the overview page, their descriptions, and the "Next →"
+  * navigation order. Separated from [[ScreenId]] (framework) so the enum stays generic.
   */
 object ScreenFlow {
 
   /** Screen IDs shown on the overview page as link cards, in order. */
   val overviewScreenIds: List[ScreenId] =
-    List(ScreenId.ImagesId, ScreenId.PalettesId, ScreenId.LayoutsId, ScreenId.BuildConfigsId, ScreenId.BuildsId, ScreenId.PrintConfigsId)
+    List(
+      ScreenId.ImagesId,
+      ScreenId.PalettesId,
+      ScreenId.LayoutsId,
+      ScreenId.BuildConfigsId,
+      ScreenId.BuildsId,
+      ScreenId.PrintConfigsId)
 
   /** Short description for the overview page link card. None = screen is not shown on overview. */
   def overviewDescription(id: ScreenId): Option[String] = id match {
@@ -22,8 +28,8 @@ object ScreenFlow {
     case _                       => None
   }
 
-  /** Next screen in the overview flow (for the "Next →" button). Overview → first in list; last → Overview;
-    * editors → next after their gallery.
+  /** Next screen in the overview flow (for the "Next →" button). Overview → first in list; last → Overview; editors →
+    * next after their gallery.
     */
   def nextInOverviewOrder(current: ScreenId): ScreenId =
     if (current == ScreenId.OverviewId) overviewScreenIds.head

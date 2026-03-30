@@ -28,8 +28,8 @@ object ColorQuantizationService {
     * box, then refine with a few k-means iterations to sharpen palette colors.
     */
   def medianCutPalette(image: RawImage, numColors: Int): Vector[(Byte, Byte, Byte, Byte)] = {
-    val w = image.width
-    val h = image.height
+    val w      = image.width
+    val h      = image.height
     val pixels = (0 until (w * h)).map { i =>
       val o = i * 4
       val r = image.data(o) & 0xff
@@ -87,7 +87,7 @@ object ColorQuantizationService {
   private def avgColor(pixels: Vector[(Int, Int, Int, Int)]): (Byte, Byte, Byte, Byte) =
     if (pixels.isEmpty) (0.toByte, 0.toByte, 0.toByte, 255.toByte)
     else {
-      val n = pixels.size
+      val n            = pixels.size
       val (r, g, b, a) = pixels.foldLeft((0L, 0L, 0L, 0L)) { case ((r0, g0, b0, a0), (rr, gg, bb, aa)) =>
         (r0 + rr, g0 + gg, b0 + bb, a0 + aa)
       }

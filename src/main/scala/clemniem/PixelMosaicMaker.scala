@@ -56,8 +56,8 @@ object PixelMosaicMaker extends TyrianIOApp[RootMsg, RootModel] {
     Routing.none(RootMsg.HandleScreenMsg(registry.initialScreenId, OverviewMsg.NoOp))
 
   def init(flags: Map[String, String]): (RootModel, Cmd[IO, RootMsg]) = {
-    val screen             = registry.screenFor(registry.initialScreenId).get
-    val (active, rootCmd)  = ActiveScreen.fromInit(screen, None)
+    val screen            = registry.screenFor(registry.initialScreenId).get
+    val (active, rootCmd) = ActiveScreen.fromInit(screen, None)
     (RootModel(registry, registry.initialScreenId, active), rootCmd)
   }
 
