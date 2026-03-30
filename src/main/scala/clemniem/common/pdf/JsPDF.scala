@@ -29,10 +29,10 @@ object JsPDF {
       val _ = doc.rect(0, 0, w, h, "F")
     } else if (removeInnerMargin) {
       val isRightHand = pageIndex0Based % 2 == 0
-      val x  = if (isRightHand) 0.0 else printerMarginMm
-      val rw = (w - printerMarginMm).max(0)
-      val rh = (h - 2 * printerMarginMm).max(0)
-      val _  = doc.rect(x, printerMarginMm, rw, rh, "F")
+      val x           = if (isRightHand) 0.0 else printerMarginMm
+      val rw          = (w - printerMarginMm).max(0)
+      val rh          = (h - 2 * printerMarginMm).max(0)
+      val _           = doc.rect(x, printerMarginMm, rw, rh, "F")
     } else {
       val x  = printerMarginMm
       val y  = printerMarginMm
@@ -53,7 +53,7 @@ object JsPDF {
     printerMarginMm: Double,
     removeInnerMargin: Boolean
   ): Unit = {
-    val base64Val = js.Dynamic.global.selectDynamic("pressStartBase64")
+    val base64Val     = js.Dynamic.global.selectDynamic("pressStartBase64")
     val fontBase64Opt =
       if (js.typeOf(base64Val) == "undefined") None
       else Some(base64Val.asInstanceOf[String]).filter(_.nonEmpty)
@@ -110,7 +110,7 @@ object JsPDF {
           val (docOpt, (pageW, pageH), pageIndex) = state
           inst match {
             case Instruction.PageSize(w, h) =>
-              val _ = docOpt
+              val _    = docOpt
               val opts = js.Dynamic.literal(
                 orientation = "p",
                 unit = "mm",

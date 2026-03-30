@@ -21,7 +21,6 @@ import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
 
-
 /** Fixed step size options (px). Only those that divide every section width/height are shown. Default 16 if available
   * else smallest.
   */
@@ -44,7 +43,7 @@ object PrintInstructionsScreen extends Screen {
   private val pdfPreviewMaxPages = 5
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val base = previous.collect { case ScreenOutput.OpenPrintConfig(stored) => stored }
+    val base  = previous.collect { case ScreenOutput.OpenPrintConfig(stored) => stored }
     val model = PrintInstructionsModel(
       builds = None,
       buildConfigs = None,
@@ -90,7 +89,7 @@ object PrintInstructionsScreen extends Screen {
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case PrintInstructionsMsg.LoadedBuilds(list) =>
       // Auto-select first build (if nothing already selected), and derive build config from it
-      val selBuildId = model.selectedBuildId.orElse(list.headOption.map(_.id))
+      val selBuildId  = model.selectedBuildId.orElse(list.headOption.map(_.id))
       val selConfigId = selBuildId
         .flatMap(id => list.find(_.id == id).map(_.buildConfigRef))
         .orElse(model.selectedBuildConfigId)
@@ -100,7 +99,7 @@ object PrintInstructionsScreen extends Screen {
       // Only fall back to first config if no build has already set a config id
       val selectedId = model.selectedBuildConfigId.orElse(list.headOption.map(_.id))
       val nextBase   = model.copy(buildConfigs = Some(list), selectedBuildConfigId = selectedId)
-      val available =
+      val available  =
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
@@ -108,7 +107,8 @@ object PrintInstructionsScreen extends Screen {
       (next, drawPreviewsCmd(next))
     case PrintInstructionsMsg.SetBuild(id) =>
       val configId = model.builds.getOrElse(Nil).find(_.id == id).map(_.buildConfigRef)
-      val nextBase = model.copy(selectedBuildId = Some(id), selectedBuildConfigId = configId.orElse(model.selectedBuildConfigId))
+      val nextBase =
+        model.copy(selectedBuildId = Some(id), selectedBuildConfigId = configId.orElse(model.selectedBuildConfigId))
       val available =
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
@@ -122,7 +122,7 @@ object PrintInstructionsScreen extends Screen {
       val next = model.copy(palettes = Some(list))
       (next, drawPreviewsCmd(next))
     case PrintInstructionsMsg.SetBuildConfig(id) =>
-      val nextBase = model.copy(selectedBuildConfigId = Some(id))
+      val nextBase  = model.copy(selectedBuildConfigId = Some(id))
       val available =
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
@@ -166,7 +166,7 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.LoadedPrintConfigs(list) =>
       (model.copy(printConfigs = Some(list)), Cmd.None)
     case PrintInstructionsMsg.SaveConfig =>
-      val id = model.savedConfigId.getOrElse(LocalStorageUtils.newId("printconfig"))
+      val id     = model.savedConfigId.getOrElse(LocalStorageUtils.newId("printconfig"))
       val stored = StoredPrintConfig(
         id = id,
         name = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
@@ -183,7 +183,7 @@ object PrintInstructionsScreen extends Screen {
       )
       val existing = model.printConfigs.getOrElse(Nil)
       val updated  = stored :: existing.filterNot(_.id == id)
-      val saveCmd = LocalStorageUtils.saveList(StorageKeys.printConfigs, updated)(
+      val saveCmd  = LocalStorageUtils.saveList(StorageKeys.printConfigs, updated)(
         list => PrintInstructionsMsg.ConfigSaved(id, list),
         (_, _) => PrintInstructionsMsg.ConfigSaved(id, updated)
       )
@@ -191,7 +191,12 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.ConfigSaved(id, newList) =>
       (model.copy(savedConfigId = Some(id), printConfigs = Some(newList)), Cmd.None)
     case PrintInstructionsMsg.PrintPdf =>
-      (model, CmdUtils.fireAndForget(PdfUtils.printBookPdf(bookRequestForModel(model)), PrintInstructionsMsg.NoOp, _ => PrintInstructionsMsg.NoOp))
+      (
+        model,
+        CmdUtils.fireAndForget(
+          PdfUtils.printBookPdf(bookRequestForModel(model)),
+          PrintInstructionsMsg.NoOp,
+          _ => PrintInstructionsMsg.NoOp))
     case PrintInstructionsMsg.Back =>
       (model, navCmd(ScreenId.PrintConfigsId, None))
     case PrintInstructionsMsg.NoOp =>
@@ -338,7 +343,8 @@ object PrintInstructionsScreen extends Screen {
             span(text("Off"))
           )
         ),
-        span(`class` := s"${NesCss.text} helper-text")(text("On = cumulative colors per layer. Off = one color per layer."))
+        span(`class` := s"${NesCss.text} helper-text")(
+          text("On = cumulative colors per layer. Off = one color per layer."))
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
         label(`class` := "label-block")(text("Margin (mm)")),
@@ -379,7 +385,8 @@ object PrintInstructionsScreen extends Screen {
             span(text("Off"))
           )
         ),
-        span(`class` := s"${NesCss.text} helper-text")(text("Off = no white gap where pages meet. On = uniform margins."))
+        span(`class` := s"${NesCss.text} helper-text")(
+          text("Off = no white gap where pages meet. On = uniform margins."))
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
         label(`class` := "label-block")(
@@ -392,7 +399,8 @@ object PrintInstructionsScreen extends Screen {
           max    := "40",
           step   := "0.5",
           value  := model.contentTopOffsetMm.toString,
-          onInput(s => PrintInstructionsMsg.SetContentTopOffsetMm(s.toDoubleOption.getOrElse(PdfUtils.defaultContentTopOffsetMm)))
+          onInput(s =>
+            PrintInstructionsMsg.SetContentTopOffsetMm(s.toDoubleOption.getOrElse(PdfUtils.defaultContentTopOffsetMm)))
         ),
         span(`class` := s"${NesCss.text} helper-text--inline")(text("Push all page content down. Default 2 mm."))
       )
@@ -505,7 +513,7 @@ object PrintInstructionsScreen extends Screen {
         val request = bookRequestForModel(model)
         val preview = PdfUtils.previewBookPages(request, pdfPreviewMaxPages)
         val idx     = if (preview.pages.isEmpty) 0 else model.pdfPreviewPageIdx.max(0).min(preview.pages.size - 1)
-        val pageBg =
+        val pageBg  =
           if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
           else Color.fromHex(model.pageBackgroundColorHex)
         if (preview.pages.isEmpty)
@@ -563,7 +571,7 @@ object PrintInstructionsScreen extends Screen {
     palettes: List[StoredPalette]
   ): Option[(PixelPic, Layout)] =
     for {
-      pic <- clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
+      pic     <- clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
       cropped <- pic.crop(
         stored.config.offsetX,
         stored.config.offsetY,

@@ -134,7 +134,7 @@ object GalleryLayout {
     shortHeader: Boolean,
     nextButton: Option[Html[Msg]]
   ): Html[Msg] = {
-    val headerClass = if (shortHeader) "screen-header screen-header--short" else "screen-header"
+    val headerClass   = if (shortHeader) "screen-header screen-header--short" else "screen-header"
     val headerButtons = nextButton match {
       case Some(next) => div(`class` := "flex-row", style := "gap: 0.5rem;")(backButton, next)
       case None       => backButton

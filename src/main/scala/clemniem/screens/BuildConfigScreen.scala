@@ -19,7 +19,6 @@ import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
 
-
 /** Build config editor: select one Layout, one Image, one Palette, and offset; preview updates when palette changes. */
 object BuildConfigScreen extends Screen {
   type Model = BuildConfigModel
@@ -108,8 +107,8 @@ object BuildConfigScreen extends Screen {
       (clamped, drawPreviewCmd(clamped))
 
     case BuildConfigMsg.LoadedPalettes(list) =>
-      val next = model.copy(palettes = Some(list))
-      val sel  = resolvePrefill(model.prefill, model.layouts.getOrElse(Nil), model.images.getOrElse(Nil), list)
+      val next    = model.copy(palettes = Some(list))
+      val sel     = resolvePrefill(model.prefill, model.layouts.getOrElse(Nil), model.images.getOrElse(Nil), list)
       val withSel =
         next.copy(selectedPaletteId = sel._3.orElse(next.selectedPaletteId).orElse(list.headOption.map(_.id)))
       val clamped = clampOffsets(withSel)
@@ -166,7 +165,7 @@ object BuildConfigScreen extends Screen {
         image   <- model.selectedImageId.flatMap(id => model.images.flatMap(_.find(_.id == id)))
         palette <- model.selectedPaletteId.flatMap(id => model.palettes.flatMap(_.find(_.id == id)))
       } yield {
-        val id = model.editingId.getOrElse(LocalStorageUtils.newId("buildconfig"))
+        val id     = model.editingId.getOrElse(LocalStorageUtils.newId("buildconfig"))
         val stored = StoredBuildConfig(
           id = id,
           name = model.name,
@@ -199,7 +198,10 @@ object BuildConfigScreen extends Screen {
   }
 
   private def drawPreviewCmd(model: Model): Cmd[IO, Msg] =
-    CmdUtils.fireAndForget(drawOverview(model).flatMap(_ => drawPreviewRegion(model)), BuildConfigMsg.NoOp, _ => BuildConfigMsg.NoOp)
+    CmdUtils.fireAndForget(
+      drawOverview(model).flatMap(_ => drawPreviewRegion(model)),
+      BuildConfigMsg.NoOp,
+      _ => BuildConfigMsg.NoOp)
 
   /** Overview: full image with palette + grid overlay at offset. */
   private def drawOverview(model: Model): IO[Unit] =
@@ -223,7 +225,14 @@ object BuildConfigScreen extends Screen {
       val gridOpt = model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
       (picOpt, gridOpt) match {
         case (Some(pic), Some(storedGrid)) =>
-          renderers.BuildConfigRenderer.drawCroppedRegion(canvas, ctx, pic, storedGrid.config, model.offsetX, model.offsetY, 300)
+          renderers.BuildConfigRenderer.drawCroppedRegion(
+            canvas,
+            ctx,
+            pic,
+            storedGrid.config,
+            model.offsetX,
+            model.offsetY,
+            300)
         case _ =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 300, 200, "Select image, colors and layout for preview")
       }
@@ -384,8 +393,8 @@ final case class BuildConfigModel(
   editingId: Option[String],
   prefill: PrefillSpec)
 
-/** Data-only description of which selections to prefill when editing an existing build config.
-  * Replaces the function `(List[...], ...) => (Option[String], ...)` that was stored in the model.
+/** Data-only description of which selections to prefill when editing an existing build config. Replaces the function
+  * `(List[...], ...) => (Option[String], ...)` that was stored in the model.
   */
 enum PrefillSpec {
   case Empty

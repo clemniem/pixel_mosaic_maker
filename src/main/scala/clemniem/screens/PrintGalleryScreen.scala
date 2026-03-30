@@ -15,7 +15,10 @@ object PrintGalleryScreen extends Screen {
   val screenId: ScreenId = ScreenId.PrintConfigsId
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val loadConfigs = Gallery.loadCmd(StorageKeys.printConfigs, PrintGalleryMsg.Loaded.apply, (msg, _) => PrintGalleryMsg.LoadFailed(msg))
+    val loadConfigs = Gallery.loadCmd(
+      StorageKeys.printConfigs,
+      PrintGalleryMsg.Loaded.apply,
+      (msg, _) => PrintGalleryMsg.LoadFailed(msg))
     val loadBuildConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       PrintGalleryMsg.LoadedBuildConfigs.apply,
       (_, _) => PrintGalleryMsg.LoadedBuildConfigs(Nil)
@@ -35,7 +38,12 @@ object PrintGalleryScreen extends Screen {
     case PrintGalleryMsg.Delete(stored) =>
       (model.copy(gallery = Gallery.onRequestDelete(model.gallery, stored.id)), Cmd.None)
     case PrintGalleryMsg.ConfirmDelete(id) =>
-      val (gs, cmd) = Gallery.onConfirmDelete(model.gallery, id, StorageKeys.printConfigs, GalleryLayout.defaultPageSize, PrintGalleryMsg.CancelDelete)
+      val (gs, cmd) = Gallery.onConfirmDelete(
+        model.gallery,
+        id,
+        StorageKeys.printConfigs,
+        GalleryLayout.defaultPageSize,
+        PrintGalleryMsg.CancelDelete)
       (model.copy(gallery = gs), cmd)
     case PrintGalleryMsg.CancelDelete =>
       (model.copy(gallery = Gallery.onCancelDelete(model.gallery)), Cmd.None)
@@ -106,8 +114,7 @@ object PrintGalleryScreen extends Screen {
 
 final case class PrintGalleryModel(
   gallery: Gallery.State[StoredPrintConfig],
-  buildConfigs: Option[List[StoredBuildConfig]]
-)
+  buildConfigs: Option[List[StoredBuildConfig]])
 
 enum PrintGalleryMsg {
   case Loaded(list: List[StoredPrintConfig])
