@@ -154,10 +154,11 @@ object PdfUtils {
     totalPages: Int,
     pages: Vector[List[Instruction]])
 
-  /** Build a small preview of the PDF as per-page [[Instruction]] lists (no Save). Intended for rendering onto a canvas
-    * in the UI. Includes progress bars. Returns at most `maxPages` pages (from the start).
+  /** Build a preview of the PDF as per-page [[Instruction]] lists (no Save). Intended for rendering onto a canvas in
+    * the UI. Includes progress bars and keeps the full page vector so the screen can render pages on demand without
+    * rebuilding the book on every navigation click.
     */
-  def previewBookPages(request: PrintBookRequest, maxPages: Int): BookPreview = {
+  def previewBookPages(request: PrintBookRequest): BookPreview = {
     val config          = request.layoutConfig.getOrElse(PdfLayoutConfig.default)
     val (pageW, pageH)  = (config.global.pageSizeMm, config.global.pageSizeMm)
     val printerMarginMm = request.printerMarginMm
@@ -184,7 +185,7 @@ object PdfUtils {
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
     val withBars        = insertProgressBars(rawInstructions, totalPages, pageW, pageH, printerMarginMm, removeInner)
     val noSave          = withBars.filterNot { case Instruction.Save(_) => true; case _ => false }
-    val pages           = splitIntoPages(noSave).take(maxPages.max(1))
+    val pages           = splitIntoPages(noSave)
     BookPreview(pageW, pageH, printerMarginMm, removeInner, totalPages, pages)
   }
 

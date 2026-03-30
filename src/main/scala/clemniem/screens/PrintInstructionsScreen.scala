@@ -21,6 +21,8 @@ import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
 
+import scala.concurrent.duration.DurationInt
+
 
 /** Fixed step size options (px). Only those that divide every section width/height are shown. Default 16 if available
   * else smallest.
@@ -41,7 +43,7 @@ object PrintInstructionsScreen extends Screen {
   val screenId: ScreenId         = ScreenId.PrintInstructionsId
   private val overviewCanvasId   = "print-instructions-overview"
   private val pdfPreviewCanvasId = "print-instructions-pdf-preview"
-  private val pdfPreviewMaxPages = 5
+  private val previewDebounceMs  = 250
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
     val base = previous.collect { case ScreenOutput.OpenPrintConfig(stored) => stored }
@@ -62,7 +64,9 @@ object PrintInstructionsScreen extends Screen {
       innerMargin = base.map(_.innerMargin).getOrElse(PdfUtils.defaultInnerMargin),
       pdfPreviewPageIdx = 0,
       savedConfigId = base.map(_.id),
-      printConfigs = None
+      printConfigs = None,
+      previewRequestVersion = 0,
+      previewCache = None
     )
     val loadBuilds = LocalStorageUtils.loadList(StorageKeys.builds)(
       PrintInstructionsMsg.LoadedBuilds.apply,
@@ -94,8 +98,8 @@ object PrintInstructionsScreen extends Screen {
       val selConfigId = selBuildId
         .flatMap(id => list.find(_.id == id).map(_.buildConfigRef))
         .orElse(model.selectedBuildConfigId)
-      val next = model.copy(builds = Some(list), selectedBuildId = selBuildId, selectedBuildConfigId = selConfigId)
-      (next, drawPreviewsCmd(next))
+      val next = invalidatePreview(model.copy(builds = Some(list), selectedBuildId = selBuildId, selectedBuildConfigId = selConfigId))
+      (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.LoadedBuildConfigs(list) =>
       // Only fall back to first config if no build has already set a config id
       val selectedId = model.selectedBuildConfigId.orElse(list.headOption.map(_.id))
@@ -104,8 +108,8 @@ object PrintInstructionsScreen extends Screen {
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
-      val next = nextBase.copy(stepSizePx = stepSize)
-      (next, drawPreviewsCmd(next))
+      val next = invalidatePreview(nextBase.copy(stepSizePx = stepSize))
+      (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.SetBuild(id) =>
       val configId = model.builds.getOrElse(Nil).find(_.id == id).map(_.buildConfigRef)
       val nextBase = model.copy(selectedBuildId = Some(id), selectedBuildConfigId = configId.orElse(model.selectedBuildConfigId))
@@ -113,56 +117,77 @@ object PrintInstructionsScreen extends Screen {
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
-      val next = nextBase.copy(stepSizePx = stepSize)
-      (next, drawPreviewsCmd(next))
+      val next = invalidatePreview(nextBase.copy(stepSizePx = stepSize))
+      (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.LoadedImages(list) =>
-      val next = model.copy(images = Some(list))
-      (next, drawPreviewsCmd(next))
+      val next = invalidatePreview(model.copy(images = Some(list)))
+      (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.LoadedPalettes(list) =>
-      val next = model.copy(palettes = Some(list))
-      (next, drawPreviewsCmd(next))
+      val next = invalidatePreview(model.copy(palettes = Some(list)))
+      (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.SetBuildConfig(id) =>
       val nextBase = model.copy(selectedBuildConfigId = Some(id))
       val available =
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
-      val next = nextBase.copy(stepSizePx = stepSize)
-      (next, drawPreviewsCmd(next))
+      val next = invalidatePreview(nextBase.copy(stepSizePx = stepSize))
+      (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.DrawOverview =>
-      (model, drawPreviewsCmd(model))
+      (model, drawOverviewCmd(model))
     case PrintInstructionsMsg.DrawPdfPreview =>
-      (model, drawPdfPreviewCmd(model))
+      (model, ensurePreviewIsReadyCmd(model))
     case PrintInstructionsMsg.SetTitle(title) =>
-      val next = model.copy(title = title)
-      (next, drawPdfPreviewCmd(next))
+      val next = invalidatePreview(model.copy(title = title))
+      (next, debouncePreviewCmd(next.previewRequestVersion))
     case PrintInstructionsMsg.SetStepSize(px) =>
-      val next = model.copy(stepSizePx = px)
-      (next, drawPdfPreviewCmd(next))
+      val next = invalidatePreview(model.copy(stepSizePx = px))
+      (next, rebuildPreviewCmd(next))
     case PrintInstructionsMsg.SetPageBackgroundColor(hex) =>
-      val next = model.copy(pageBackgroundColorHex = hex)
-      (next, drawPdfPreviewCmd(next))
+      val next = invalidatePreview(model.copy(pageBackgroundColorHex = hex))
+      (next, debouncePreviewCmd(next.previewRequestVersion))
     case PrintInstructionsMsg.SetPrinterMarginMm(mm) =>
-      val next = model.copy(printerMarginMm = mm)
-      (next, drawPdfPreviewCmd(next))
+      val next = invalidatePreview(model.copy(printerMarginMm = mm))
+      (next, debouncePreviewCmd(next.previewRequestVersion))
     case PrintInstructionsMsg.SetContentTopOffsetMm(mm) =>
-      val next = model.copy(contentTopOffsetMm = mm)
-      (next, drawPdfPreviewCmd(next))
+      val next = invalidatePreview(model.copy(contentTopOffsetMm = mm))
+      (next, debouncePreviewCmd(next.previewRequestVersion))
     case PrintInstructionsMsg.SetPatchBackgroundColor(hex) =>
-      val next = model.copy(patchBackgroundColorHex = hex)
-      (next, drawPdfPreviewCmd(next))
+      val next = invalidatePreview(model.copy(patchBackgroundColorHex = hex))
+      (next, debouncePreviewCmd(next.previewRequestVersion))
     case PrintInstructionsMsg.SetStacked(value) =>
-      val next = model.copy(stacked = value)
-      (next, drawPdfPreviewCmd(next))
+      val next = invalidatePreview(model.copy(stacked = value))
+      (next, rebuildPreviewCmd(next))
     case PrintInstructionsMsg.SetInnerMargin(value) =>
-      val next = model.copy(innerMargin = value)
-      (next, drawPdfPreviewCmd(next))
+      val next = invalidatePreview(model.copy(innerMargin = value))
+      (next, rebuildPreviewCmd(next))
     case PrintInstructionsMsg.NextPdfPreviewPage =>
-      val next = model.copy(pdfPreviewPageIdx = model.pdfPreviewPageIdx + 1)
-      (next, drawPdfPreviewCmd(next))
+      val nextIdx = model.previewCache
+        .filter(_.fingerprint == previewFingerprintForModel(model))
+        .map(cache => clampPreviewPageIdx(model.pdfPreviewPageIdx + 1, cache.preview))
+        .getOrElse(model.pdfPreviewPageIdx + 1)
+      val next = model.copy(pdfPreviewPageIdx = nextIdx)
+      (next, drawOrRebuildPreviewCmd(next))
     case PrintInstructionsMsg.PrevPdfPreviewPage =>
-      val next = model.copy(pdfPreviewPageIdx = (model.pdfPreviewPageIdx - 1).max(0))
-      (next, drawPdfPreviewCmd(next))
+      val nextIdx = model.previewCache
+        .filter(_.fingerprint == previewFingerprintForModel(model))
+        .map(cache => clampPreviewPageIdx(model.pdfPreviewPageIdx - 1, cache.preview))
+        .getOrElse((model.pdfPreviewPageIdx - 1).max(0))
+      val next = model.copy(pdfPreviewPageIdx = nextIdx)
+      (next, drawOrRebuildPreviewCmd(next))
+    case PrintInstructionsMsg.DebouncedPreview(version) =>
+      if (version == model.previewRequestVersion) (model, rebuildPreviewCmd(model))
+      else (model, Cmd.None)
+    case PrintInstructionsMsg.PreviewBuilt(version, fingerprint, preview) =>
+      if (version != model.previewRequestVersion) (model, Cmd.None)
+      else {
+        val clamped = clampPreviewPageIdx(model.pdfPreviewPageIdx, preview)
+        val next = model.copy(
+          pdfPreviewPageIdx = clamped,
+          previewCache = Some(CachedPdfPreview(fingerprint, preview))
+        )
+        (next, drawPdfPreviewCmd(next))
+      }
     case PrintInstructionsMsg.LoadedPrintConfigs(list) =>
       (model.copy(printConfigs = Some(list)), Cmd.None)
     case PrintInstructionsMsg.SaveConfig =>
@@ -502,39 +527,93 @@ object PrintInstructionsScreen extends Screen {
       if (model.selectedStored.isEmpty) {
         CanvasUtils.drawPlaceholder(canvas, ctx, canvas.width, canvas.height, "Select a mosaic setup for preview")
       } else {
-        val request = bookRequestForModel(model)
-        val preview = PdfUtils.previewBookPages(request, pdfPreviewMaxPages)
-        val idx     = if (preview.pages.isEmpty) 0 else model.pdfPreviewPageIdx.max(0).min(preview.pages.size - 1)
-        val pageBg =
-          if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
-          else Color.fromHex(model.pageBackgroundColorHex)
-        if (preview.pages.isEmpty)
-          CanvasUtils.drawPlaceholder(canvas, ctx, canvas.width, canvas.height, "Preview unavailable")
-        else
-          PdfPreviewRenderer.render(
-            canvas,
-            preview.pages(idx),
-            preview.pageWmm,
-            preview.pageHmm,
-            pageBg.r,
-            pageBg.g,
-            pageBg.b,
-            preview.printerMarginMm,
-            preview.removeInnerMargin,
-            pageIndex0Based = idx,
-            preview.totalPages
-          )
+        model.previewCache match {
+          case Some(cache) if cache.fingerprint == previewFingerprintForModel(model) =>
+            val preview = cache.preview
+            val idx     = clampPreviewPageIdx(model.pdfPreviewPageIdx, preview)
+            val pageBg =
+              if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
+              else Color.fromHex(model.pageBackgroundColorHex)
+            if (preview.pages.isEmpty)
+              CanvasUtils.drawPlaceholder(canvas, ctx, canvas.width, canvas.height, "Preview unavailable")
+            else
+              PdfPreviewRenderer.render(
+                canvas,
+                preview.pages(idx),
+                preview.pageWmm,
+                preview.pageHmm,
+                pageBg.r,
+                pageBg.g,
+                pageBg.b,
+                preview.printerMarginMm,
+                preview.removeInnerMargin,
+                pageIndex0Based = idx,
+                preview.totalPages
+              )
+          case _ =>
+            CanvasUtils.drawPlaceholder(canvas, ctx, canvas.width, canvas.height, "Preparing preview...")
+        }
       }
     }
 
-  private def drawPreviewsCmd(model: Model): Cmd[IO, Msg] =
-    CmdUtils.fireAndForget(drawPreviews(model), PrintInstructionsMsg.NoOp, _ => PrintInstructionsMsg.NoOp)
+  private def drawOverviewCmd(model: Model): Cmd[IO, Msg] =
+    CmdUtils.fireAndForget(drawOverview(model), PrintInstructionsMsg.NoOp, _ => PrintInstructionsMsg.NoOp)
 
   private def drawPdfPreviewCmd(model: Model): Cmd[IO, Msg] =
     CmdUtils.fireAndForget(drawPdfPreview(model), PrintInstructionsMsg.NoOp, _ => PrintInstructionsMsg.NoOp)
 
-  private def drawPreviews(model: Model): IO[Unit] =
-    drawOverview(model).flatMap(_ => drawPdfPreview(model))
+  private def redrawOverviewAndRebuildPreviewCmd(model: Model): Cmd[IO, Msg] =
+    Cmd.Batch(drawOverviewCmd(model), rebuildPreviewCmd(model))
+
+  private def drawOrRebuildPreviewCmd(model: Model): Cmd[IO, Msg] =
+    if (hasUsablePreview(model)) drawPdfPreviewCmd(model) else rebuildPreviewCmd(model)
+
+  private def ensurePreviewIsReadyCmd(model: Model): Cmd[IO, Msg] =
+    if (model.selectedStored.isEmpty || hasUsablePreview(model)) drawPdfPreviewCmd(model) else rebuildPreviewCmd(model)
+
+  private def debouncePreviewCmd(version: Int): Cmd[IO, Msg] =
+    CmdUtils.run(
+      IO.sleep(previewDebounceMs.millis).as(version),
+      PrintInstructionsMsg.DebouncedPreview.apply,
+      _ => PrintInstructionsMsg.NoOp
+    )
+
+  private def rebuildPreviewCmd(model: Model): Cmd[IO, Msg] =
+    if (model.selectedStored.isEmpty) drawPdfPreviewCmd(model)
+    else
+      CmdUtils.run(
+        buildPreview(model, model.previewRequestVersion),
+        { case (version, fingerprint, preview) => PrintInstructionsMsg.PreviewBuilt(version, fingerprint, preview) },
+        _ => PrintInstructionsMsg.NoOp
+      )
+
+  private def buildPreview(model: Model, version: Int): IO[(Int, PreviewFingerprint, PdfUtils.BookPreview)] = IO {
+    val fingerprint = previewFingerprintForModel(model)
+    val preview     = PdfUtils.previewBookPages(bookRequestForModel(model))
+    (version, fingerprint, preview)
+  }
+
+  private def hasUsablePreview(model: Model): Boolean =
+    model.previewCache.exists(_.fingerprint == previewFingerprintForModel(model))
+
+  private def clampPreviewPageIdx(idx: Int, preview: PdfUtils.BookPreview): Int =
+    if (preview.pages.isEmpty) 0 else idx.max(0).min(preview.pages.size - 1)
+
+  private def invalidatePreview(model: Model): Model =
+    model.copy(previewRequestVersion = model.previewRequestVersion + 1, previewCache = None)
+
+  private def previewFingerprintForModel(model: Model): PreviewFingerprint =
+    PreviewFingerprint(
+      selectedBuildConfigId = model.selectedBuildConfigId,
+      title = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
+      stepSizePx = model.stepSizePx,
+      pageBackgroundColorHex = Color.normalizeHex(model.pageBackgroundColorHex, PdfUtils.defaultPageBackgroundColor.toHex),
+      patchBackgroundColorHex = Color.normalizeHex(model.patchBackgroundColorHex, Color.layerPatchBackground.toHex),
+      stacked = model.stacked,
+      printerMarginMm = model.printerMarginMm,
+      contentTopOffsetMm = model.contentTopOffsetMm,
+      innerMargin = model.innerMargin
+    )
 
   private def bookRequestForModel(model: Model): PrintBookRequest = {
     val pageBg =
@@ -594,10 +673,27 @@ final case class PrintInstructionsModel(
   innerMargin: Boolean,
   pdfPreviewPageIdx: Int,
   savedConfigId: Option[String],
-  printConfigs: Option[List[StoredPrintConfig]]) {
+  printConfigs: Option[List[StoredPrintConfig]],
+  previewRequestVersion: Int,
+  previewCache: Option[CachedPdfPreview]) {
   def selectedStored: Option[StoredBuildConfig] =
     buildConfigs.flatMap(list => selectedBuildConfigId.flatMap(id => list.find(_.id == id)))
 }
+
+final case class PreviewFingerprint(
+  selectedBuildConfigId: Option[String],
+  title: String,
+  stepSizePx: Int,
+  pageBackgroundColorHex: String,
+  patchBackgroundColorHex: String,
+  stacked: Boolean,
+  printerMarginMm: Double,
+  contentTopOffsetMm: Double,
+  innerMargin: Boolean)
+
+final case class CachedPdfPreview(
+  fingerprint: PreviewFingerprint,
+  preview: PdfUtils.BookPreview)
 
 enum PrintInstructionsMsg {
   case LoadedBuilds(list: List[StoredBuild])
@@ -619,6 +715,8 @@ enum PrintInstructionsMsg {
   case DrawPdfPreview
   case NextPdfPreviewPage
   case PrevPdfPreviewPage
+  case DebouncedPreview(version: Int)
+  case PreviewBuilt(version: Int, fingerprint: PreviewFingerprint, preview: PdfUtils.BookPreview)
   case SaveConfig
   case ConfigSaved(id: String, newList: List[StoredPrintConfig])
   case PrintPdf
