@@ -65,6 +65,7 @@ object PrintInstructionsScreen extends Screen {
       pdfPreviewPageIdx = 0,
       savedConfigId = base.map(_.id),
       printConfigs = None,
+      isPrintingPdf = false,
       previewRequestVersion = 0,
       previewCache = None
     )
@@ -216,7 +217,22 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.ConfigSaved(id, newList) =>
       (model.copy(savedConfigId = Some(id), printConfigs = Some(newList)), Cmd.None)
     case PrintInstructionsMsg.PrintPdf =>
-      (model, CmdUtils.fireAndForget(PdfUtils.printBookPdf(bookRequestForModel(model)), PrintInstructionsMsg.NoOp, _ => PrintInstructionsMsg.NoOp))
+      if (!model.selectedStored.isDefined || model.isPrintingPdf) (model, Cmd.None)
+      else {
+        val next = model.copy(isPrintingPdf = true)
+        (
+          next,
+          CmdUtils.run(
+            CanvasUtils.runAfterNextFrame(PdfUtils.printBookPdf(bookRequestForModel(next))),
+            _ => PrintInstructionsMsg.PrintPdfFinished,
+            _ => PrintInstructionsMsg.PrintPdfFailed
+          )
+        )
+      }
+    case PrintInstructionsMsg.PrintPdfFinished =>
+      (model.copy(isPrintingPdf = false), Cmd.None)
+    case PrintInstructionsMsg.PrintPdfFailed =>
+      (model.copy(isPrintingPdf = false), Cmd.None)
     case PrintInstructionsMsg.Back =>
       (model, navCmd(ScreenId.PrintConfigsId, None))
     case PrintInstructionsMsg.NoOp =>
@@ -224,7 +240,8 @@ object PrintInstructionsScreen extends Screen {
   }
 
   def view(model: Model): Html[Msg] = {
-    val canPrint = model.selectedStored.isDefined
+    val canPrint  = model.selectedStored.isDefined
+    val printBusy = model.isPrintingPdf
 
     div(
       `class` := s"${NesCss.screenContainer} screen-container--narrow"
@@ -235,9 +252,13 @@ object PrintInstructionsScreen extends Screen {
           GalleryLayout.backButton(PrintInstructionsMsg.Back, "Print"),
           button(`class` := NesCss.btn, onClick(PrintInstructionsMsg.SaveConfig))(text("Save")),
           button(
-            `class` := (if (canPrint) NesCss.btnPrimary else s"${NesCss.btn} btn-disabled"),
-            onClick(PrintInstructionsMsg.PrintPdf)
-          )(text("Print PDF"))
+            `class` := (if (canPrint && !printBusy) NesCss.btnPrimary else s"${NesCss.btn} btn-disabled"),
+            onClick(if (canPrint && !printBusy) PrintInstructionsMsg.PrintPdf else PrintInstructionsMsg.NoOp)
+          )(text(if (printBusy) "Preparing PDF..." else "Print PDF")),
+          if (printBusy)
+            span(`class` := s"${NesCss.text} helper-text--inline")(text("Please wait while the PDF is generated."))
+          else
+            span()()
         ),
         None,
         false
@@ -674,6 +695,7 @@ final case class PrintInstructionsModel(
   pdfPreviewPageIdx: Int,
   savedConfigId: Option[String],
   printConfigs: Option[List[StoredPrintConfig]],
+  isPrintingPdf: Boolean,
   previewRequestVersion: Int,
   previewCache: Option[CachedPdfPreview]) {
   def selectedStored: Option[StoredBuildConfig] =
@@ -720,6 +742,8 @@ enum PrintInstructionsMsg {
   case SaveConfig
   case ConfigSaved(id: String, newList: List[StoredPrintConfig])
   case PrintPdf
+  case PrintPdfFinished
+  case PrintPdfFailed
   case Back
   case NoOp
 }
