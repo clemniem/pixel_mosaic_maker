@@ -399,7 +399,7 @@ object PrintInstructionsScreen extends Screen {
           value   := model.sideMarginMm.toString,
           min     := "0",
           max     := "20",
-          step    := "1",
+          step    := "0.1",
           onInput(s => PrintInstructionsMsg.SetSideMarginMm(parseMarginMm(s)))
         ),
         span(`class` := s"${NesCss.text} helper-text--inline")(text("Left/right white border. Default 6 mm."))
@@ -412,7 +412,7 @@ object PrintInstructionsScreen extends Screen {
           value   := model.topBottomMarginMm.toString,
           min     := "0",
           max     := "20",
-          step    := "1",
+          step    := "0.1",
           onInput(s => PrintInstructionsMsg.SetTopBottomMarginMm(parseMarginMm(s)))
         ),
         span(`class` := s"${NesCss.text} helper-text--inline")(text("Top/bottom white border. Default 5 mm."))
