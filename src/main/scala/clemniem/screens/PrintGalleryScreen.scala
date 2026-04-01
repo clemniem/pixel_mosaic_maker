@@ -2,7 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import clemniem.{Screen, ScreenId, ScreenOutput, StorageKeys, StoredBuildConfig, StoredPrintConfig}
-import clemniem.common.LocalStorageUtils
+import clemniem.common.{CmdUtils, ExportImportUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import tyrian.Html.*
 import tyrian.*
@@ -55,6 +55,28 @@ object PrintGalleryScreen extends Screen {
       (model.copy(gallery = Gallery.initState), cmd)
     case PrintGalleryMsg.Retry =>
       init(None)
+    case PrintGalleryMsg.Export(stored) =>
+      val cmd = CmdUtils.fireAndForget(
+        ExportImportUtils.exportPrintConfig(stored),
+        PrintGalleryMsg.ExportDone,
+        _ => PrintGalleryMsg.ExportFailed
+      )
+      (model, cmd)
+    case PrintGalleryMsg.ExportDone =>
+      (model, Cmd.None)
+    case PrintGalleryMsg.ExportFailed =>
+      (model, Cmd.None)
+    case PrintGalleryMsg.Import =>
+      val cmd = CmdUtils.run(
+        ExportImportUtils.importPrintBundle(),
+        PrintGalleryMsg.ImportDone.apply,
+        _ => PrintGalleryMsg.ImportFailed
+      )
+      (model, cmd)
+    case PrintGalleryMsg.ImportDone(_) =>
+      init(None)
+    case PrintGalleryMsg.ImportFailed =>
+      (model, Cmd.None)
   }
 
   def view(model: Model): Html[Msg] =
@@ -70,7 +92,10 @@ object PrintGalleryScreen extends Screen {
       PrintGalleryMsg.ClearData,
       PrintGalleryMsg.Retry,
       GalleryEmptyState("No print configs saved yet.", "+ Create new", PrintGalleryMsg.CreateNew),
-      button(`class` := NesCss.btnPrimary, onClick(PrintGalleryMsg.CreateNew))(text("+ Create new")),
+      div(`class` := "flex-row flex-row--tight")(
+        button(`class` := NesCss.btnPrimary, onClick(PrintGalleryMsg.CreateNew))(text("+ Create new")),
+        button(`class` := NesCss.btn, onClick(PrintGalleryMsg.Import))(text("Import"))
+      ),
       (item, confirming) => entryCard(item, model.buildConfigs.getOrElse(Nil), confirming)
     )
 
@@ -97,6 +122,7 @@ object PrintGalleryScreen extends Screen {
           PrintGalleryMsg.ConfirmDelete.apply,
           PrintGalleryMsg.CancelDelete,
           button(`class` := NesCss.btnPrimary, onClick(PrintGalleryMsg.Open(item)))(text("Open")),
+          button(`class` := NesCss.btn, onClick(PrintGalleryMsg.Export(item)))(text("Export")),
           button(`class` := NesCss.btnError, onClick(PrintGalleryMsg.Delete(item)))(text("Delete"))
         )
       )
@@ -123,4 +149,10 @@ enum PrintGalleryMsg {
   case PreviousPage
   case NextPage
   case Back
+  case Export(stored: StoredPrintConfig)
+  case ExportDone
+  case ExportFailed
+  case Import
+  case ImportDone(count: Int)
+  case ImportFailed
 }
