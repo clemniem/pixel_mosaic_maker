@@ -68,7 +68,8 @@ object PrintInstructionsScreen extends Screen {
       printConfigs = None,
       isPrintingPdf = false,
       previewRequestVersion = 0,
-      previewCache = None
+      previewCache = None,
+      expandedInfoIds = Set.empty
     )
     val loadBuilds = LocalStorageUtils.loadList(StorageKeys.builds)(
       PrintInstructionsMsg.LoadedBuilds.apply,
@@ -240,6 +241,11 @@ object PrintInstructionsScreen extends Screen {
       (model.copy(isPrintingPdf = false), Cmd.None)
     case PrintInstructionsMsg.Back =>
       (model, navCmd(ScreenId.PrintConfigsId, None))
+    case PrintInstructionsMsg.ToggleInfo(id) =>
+      val next =
+        if (model.expandedInfoIds.contains(id)) model.expandedInfoIds - id
+        else model.expandedInfoIds + id
+      (model.copy(expandedInfoIds = next), Cmd.None)
     case PrintInstructionsMsg.NoOp =>
       (model, Cmd.None)
   }
@@ -326,7 +332,7 @@ object PrintInstructionsScreen extends Screen {
       ),
       stepSizeSliderBlock(model),
       div(`class` := s"${NesCss.field} field-block--lg")(
-        label(`class` := "label-block")(text("Page background color")),
+        infoLabel("Page background color", "page-bg", "Color code (e.g. #fdfbe6) for all pages.", model),
         div(`class` := "flex-row flex-row--tight")(
           input(
             `type`  := "color",
@@ -341,11 +347,10 @@ object PrintInstructionsScreen extends Screen {
             placeholder := PdfUtils.defaultPageBackgroundColor.toHex,
             onInput(PrintInstructionsMsg.SetPageBackgroundColor.apply)
           )
-        ),
-        span(`class` := s"${NesCss.text} helper-text")(text("Color code (e.g. #fdfbe6) for all pages."))
+        )
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
-        label(`class` := "label-block")(text("Step background color")),
+        infoLabel("Step background color", "patch-bg", "Background for non-active pixels in layer steps.", model),
         div(`class` := "flex-row flex-row--tight")(
           input(
             `type`  := "color",
@@ -360,11 +365,10 @@ object PrintInstructionsScreen extends Screen {
             placeholder := Color.layerPatchBackground.toHex,
             onInput(PrintInstructionsMsg.SetPatchBackgroundColor.apply)
           )
-        ),
-        span(`class` := s"${NesCss.text} helper-text")(text("Background for non-active pixels in layer steps."))
+        )
       ),
       div(`class` := s"${NesCss.field} field-block--lg build-stacked-block")(
-        label(`class` := "label-block")(text("Stacked layers")),
+        infoLabel("Stacked layers", "stacked", "On = cumulative colors per layer. Off = one color per layer.", model),
         div(`class` := "stacked-radios")(
           label(`class` := "stacked-radio-option")(
             input(
@@ -388,37 +392,34 @@ object PrintInstructionsScreen extends Screen {
             ),
             span(text("Off"))
           )
-        ),
-        span(`class` := s"${NesCss.text} helper-text")(text("On = cumulative colors per layer. Off = one color per layer."))
+        )
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
-        label(`class` := "label-block")(text("Side margin (mm)")),
+        infoLabel("Side margin (mm)", "side-margin", "Left/right white border. Default 6 mm.", model),
         input(
           `type`  := "number",
-          `class` := s"${NesCss.input} input-w-5",
+          `class` := s"${NesCss.input} input-w-6",
           value   := model.sideMarginMm.toString,
           min     := "0",
           max     := "20",
           step    := "0.1",
           onInput(s => PrintInstructionsMsg.SetSideMarginMm(parseMarginMm(s)))
-        ),
-        span(`class` := s"${NesCss.text} helper-text--inline")(text("Left/right white border. Default 6 mm."))
+        )
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
-        label(`class` := "label-block")(text("Top/bottom margin (mm)")),
+        infoLabel("Top/bottom margin (mm)", "tb-margin", "Top/bottom white border. Default 5 mm.", model),
         input(
           `type`  := "number",
-          `class` := s"${NesCss.input} input-w-5",
+          `class` := s"${NesCss.input} input-w-6",
           value   := model.topBottomMarginMm.toString,
           min     := "0",
           max     := "20",
           step    := "0.1",
           onInput(s => PrintInstructionsMsg.SetTopBottomMarginMm(parseMarginMm(s)))
-        ),
-        span(`class` := s"${NesCss.text} helper-text--inline")(text("Top/bottom white border. Default 5 mm."))
+        )
       ),
       div(`class` := s"${NesCss.field} field-block--lg build-stacked-block")(
-        label(`class` := "label-block")(text("Inner page margin")),
+        infoLabel("Inner page margin", "inner-margin", "Off = no white gap where pages meet. On = uniform margins.", model),
         div(`class` := "stacked-radios")(
           label(`class` := "stacked-radio-option")(
             input(
@@ -442,13 +443,18 @@ object PrintInstructionsScreen extends Screen {
             ),
             span(text("Off"))
           )
-        ),
-        span(`class` := s"${NesCss.text} helper-text")(text("Off = no white gap where pages meet. On = uniform margins."))
+        )
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
-        label(`class` := "label-block")(
-          span(`class` := NesCss.text)(text("Content top offset (mm):")),
-          span(`class` := "offset-value")(text(f"${model.contentTopOffsetMm}%.1f"))
+        div(`class` := "label-with-info")(
+          label(`class` := "label-block")(
+            span(`class` := NesCss.text)(text("Content top offset (mm):")),
+            span(`class` := "offset-value")(text(f"${model.contentTopOffsetMm}%.1f"))
+          ),
+          span(`class` := "info-toggle", onClick(PrintInstructionsMsg.ToggleInfo("top-offset")))(text("i"))
+        ),
+        span(`class` := (if (model.expandedInfoIds.contains("top-offset")) "info-hint info-hint--visible nes-text" else "info-hint nes-text"))(
+          text("Push all page content down. Default 2 mm.")
         ),
         input(
           `type` := "range",
@@ -457,9 +463,20 @@ object PrintInstructionsScreen extends Screen {
           step   := "0.5",
           value  := model.contentTopOffsetMm.toString,
           onInput(s => PrintInstructionsMsg.SetContentTopOffsetMm(s.toDoubleOption.getOrElse(PdfUtils.defaultContentTopOffsetMm)))
-        ),
-        span(`class` := s"${NesCss.text} helper-text--inline")(text("Push all page content down. Default 2 mm."))
+        )
       )
+    )
+  }
+
+  private def infoLabel(labelText: String, infoId: String, hintText: String, model: Model): Html[Msg] = {
+    val expanded = model.expandedInfoIds.contains(infoId)
+    val hintClass = if (expanded) "info-hint info-hint--visible nes-text" else "info-hint nes-text"
+    div(
+      div(`class` := "label-with-info")(
+        label(`class` := "label-block")(text(labelText)),
+        span(`class` := "info-toggle", onClick(PrintInstructionsMsg.ToggleInfo(infoId)))(text("i"))
+      ),
+      span(`class` := hintClass)(text(hintText))
     )
   }
 
@@ -516,9 +533,12 @@ object PrintInstructionsScreen extends Screen {
       else s"pill $extra pill--unselected"
     }
 
+    val stepInfoExpanded = model.expandedInfoIds.contains("step-size")
+    val stepHintClass = if (stepInfoExpanded) "info-hint info-hint--visible nes-text helper-text--top" else "info-hint nes-text helper-text--top"
     div(`class` := "step-size-block")(
-      label(`class` := "label-block")(
-        text("Section size (pixels)")
+      div(`class` := "label-with-info")(
+        label(`class` := "label-block")(text("Section size (pixels)")),
+        span(`class` := "info-toggle", onClick(PrintInstructionsMsg.ToggleInfo("step-size")))(text("i"))
       ),
       div(`class` := "step-size-row step-size-row--wrap")(
         stepSizeCandidates.map { v =>
@@ -533,7 +553,7 @@ object PrintInstructionsScreen extends Screen {
             span(`class` := pillClass(possible = false, selected = false))(text(v.toString))
         }*
       ),
-      span(`class` := "helper-text helper-text--top step-size-helper")(
+      span(`class` := stepHintClass)(
         text("Only sizes that fit your layout evenly are available.")
       )
     )
@@ -719,7 +739,8 @@ final case class PrintInstructionsModel(
   printConfigs: Option[List[StoredPrintConfig]],
   isPrintingPdf: Boolean,
   previewRequestVersion: Int,
-  previewCache: Option[CachedPdfPreview]) {
+  previewCache: Option[CachedPdfPreview],
+  expandedInfoIds: Set[String]) {
   def selectedStored: Option[StoredBuildConfig] =
     buildConfigs.flatMap(list => selectedBuildConfigId.flatMap(id => list.find(_.id == id)))
 }
@@ -768,6 +789,7 @@ enum PrintInstructionsMsg {
   case PrintPdf
   case PrintPdfFinished
   case PrintPdfFailed
+  case ToggleInfo(id: String)
   case Back
   case NoOp
 }

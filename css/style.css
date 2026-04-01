@@ -478,6 +478,11 @@ body {
   box-sizing: border-box;
 }
 
+.input-w-6 {
+  width: 6.5rem;
+  box-sizing: border-box;
+}
+
 .input-w-7 {
   width: 10rem;
   box-sizing: border-box;
@@ -548,6 +553,56 @@ input[type="number"].nes-input {
 
 .helper-text--top {
   margin-top: 0.35rem;
+}
+
+/* ========== Info toggle (ⓘ icon + collapsible helper) ========== */
+.info-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3em;
+  height: 1.3em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1;
+  cursor: var(--nes-pointer, pointer);
+  user-select: none;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.info-toggle:hover {
+  opacity: 1;
+}
+
+.info-hint {
+  display: none;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.info-hint--visible {
+  display: block;
+}
+
+.info-hint--inline {
+  display: none;
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.info-hint--inline.info-hint--visible {
+  display: inline;
+}
+
+.label-with-info {
+  display: flex;
+  align-items: center;
 }
 
 /* ========== Buttons ========== */
@@ -1295,6 +1350,7 @@ input[type="number"].nes-input {
 /* ========== Mobile / small screen ========== */
 /* Prevent fixed-width inputs from overflowing viewport */
 .input-w-5,
+.input-w-6,
 .input-w-7,
 .input-w-12,
 .input-w-24,
