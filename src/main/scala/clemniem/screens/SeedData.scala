@@ -147,7 +147,8 @@ object SeedData {
       pageBackgroundColorHex = PdfUtils.defaultPageBackgroundColor.toHex,
       patchBackgroundColorHex = Color.layerPatchBackground.toHex,
       stacked = PdfUtils.defaultStacked,
-      printerMarginMm = PdfUtils.defaultPrinterMarginMm,
+      sideMarginMm = PdfUtils.defaultSideMarginMm,
+      topBottomMarginMm = PdfUtils.defaultTopBottomMarginMm,
       contentTopOffsetMm = PdfUtils.defaultContentTopOffsetMm,
       innerMargin = PdfUtils.defaultInnerMargin)
   )

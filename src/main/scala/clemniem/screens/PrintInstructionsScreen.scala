@@ -59,7 +59,8 @@ object PrintInstructionsScreen extends Screen {
       pageBackgroundColorHex = base.map(_.pageBackgroundColorHex).getOrElse(PdfUtils.defaultPageBackgroundColor.toHex),
       patchBackgroundColorHex = base.map(_.patchBackgroundColorHex).getOrElse(Color.layerPatchBackground.toHex),
       stacked = base.map(_.stacked).getOrElse(PdfUtils.defaultStacked),
-      printerMarginMm = base.map(_.printerMarginMm).getOrElse(PdfUtils.defaultPrinterMarginMm),
+      sideMarginMm = base.map(_.sideMarginMm).getOrElse(PdfUtils.defaultSideMarginMm),
+      topBottomMarginMm = base.map(_.topBottomMarginMm).getOrElse(PdfUtils.defaultTopBottomMarginMm),
       contentTopOffsetMm = base.map(_.contentTopOffsetMm).getOrElse(PdfUtils.defaultContentTopOffsetMm),
       innerMargin = base.map(_.innerMargin).getOrElse(PdfUtils.defaultInnerMargin),
       pdfPreviewPageIdx = 0,
@@ -147,8 +148,11 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.SetPageBackgroundColor(hex) =>
       val next = invalidatePreview(model.copy(pageBackgroundColorHex = hex))
       (next, debouncePreviewCmd(next.previewRequestVersion))
-    case PrintInstructionsMsg.SetPrinterMarginMm(mm) =>
-      val next = invalidatePreview(model.copy(printerMarginMm = mm))
+    case PrintInstructionsMsg.SetSideMarginMm(mm) =>
+      val next = invalidatePreview(model.copy(sideMarginMm = mm))
+      (next, debouncePreviewCmd(next.previewRequestVersion))
+    case PrintInstructionsMsg.SetTopBottomMarginMm(mm) =>
+      val next = invalidatePreview(model.copy(topBottomMarginMm = mm))
       (next, debouncePreviewCmd(next.previewRequestVersion))
     case PrintInstructionsMsg.SetContentTopOffsetMm(mm) =>
       val next = invalidatePreview(model.copy(contentTopOffsetMm = mm))
@@ -203,7 +207,8 @@ object PrintInstructionsScreen extends Screen {
         pageBackgroundColorHex = model.pageBackgroundColorHex,
         patchBackgroundColorHex = model.patchBackgroundColorHex,
         stacked = model.stacked,
-        printerMarginMm = model.printerMarginMm,
+        sideMarginMm = model.sideMarginMm,
+        topBottomMarginMm = model.topBottomMarginMm,
         contentTopOffsetMm = model.contentTopOffsetMm,
         innerMargin = model.innerMargin
       )
@@ -387,17 +392,30 @@ object PrintInstructionsScreen extends Screen {
         span(`class` := s"${NesCss.text} helper-text")(text("On = cumulative colors per layer. Off = one color per layer."))
       ),
       div(`class` := s"${NesCss.field} field-block--lg")(
-        label(`class` := "label-block")(text("Margin (mm)")),
+        label(`class` := "label-block")(text("Side margin (mm)")),
         input(
           `type`  := "number",
           `class` := s"${NesCss.input} input-w-5",
-          value   := model.printerMarginMm.toString,
+          value   := model.sideMarginMm.toString,
           min     := "0",
           max     := "20",
           step    := "1",
-          onInput(s => PrintInstructionsMsg.SetPrinterMarginMm(parsePrinterMargin(s)))
+          onInput(s => PrintInstructionsMsg.SetSideMarginMm(parseMarginMm(s)))
         ),
-        span(`class` := s"${NesCss.text} helper-text--inline")(text("White border around each page. Default 6 mm."))
+        span(`class` := s"${NesCss.text} helper-text--inline")(text("Left/right white border. Default 6 mm."))
+      ),
+      div(`class` := s"${NesCss.field} field-block--lg")(
+        label(`class` := "label-block")(text("Top/bottom margin (mm)")),
+        input(
+          `type`  := "number",
+          `class` := s"${NesCss.input} input-w-5",
+          value   := model.topBottomMarginMm.toString,
+          min     := "0",
+          max     := "20",
+          step    := "1",
+          onInput(s => PrintInstructionsMsg.SetTopBottomMarginMm(parseMarginMm(s)))
+        ),
+        span(`class` := s"${NesCss.text} helper-text--inline")(text("Top/bottom white border. Default 5 mm."))
       ),
       div(`class` := s"${NesCss.field} field-block--lg build-stacked-block")(
         label(`class` := "label-block")(text("Inner page margin")),
@@ -566,7 +584,8 @@ object PrintInstructionsScreen extends Screen {
                 pageBg.r,
                 pageBg.g,
                 pageBg.b,
-                preview.printerMarginMm,
+                preview.sideMarginMm,
+                preview.topBottomMarginMm,
                 preview.removeInnerMargin,
                 pageIndex0Based = idx,
                 preview.totalPages
@@ -631,7 +650,8 @@ object PrintInstructionsScreen extends Screen {
       pageBackgroundColorHex = Color.normalizeHex(model.pageBackgroundColorHex, PdfUtils.defaultPageBackgroundColor.toHex),
       patchBackgroundColorHex = Color.normalizeHex(model.patchBackgroundColorHex, Color.layerPatchBackground.toHex),
       stacked = model.stacked,
-      printerMarginMm = model.printerMarginMm,
+      sideMarginMm = model.sideMarginMm,
+      topBottomMarginMm = model.topBottomMarginMm,
       contentTopOffsetMm = model.contentTopOffsetMm,
       innerMargin = model.innerMargin
     )
@@ -649,7 +669,8 @@ object PrintInstructionsScreen extends Screen {
         mosaicPicAndGridForStored(stored, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil))),
       stepSizePx = model.stepSizePx,
       pageBackgroundColor = pageBg,
-      printerMarginMm = model.printerMarginMm,
+      sideMarginMm = model.sideMarginMm,
+      topBottomMarginMm = model.topBottomMarginMm,
       contentTopOffsetMm = model.contentTopOffsetMm,
       patchBackgroundColor = patchBg,
       stacked = model.stacked,
@@ -672,8 +693,8 @@ object PrintInstructionsScreen extends Screen {
     } yield (cropped, stored.config.grid)
 }
 
-private def parsePrinterMargin(s: String): Double = {
-  val n = s.trim.toDoubleOption.getOrElse(3.0)
+private def parseMarginMm(s: String): Double = {
+  val n = s.trim.toDoubleOption.getOrElse(0.0)
   n.max(0).min(20)
 }
 
@@ -689,7 +710,8 @@ final case class PrintInstructionsModel(
   pageBackgroundColorHex: String,
   patchBackgroundColorHex: String,
   stacked: Boolean,
-  printerMarginMm: Double,
+  sideMarginMm: Double,
+  topBottomMarginMm: Double,
   contentTopOffsetMm: Double,
   innerMargin: Boolean,
   pdfPreviewPageIdx: Int,
@@ -709,7 +731,8 @@ final case class PreviewFingerprint(
   pageBackgroundColorHex: String,
   patchBackgroundColorHex: String,
   stacked: Boolean,
-  printerMarginMm: Double,
+  sideMarginMm: Double,
+  topBottomMarginMm: Double,
   contentTopOffsetMm: Double,
   innerMargin: Boolean)
 
@@ -728,7 +751,8 @@ enum PrintInstructionsMsg {
   case SetTitle(title: String)
   case SetStepSize(px: Int)
   case SetPageBackgroundColor(hex: String)
-  case SetPrinterMarginMm(mm: Double)
+  case SetSideMarginMm(mm: Double)
+  case SetTopBottomMarginMm(mm: Double)
   case SetContentTopOffsetMm(mm: Double)
   case SetPatchBackgroundColor(hex: String)
   case SetStacked(value: Boolean)

@@ -13,13 +13,13 @@ object PdfLayout {
   /** Cover title font size (from default config). */
   val coverTitleFontSize: Int = defaultConfig.cover.titleFontSizePt
 
-  /** Instructions for the cover page (title only, no mosaic). Does not include Save. printerMarginMm offsets content so
-    * margin stays white.
+  /** Instructions for the cover page (title only, no mosaic). Does not include Save. Margins offset content so the
+    * white border stays unpainted.
     */
-  def coverInstructions(title: String, printerMarginMm: Double, config: PdfLayoutConfig): List[Instruction] =
+  def coverInstructions(title: String, sideMarginMm: Double, topBottomMarginMm: Double, config: PdfLayoutConfig): List[Instruction] =
     List(
       Instruction.PageSize(config.global.pageSizeMm, config.global.pageSizeMm),
       Instruction.FontSize(config.cover.titleFontSizePt),
-      Instruction.Text(config.cover.titleOnlyXMm + printerMarginMm, config.cover.titleOnlyYMm + printerMarginMm, title)
+      Instruction.Text(config.cover.titleOnlyXMm + sideMarginMm, config.cover.titleOnlyYMm + topBottomMarginMm, title)
     )
 }

@@ -20,24 +20,27 @@ object JsPDF {
     r: Int,
     g: Int,
     b: Int,
-    printerMarginMm: Double,
+    sideMarginMm: Double,
+    topBottomMarginMm: Double,
     removeInnerMargin: Boolean,
     pageIndex0Based: Int
   ): Unit = {
     val _ = doc.setFillColor(r, g, b)
-    if (printerMarginMm <= 0) {
+    if (sideMarginMm <= 0 && topBottomMarginMm <= 0) {
       val _ = doc.rect(0, 0, w, h, "F")
     } else if (removeInnerMargin) {
       val isRightHand = pageIndex0Based % 2 == 0
-      val x  = if (isRightHand) 0.0 else printerMarginMm
-      val rw = (w - printerMarginMm).max(0)
-      val rh = (h - 2 * printerMarginMm).max(0)
-      val _  = doc.rect(x, printerMarginMm, rw, rh, "F")
+      val mLR = sideMarginMm.max(0.0)
+      val mTB = topBottomMarginMm.max(0.0)
+      val x  = if (isRightHand) 0.0 else mLR
+      val rw = (w - mLR).max(0)
+      val rh = (h - 2 * mTB).max(0)
+      val _  = doc.rect(x, mTB, rw, rh, "F")
     } else {
-      val x  = printerMarginMm
-      val y  = printerMarginMm
-      val rw = (w - 2 * printerMarginMm).max(0)
-      val rh = (h - 2 * printerMarginMm).max(0)
+      val x  = sideMarginMm.max(0.0)
+      val y  = topBottomMarginMm.max(0.0)
+      val rw = (w - 2 * x).max(0)
+      val rh = (h - 2 * y).max(0)
       val _  = doc.rect(x, y, rw, rh, "F")
     }
   }
@@ -50,14 +53,15 @@ object JsPDF {
     bgR: Int,
     bgG: Int,
     bgB: Int,
-    printerMarginMm: Double,
+    sideMarginMm: Double,
+    topBottomMarginMm: Double,
     removeInnerMargin: Boolean
   ): Unit = {
     val base64Val = js.Dynamic.global.selectDynamic("pressStartBase64")
     val fontBase64Opt =
       if (js.typeOf(base64Val) == "undefined") None
       else Some(base64Val.asInstanceOf[String]).filter(_.nonEmpty)
-    val _ = setTimeout(0)(runNow(instructions, bgR, bgG, bgB, printerMarginMm, removeInnerMargin, fontBase64Opt))
+    val _ = setTimeout(0)(runNow(instructions, bgR, bgG, bgB, sideMarginMm, topBottomMarginMm, removeInnerMargin, fontBase64Opt))
   }
 
   /** Total page count: 1 + number of AddPage (Save is not a page). */
@@ -74,19 +78,20 @@ object JsPDF {
     pageH: Double,
     pageIndex0Based: Int,
     totalPages: Int,
-    printerMarginMm: Double
+    sideMarginMm: Double,
+    topBottomMarginMm: Double
   ): Unit =
     if (pageIndex0Based >= 2 && pageIndex0Based <= totalPages - 3) {
-      val contentPageNum = pageIndex0Based - 1 // first right-hand = 1, back of it = 2, ...
+      val contentPageNum = pageIndex0Based - 1
       val leftSide       = (contentPageNum % 2) == 0
       val _              = doc.setFontSize(9)
       val _              = doc.setTextColor(0, 0, 0)
-      val y              = pageH - printerMarginMm - 5
+      val y              = pageH - topBottomMarginMm - 5
       if (leftSide) {
-        val x = printerMarginMm + 5 // 3mm inward from outer corner
+        val x = sideMarginMm + 5
         val _ = doc.text(contentPageNum.toString, x, y)
       } else {
-        val x = pageW - printerMarginMm - 5 // 3mm inward from outer corner
+        val x = pageW - sideMarginMm - 5
         val _ = doc.text(contentPageNum.toString, x, y, js.Dynamic.literal(align = "right"))
       }
     }
@@ -96,7 +101,8 @@ object JsPDF {
     bgR: Int,
     bgG: Int,
     bgB: Int,
-    printerMarginMm: Double,
+    sideMarginMm: Double,
+    topBottomMarginMm: Double,
     removeInnerMargin: Boolean,
     fontBase64Opt: Option[String]
   ): Unit =
@@ -117,7 +123,7 @@ object JsPDF {
                 format = js.Array(w, h)
               )
               val doc = js.Dynamic.newInstance(ctor)(opts)
-              fillPageBackground(doc, w, h, bgR, bgG, bgB, printerMarginMm, removeInnerMargin, 0)
+              fillPageBackground(doc, w, h, bgR, bgG, bgB, sideMarginMm, topBottomMarginMm, removeInnerMargin, 0)
               fontBase64Opt.foreach { base64 =>
                 val _ = doc.addFileToVFS(pressStart2PVfsName, base64)
                 val _ = doc.addFont(pressStart2PVfsName, pressStart2PFontName, "normal")
@@ -168,9 +174,9 @@ object JsPDF {
               (docOpt, (pageW, pageH), pageIndex)
             case Instruction.AddPage =>
               docOpt.foreach { doc =>
-                drawPageNumberIfNeeded(doc, pageW, pageH, pageIndex, totalPages, printerMarginMm)
+                drawPageNumberIfNeeded(doc, pageW, pageH, pageIndex, totalPages, sideMarginMm, topBottomMarginMm)
                 val _ = doc.addPage()
-                fillPageBackground(doc, pageW, pageH, bgR, bgG, bgB, printerMarginMm, removeInnerMargin, pageIndex + 1)
+                fillPageBackground(doc, pageW, pageH, bgR, bgG, bgB, sideMarginMm, topBottomMarginMm, removeInnerMargin, pageIndex + 1)
               }
               (docOpt, (pageW, pageH), pageIndex + 1)
             case Instruction.DrawPixelGrid(x0, y0, wMm, hMm, cols, rows, rgbFlat) =>
@@ -247,7 +253,7 @@ object JsPDF {
               (docOpt, (pageW, pageH), pageIndex)
             case Instruction.Save(filename) =>
               docOpt.foreach { doc =>
-                drawPageNumberIfNeeded(doc, pageW, pageH, pageIndex, totalPages, printerMarginMm)
+                drawPageNumberIfNeeded(doc, pageW, pageH, pageIndex, totalPages, sideMarginMm, topBottomMarginMm)
                 val _ = doc.save(filename)
               }
               (docOpt, (pageW, pageH), pageIndex)

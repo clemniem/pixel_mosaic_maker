@@ -57,7 +57,8 @@ final case class StoredPrintConfig(
   pageBackgroundColorHex: String,
   patchBackgroundColorHex: String,
   stacked: Boolean,
-  printerMarginMm: Double,
+  sideMarginMm: Double,
+  topBottomMarginMm: Double,
   contentTopOffsetMm: Double,
   innerMargin: Boolean
 ) extends StoredEntity
@@ -74,13 +75,15 @@ object StoredPrintConfig {
       pageBackgroundColorHex <- c.get[String]("pageBackgroundColorHex")
       patchBackgroundColorHex <- c.get[String]("patchBackgroundColorHex")
       stacked                <- c.get[Boolean]("stacked")
-      printerMarginMm        <- c.get[Double]("printerMarginMm")
+      oldMargin              <- c.getOrElse[Option[Double]]("printerMarginMm")(None)
+      sideMarginMm           <- c.getOrElse[Double]("sideMarginMm")(oldMargin.getOrElse(6.0))
+      topBottomMarginMm      <- c.getOrElse[Double]("topBottomMarginMm")(oldMargin.getOrElse(5.0))
       contentTopOffsetMm     <- c.get[Double]("contentTopOffsetMm")
       innerMargin            <- c.getOrElse[Boolean]("innerMargin")(false)
     } yield StoredPrintConfig(
       id, name, selectedBuildId, selectedBuildConfigId, title, stepSizePx,
-      pageBackgroundColorHex, patchBackgroundColorHex, stacked, printerMarginMm,
-      contentTopOffsetMm, innerMargin)
+      pageBackgroundColorHex, patchBackgroundColorHex, stacked, sideMarginMm,
+      topBottomMarginMm, contentTopOffsetMm, innerMargin)
   }
 }
 

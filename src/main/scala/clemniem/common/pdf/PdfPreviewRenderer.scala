@@ -49,7 +49,8 @@ object PdfPreviewRenderer {
     pageHmm: Double,
     pageIndex0Based: Int,
     totalPages: Int,
-    printerMarginMm: Double,
+    sideMarginMm: Double,
+    topBottomMarginMm: Double,
     pxPerMm: Double
   ): Unit =
     if (pageIndex0Based >= 2 && pageIndex0Based <= totalPages - 3) {
@@ -57,8 +58,8 @@ object PdfPreviewRenderer {
       val leftSide       = (contentPageNum % 2) == 0
       setFont(ctx, fontSizePt = 9, pxPerMm)
       ctx.fillStyle = "rgb(0,0,0)"
-      val yMm = pageHmm - printerMarginMm - 5
-      val xMm = if (leftSide) printerMarginMm + 5 else pageWmm - printerMarginMm - 5
+      val yMm = pageHmm - topBottomMarginMm - 5
+      val xMm = if (leftSide) sideMarginMm + 5 else pageWmm - sideMarginMm - 5
       ctx.textAlign = if (leftSide) "left" else "right"
       ctx.fillText(contentPageNum.toString, mmToPx(xMm, pxPerMm), mmToPx(yMm, pxPerMm))
     }
@@ -71,7 +72,8 @@ object PdfPreviewRenderer {
     bgR: Int,
     bgG: Int,
     bgB: Int,
-    printerMarginMm: Double,
+    sideMarginMm: Double,
+    topBottomMarginMm: Double,
     removeInnerMargin: Boolean,
     pageIndex0Based: Int,
     totalPages: Int
@@ -83,22 +85,22 @@ object PdfPreviewRenderer {
     val ctx = canvas.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
     ctx.save()
     try {
-      // Page base: white everywhere, then colored page background inside printer margin.
       ctx.globalAlpha = 1.0
       ctx.clearRect(0, 0, wPx, hPx)
       ctx.fillStyle = "rgb(255,255,255)"
       ctx.fillRect(0, 0, wPx, hPx)
 
-      val mPx = mmToPx(printerMarginMm.max(0.0), pxPerMm)
-      val (bgX, bgW) = if (removeInnerMargin && mPx > 0) {
+      val mLRpx = mmToPx(sideMarginMm.max(0.0), pxPerMm)
+      val mTBpx = mmToPx(topBottomMarginMm.max(0.0), pxPerMm)
+      val (bgX, bgW) = if (removeInnerMargin && mLRpx > 0) {
         val isRightHand = pageIndex0Based % 2 == 0
-        val x = if (isRightHand) 0.0 else mPx
-        (x, (wPx - mPx).max(0.0))
+        val x = if (isRightHand) 0.0 else mLRpx
+        (x, (wPx - mLRpx).max(0.0))
       } else {
-        (mPx, (wPx - 2 * mPx).max(0.0))
+        (mLRpx, (wPx - 2 * mLRpx).max(0.0))
       }
-      val bgY = mPx
-      val bgH = (hPx - 2 * mPx).max(0.0)
+      val bgY = mTBpx
+      val bgH = (hPx - 2 * mTBpx).max(0.0)
       ctx.fillStyle = s"rgb($bgR,$bgG,$bgB)"
       ctx.fillRect(bgX, bgY, bgW, bgH)
 
@@ -266,8 +268,7 @@ object PdfPreviewRenderer {
         }
       }
 
-      // Page numbers are not part of the instruction list; JsPDF adds them at page boundaries.
-      renderPageNumberIfNeeded(ctx, pageWmm, pageHmm, pageIndex0Based, totalPages, printerMarginMm, pxPerMm)
+      renderPageNumberIfNeeded(ctx, pageWmm, pageHmm, pageIndex0Based, totalPages, sideMarginMm, topBottomMarginMm, pxPerMm)
     } finally ctx.restore()
   }
 }
