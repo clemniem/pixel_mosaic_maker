@@ -17,34 +17,44 @@ object LayoutGalleryScreen extends Screen {
   val screenId: ScreenId = ScreenId.LayoutsId
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val cmd = Gallery.loadCmd(StorageKeys.layouts, LayoutGalleryMsg.Loaded.apply, (msg, _) => LayoutGalleryMsg.LoadFailed(msg))
+    val cmd =
+      Gallery.loadCmd(StorageKeys.layouts, LayoutGalleryMsg.Loaded.apply, (msg, _) => LayoutGalleryMsg.LoadFailed(msg))
     (Gallery.initState, cmd)
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case LayoutGalleryMsg.Loaded(list) =>
       val next = Gallery.onLoaded(model, list, GalleryLayout.defaultPageSize)
-      val cmd =
+      val cmd  =
         if (list.isEmpty) Cmd.None
-        else CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(list)), LayoutGalleryMsg.NoOp, _ => LayoutGalleryMsg.NoOp)
+        else
+          CmdUtils.fireAndForget(
+            CanvasUtils.runAfterFrames(3)(drawPreviewsIO(list)),
+            LayoutGalleryMsg.NoOp,
+            _ => LayoutGalleryMsg.NoOp)
       (next, cmd)
     case LayoutGalleryMsg.Edit(stored) =>
       (model, navCmd(ScreenId.LayoutId, Some(ScreenOutput.EditLayout(stored))))
     case LayoutGalleryMsg.Delete(stored) =>
       (Gallery.onRequestDelete(model, stored.id), Cmd.None)
     case LayoutGalleryMsg.ConfirmDelete(id) =>
-      Gallery.onConfirmDelete(model, id, StorageKeys.layouts, GalleryLayout.defaultPageSize, LayoutGalleryMsg.CancelDelete)
+      Gallery.onConfirmDelete(
+        model,
+        id,
+        StorageKeys.layouts,
+        GalleryLayout.defaultPageSize,
+        LayoutGalleryMsg.CancelDelete)
     case LayoutGalleryMsg.CancelDelete =>
       (Gallery.onCancelDelete(model), Cmd.None)
     case LayoutGalleryMsg.CreateNew =>
       (model, navCmd(ScreenId.LayoutId, None))
     case LayoutGalleryMsg.PreviousPage =>
       val next = Gallery.onPreviousPage(model)
-      val cmd = redrawCurrentPageCmd(next)
+      val cmd  = redrawCurrentPageCmd(next)
       (next, cmd)
     case LayoutGalleryMsg.NextPage =>
       val next = Gallery.onNextPage(model, GalleryLayout.defaultPageSize)
-      val cmd = redrawCurrentPageCmd(next)
+      val cmd  = redrawCurrentPageCmd(next)
       (next, cmd)
     case LayoutGalleryMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
@@ -59,7 +69,10 @@ object LayoutGalleryScreen extends Screen {
       )
       (Gallery.initState, cmd)
     case LayoutGalleryMsg.Retry =>
-      val cmd = Gallery.loadCmd(StorageKeys.layouts, LayoutGalleryMsg.Loaded.apply, (msg, _) => LayoutGalleryMsg.LoadFailed(msg))
+      val cmd = Gallery.loadCmd(
+        StorageKeys.layouts,
+        LayoutGalleryMsg.Loaded.apply,
+        (msg, _) => LayoutGalleryMsg.LoadFailed(msg))
       (Gallery.initState, cmd)
     case LayoutGalleryMsg.NoOp =>
       (model, Cmd.None)
@@ -119,7 +132,10 @@ object LayoutGalleryScreen extends Screen {
       case Loadable.Loaded(list) if list.nonEmpty =>
         val start = (model.currentPage - 1) * GalleryLayout.defaultPageSize
         val slice = list.slice(start, start + GalleryLayout.defaultPageSize)
-        CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)), LayoutGalleryMsg.NoOp, _ => LayoutGalleryMsg.NoOp)
+        CmdUtils.fireAndForget(
+          CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)),
+          LayoutGalleryMsg.NoOp,
+          _ => LayoutGalleryMsg.NoOp)
       case _ => Cmd.None
     }
 

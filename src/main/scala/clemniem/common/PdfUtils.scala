@@ -29,10 +29,10 @@ object PdfUtils {
   val defaultSideMarginMm: Double       = 6.0
   val defaultTopBottomMarginMm: Double  = 5.0
   val defaultContentTopOffsetMm: Double = 2.0
-  val defaultStepSizePx: Int          = 16
-  val defaultTitle: String            = "Mosaic"
-  val defaultStacked: Boolean         = true
-  val defaultInnerMargin: Boolean     = false
+  val defaultStepSizePx: Int            = 16
+  val defaultTitle: String              = "Mosaic"
+  val defaultStacked: Boolean           = true
+  val defaultInnerMargin: Boolean       = false
 
   private val progressBarHeightMm = 3.0
 
@@ -59,11 +59,11 @@ object PdfUtils {
     val pageIndex0Based = pageIndex1Based - 1
     if (totalPages <= 0 || pageIndex0Based < 3 || pageIndex1Based == totalPages) Nil
     else {
-      val mLR = sideMarginMm.max(0.0)
-      val mTB = topBottomMarginMm.max(0.0)
+      val mLR          = sideMarginMm.max(0.0)
+      val mTB          = topBottomMarginMm.max(0.0)
       val (barX, barW) = if (removeInnerMargin && mLR > 0) {
         val isRightHand = pageIndex0Based % 2 == 0
-        val x = if (isRightHand) 0.0 else mLR
+        val x           = if (isRightHand) 0.0 else mLR
         (x, (pageW - mLR).max(0.0))
       } else {
         (mLR, (pageW - 2 * mLR).max(0.0))
@@ -115,10 +115,24 @@ object PdfUtils {
     val (_, revResult) = instructions.foldLeft[State]((1, Nil)) { case ((currentPage, acc), inst) =>
       inst match {
         case Instruction.AddPage =>
-          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, sideMarginMm, topBottomMarginMm, removeInnerMargin)
+          val bar = progressBarInstructions(
+            currentPage,
+            totalPages,
+            pageW,
+            pageH,
+            sideMarginMm,
+            topBottomMarginMm,
+            removeInnerMargin)
           (currentPage + 1, Instruction.AddPage :: (bar.reverse ++ acc))
         case s @ Instruction.Save(_) =>
-          val bar = progressBarInstructions(currentPage, totalPages, pageW, pageH, sideMarginMm, topBottomMarginMm, removeInnerMargin)
+          val bar = progressBarInstructions(
+            currentPage,
+            totalPages,
+            pageW,
+            pageH,
+            sideMarginMm,
+            topBottomMarginMm,
+            removeInnerMargin)
           (currentPage, s :: (bar.reverse ++ acc))
         case other =>
           (currentPage, other :: acc)
@@ -129,7 +143,7 @@ object PdfUtils {
 
   /** Sanitize title for use as PDF filename: strip/replace invalid chars, fallback to "mosaic-book" if empty. */
   def filenameFromTitle(title: String): String = {
-    val invalid = """[\\/:*?"<>|\n\r]+"""
+    val invalid   = """[\\/:*?"<>|\n\r]+"""
     val sanitized = title.trim.replaceAll(invalid, "-").replaceAll("-+", "-").stripSuffix("-").trim
     if (sanitized.isEmpty) "mosaic-book" else sanitized
   }
@@ -177,13 +191,51 @@ object PdfUtils {
 
     val contentInstrs = request.mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
-        val cover        = PdfPageBuilders.coverWithMosaic(request.title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
-        val fullOverview = PdfPageBuilders.fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.contentTopOffsetMm, config)
-        val chapters     = PdfPageBuilders.allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.stepSizePx, request.contentTopOffsetMm, request.patchBackgroundColor, request.stacked, config)
+        val cover =
+          PdfPageBuilders.coverWithMosaic(request.title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        val fullOverview = PdfPageBuilders.fullOverviewPageInstructions(
+          pic,
+          grid,
+          marginLR,
+          marginTB,
+          availableW,
+          availableH,
+          request.contentTopOffsetMm,
+          config)
+        val chapters = PdfPageBuilders.allChaptersInstructions(
+          pic,
+          grid,
+          marginLR,
+          marginTB,
+          availableW,
+          availableH,
+          request.stepSizePx,
+          request.contentTopOffsetMm,
+          request.patchBackgroundColor,
+          request.stacked,
+          config)
         val chapterPages = chapters.count { case Instruction.AddPage => true; case _ => false }
-        val padding      = if (chapterPages % 2 == 0) PdfPageBuilders.fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, request.contentTopOffsetMm, config) else Nil
-        val backCover    = Instruction.AddPage :: PdfPageBuilders.coverMosaicImageOnly(pic, pageH, marginLR, marginTB, availableW, config)
-        cover ++ List(Instruction.AddPage) ++ fullOverview ++ chapters ++ padding ++ List(Instruction.AddPage) ++ backCover
+        val padding      =
+          if (chapterPages % 2 == 0)
+            PdfPageBuilders.fullOverviewPageInstructions(
+              pic,
+              grid,
+              marginLR,
+              marginTB,
+              availableW,
+              availableH,
+              request.contentTopOffsetMm,
+              config)
+          else Nil
+        val backCover = Instruction.AddPage :: PdfPageBuilders.coverMosaicImageOnly(
+          pic,
+          pageH,
+          marginLR,
+          marginTB,
+          availableW,
+          config)
+        cover ++ List(Instruction.AddPage) ++ fullOverview ++ chapters ++ padding ++ List(
+          Instruction.AddPage) ++ backCover
       case None =>
         PdfLayout.coverInstructions(request.title, sideMarginMm, tbMarginMm, config) ++ List(Instruction.AddPage)
     }
@@ -191,9 +243,9 @@ object PdfUtils {
     val removeInner     = !request.innerMargin
     val rawInstructions = contentInstrs :+ Instruction.Save("__preview__.pdf")
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
-    val withBars        = insertProgressBars(rawInstructions, totalPages, pageW, pageH, sideMarginMm, tbMarginMm, removeInner)
-    val noSave          = withBars.filterNot { case Instruction.Save(_) => true; case _ => false }
-    val pages           = splitIntoPages(noSave)
+    val withBars = insertProgressBars(rawInstructions, totalPages, pageW, pageH, sideMarginMm, tbMarginMm, removeInner)
+    val noSave   = withBars.filterNot { case Instruction.Save(_) => true; case _ => false }
+    val pages    = splitIntoPages(noSave)
     BookPreview(pageW, pageH, sideMarginMm, tbMarginMm, removeInner, totalPages, pages)
   }
 
@@ -213,15 +265,15 @@ object PdfUtils {
 
   /** Assemble and run the full book PDF. Page structure (two-sided print aware; total always even):
     *
-    * | Page | Content                                                                    |
-    * |------|----------------------------------------------------------------------------|
-    * | 1    | Front cover (image + title)                                                |
-    * | 2    | Empty (back of front cover)                                                |
-    * | 3    | Full overview (exploded mosaic + color list)                                |
-    * | 4…M  | Chapters (one chapter overview + step-by-step layer pages per section)     |
-    * | M+1  | Extra full overview — only inserted when chapterPages is even, for parity   |
-    * | N-1  | Empty (always)                                                             |
-    * | N    | Back cover (image only, no title)                                          |
+    * | Page | Content                                                                   |
+    * |:-----|:--------------------------------------------------------------------------|
+    * | 1    | Front cover (image + title)                                               |
+    * | 2    | Empty (back of front cover)                                               |
+    * | 3    | Full overview (exploded mosaic + color list)                              |
+    * | 4…M  | Chapters (one chapter overview + step-by-step layer pages per section)    |
+    * | M+1  | Extra full overview — only inserted when chapterPages is even, for parity |
+    * | N-1  | Empty (always)                                                            |
+    * | N    | Back cover (image only, no title)                                         |
     *
     * Progress bar is drawn on pages 4…N-1 (skips first 3 pages and back cover). Pages N-1 and N-2 always show 100%.
     */
@@ -246,13 +298,50 @@ object PdfUtils {
 
     val contentInstrs = mosaicPicAndGridOpt match {
       case Some((pic, grid)) =>
-        val cover        = PdfPageBuilders.coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
-        val fullOverview = PdfPageBuilders.fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, contentTopOffsetMm, config)
-        val chapters     = PdfPageBuilders.allChaptersInstructions(pic, grid, marginLR, marginTB, availableW, availableH, stepSizePx, contentTopOffsetMm, patchBgColor, stacked, config)
+        val cover = PdfPageBuilders.coverWithMosaic(title, pic, pageW, pageH, marginLR, marginTB, availableW, config)
+        val fullOverview = PdfPageBuilders.fullOverviewPageInstructions(
+          pic,
+          grid,
+          marginLR,
+          marginTB,
+          availableW,
+          availableH,
+          contentTopOffsetMm,
+          config)
+        val chapters = PdfPageBuilders.allChaptersInstructions(
+          pic,
+          grid,
+          marginLR,
+          marginTB,
+          availableW,
+          availableH,
+          stepSizePx,
+          contentTopOffsetMm,
+          patchBgColor,
+          stacked,
+          config)
         val chapterPages = chapters.count { case Instruction.AddPage => true; case _ => false }
-        val padding      = if (chapterPages % 2 == 0) PdfPageBuilders.fullOverviewPageInstructions(pic, grid, marginLR, marginTB, availableW, availableH, contentTopOffsetMm, config) else Nil
-        val backCover    = Instruction.AddPage :: PdfPageBuilders.coverMosaicImageOnly(pic, pageH, marginLR, marginTB, availableW, config)
-        cover ++ List(Instruction.AddPage) ++ fullOverview ++ chapters ++ padding ++ List(Instruction.AddPage) ++ backCover
+        val padding      =
+          if (chapterPages % 2 == 0)
+            PdfPageBuilders.fullOverviewPageInstructions(
+              pic,
+              grid,
+              marginLR,
+              marginTB,
+              availableW,
+              availableH,
+              contentTopOffsetMm,
+              config)
+          else Nil
+        val backCover = Instruction.AddPage :: PdfPageBuilders.coverMosaicImageOnly(
+          pic,
+          pageH,
+          marginLR,
+          marginTB,
+          availableW,
+          config)
+        cover ++ List(Instruction.AddPage) ++ fullOverview ++ chapters ++ padding ++ List(
+          Instruction.AddPage) ++ backCover
       case None =>
         PdfLayout.coverInstructions(title, sideMarginMm, topBottomMarginMm, config) ++ List(Instruction.AddPage)
     }
@@ -260,7 +349,8 @@ object PdfUtils {
     val rawInstructions = contentInstrs :+ Instruction.Save(filename)
     val totalPages      = 1 + rawInstructions.count { case Instruction.AddPage => true; case _ => false }
     val removeInner     = !innerMargin
-    val instructions    = insertProgressBars(rawInstructions, totalPages, pageW, pageH, sideMarginMm, topBottomMarginMm, removeInner)
+    val instructions    =
+      insertProgressBars(rawInstructions, totalPages, pageW, pageH, sideMarginMm, topBottomMarginMm, removeInner)
     val (bgR, bgG, bgB) = pageBackgroundColor.rgb
     JsPDF.run(instructions, bgR, bgG, bgB, sideMarginMm, topBottomMarginMm, removeInner)
   }

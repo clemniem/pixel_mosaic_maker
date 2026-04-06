@@ -79,7 +79,7 @@ class ScreenFlowSpec extends FunSuite {
   // ---- full cycle ----
 
   test("nextInOverviewOrder: full overview cycle returns to Overview") {
-    val ids = ScreenFlow.overviewScreenIds
+    val ids     = ScreenFlow.overviewScreenIds
     val visited = (0 until ids.length + 1).foldLeft(List(ScreenId.OverviewId)) { (acc, _) =>
       acc :+ ScreenFlow.nextInOverviewOrder(acc.last)
     }

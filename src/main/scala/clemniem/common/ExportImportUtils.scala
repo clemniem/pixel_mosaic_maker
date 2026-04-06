@@ -103,7 +103,7 @@ object ExportImportUtils {
       input.`type` = "file"
       input.accept = ".json,application/json"
       input.style.display = "none"
-      val _ = dom.document.body.appendChild(input)
+      val _               = dom.document.body.appendChild(input)
       def cleanup(): Unit = Option(input.parentNode).foreach(_.removeChild(input))
       input.addEventListener(
         "change",
@@ -112,7 +112,7 @@ object ExportImportUtils {
           input.value = ""
           cleanup()
           file match {
-            case None => cb(Left(new RuntimeException("No file selected")))
+            case None    => cb(Left(new RuntimeException("No file selected")))
             case Some(f) =>
               val reader = new dom.FileReader()
               reader.onload = _ => cb(Right(reader.result.toString))
@@ -148,11 +148,11 @@ object ExportImportUtils {
 
   /** Type class to extract an id from a stored entity without requiring a common trait bound in the generic merge. */
   trait HasId[A] { def id(a: A): String }
-  object HasId {
+  object HasId   {
     given HasId[StoredPrintConfig] with { def id(a: StoredPrintConfig): String = a.id }
-    given HasId[StoredBuild] with       { def id(a: StoredBuild): String = a.id }
-    given HasId[StoredBuildConfig] with  { def id(a: StoredBuildConfig): String = a.id }
-    given HasId[StoredImage] with       { def id(a: StoredImage): String = a.id }
-    given HasId[StoredPalette] with     { def id(a: StoredPalette): String = a.id }
+    given HasId[StoredBuild] with       { def id(a: StoredBuild): String = a.id       }
+    given HasId[StoredBuildConfig] with { def id(a: StoredBuildConfig): String = a.id }
+    given HasId[StoredImage] with       { def id(a: StoredImage): String = a.id       }
+    given HasId[StoredPalette] with     { def id(a: StoredPalette): String = a.id     }
   }
 }

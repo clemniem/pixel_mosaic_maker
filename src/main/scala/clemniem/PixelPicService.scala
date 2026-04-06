@@ -39,7 +39,7 @@ object PixelPicService {
   def loadPixelImageFromFile(file: File): IO[Option[PixelPic]] =
     for {
       (fileName, dataUrl) <- loadImageFromFile(file)
-      pic <- getFromImage(dataUrl) { img =>
+      pic                 <- getFromImage(dataUrl) { img =>
         val imgData0 = imageToImageData(img)
         val scaleOpt = detectNearestNeighborScale(imgData0)
         val imgData  = scaleOpt.fold(imgData0)(f => downscaleImageData(imgData0, f))
@@ -70,7 +70,7 @@ object PixelPicService {
           SizeReductionService.TargetMaxWidth,
           SizeReductionService.TargetMaxHeight
         )
-        val raw = rawFromImageData(imgData)
+        val raw     = rawFromImageData(imgData)
         val reduced = SizeReductionService.downscale(
           raw,
           SizeReductionService.TargetMaxWidth,
@@ -79,7 +79,7 @@ object PixelPicService {
         )
         val uniqueColors = countUniqueColors(reduced)
         val name         = fileName
-        val result = paletteMode match {
+        val result       = paletteMode match {
           case AutoQuantize(n) =>
             val q = ColorQuantizationService.quantize(reduced, n, colorDithering)
             PixelPic.fromQuantized(reduced.width, reduced.height, q, name)
