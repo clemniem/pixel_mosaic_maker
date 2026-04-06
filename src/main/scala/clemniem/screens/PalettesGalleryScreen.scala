@@ -2,16 +2,7 @@ package clemniem.screens
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import clemniem.{
-  Color,
-  PixelPic,
-  PixelPicService,
-  Screen,
-  ScreenId,
-  ScreenOutput,
-  StorageKeys,
-  StoredPalette
-}
+import clemniem.{Color, PixelPic, PixelPicService, Screen, ScreenId, ScreenOutput, StorageKeys, StoredPalette}
 import clemniem.common.{CmdUtils, Loadable, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
@@ -29,7 +20,10 @@ object PalettesGalleryScreen extends Screen {
   private val pageSize: Int = 4
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val cmd = Gallery.loadCmd(StorageKeys.palettes, PalettesGalleryMsg.Loaded.apply, (msg, _) => PalettesGalleryMsg.LoadFailed(msg))
+    val cmd = Gallery.loadCmd(
+      StorageKeys.palettes,
+      PalettesGalleryMsg.Loaded.apply,
+      (msg, _) => PalettesGalleryMsg.LoadFailed(msg))
     (Gallery.initState, cmd)
   }
 
@@ -91,8 +85,8 @@ object PalettesGalleryScreen extends Screen {
           (model.copy(items = Loadable.Loaded(newList)), saveCmd)
         case _ => (model, Cmd.None)
       }
-    case PalettesGalleryMsg.CopySaved  => (model, Cmd.None)
-    case PalettesGalleryMsg.CopyFailed => (model, Cmd.None)
+    case PalettesGalleryMsg.CopySaved      => (model, Cmd.None)
+    case PalettesGalleryMsg.CopyFailed     => (model, Cmd.None)
     case PalettesGalleryMsg.Delete(stored) =>
       (Gallery.onRequestDelete(model, stored.id), Cmd.None)
     case PalettesGalleryMsg.ConfirmDelete(id) =>
@@ -141,7 +135,10 @@ object PalettesGalleryScreen extends Screen {
       )
       (Gallery.initState, cmd)
     case PalettesGalleryMsg.Retry =>
-      val cmd = Gallery.loadCmd(StorageKeys.palettes, PalettesGalleryMsg.Loaded.apply, (msg, _) => PalettesGalleryMsg.LoadFailed(msg))
+      val cmd = Gallery.loadCmd(
+        StorageKeys.palettes,
+        PalettesGalleryMsg.Loaded.apply,
+        (msg, _) => PalettesGalleryMsg.LoadFailed(msg))
       (Gallery.initState, cmd)
   }
 

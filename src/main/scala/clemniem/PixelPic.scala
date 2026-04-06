@@ -54,7 +54,7 @@ final case class PixelPic private (
   def crop(x: Int, y: Int, w: Int, h: Int): Option[PixelPic] =
     if (x < 0 || y < 0 || x + w > width || y + h > height) None
     else {
-      val counts = mutable.Map.empty[Int, Int]
+      val counts        = mutable.Map.empty[Int, Int]
       val croppedPixels = (for {
         cy <- 0 until h
         cx <- 0 until w
@@ -146,7 +146,7 @@ object PixelPic {
       val a          = data(i + 3).toInt & 0xff
       val px         = Pixel(r, g, b, a)
       val colorValue = s"$r,$g,$b,$a"
-      val index = indexMap.getOrElseUpdate(
+      val index      = indexMap.getOrElseUpdate(
         colorValue, {
           val newIndex = paletteBuf.size
           paletteBuf += px
