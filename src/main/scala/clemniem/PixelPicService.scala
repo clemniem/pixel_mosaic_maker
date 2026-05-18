@@ -14,6 +14,7 @@ import clemniem.common.RawImageUtils.rawFromImageData
 import clemniem.common.image.{
   ColorDithering,
   ColorQuantizationService,
+  DownscalePixelPerfect,
   DownscaleStrategy,
   QuantizedResult,
   RawImage,
@@ -65,11 +66,16 @@ object PixelPicService {
         Left(
           s"Image too large. Max ${SizeReductionService.MaxUploadWidth}×${SizeReductionService.MaxUploadHeight} px (got ${w}×${h}).")
       else {
-        val imgData = imageToImageDataMaxSize(
-          img,
-          SizeReductionService.TargetMaxWidth,
-          SizeReductionService.TargetMaxHeight
-        )
+        val imgData = downscaleStrategy match {
+          case DownscalePixelPerfect =>
+            imageToImageData(img)
+          case _ =>
+            imageToImageDataMaxSize(
+              img,
+              SizeReductionService.TargetMaxWidth,
+              SizeReductionService.TargetMaxHeight
+            )
+        }
         val raw = rawFromImageData(imgData)
         val reduced = SizeReductionService.downscale(
           raw,

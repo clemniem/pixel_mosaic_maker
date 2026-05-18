@@ -1,5 +1,6 @@
 package clemniem.common
 
+import clemniem.common.image.{DownscalePixelPerfect, RawImage, SizeReductionService}
 import munit.FunSuite
 
 /** Unit tests for nearest-neighbor scale detection and downscaling (ImageUtils). Uses synthetic byte arrays so tests
@@ -109,6 +110,64 @@ class ResizeSpec extends FunSuite {
     assertEquals(nw, 2)
     assertEquals(nh, 2)
     assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(nw, nh, small), None)
+  }
+
+  /** Unique RGBA colors in a RawImage, encoded as Long for hashing. */
+  private def uniqueColors(img: RawImage): Set[Long] = {
+    val set = scala.collection.mutable.HashSet.empty[Long]
+    for (i <- 0 until img.pixelCount) {
+      val o = i * 4
+      val r = img.data(o) & 0xff
+      val g = img.data(o + 1) & 0xff
+      val b = img.data(o + 2) & 0xff
+      val a = img.data(o + 3) & 0xff
+      set += ((r.toLong << 24) | (g.toLong << 16) | (b.toLong << 8) | a.toLong)
+    }
+    set.toSet
+  }
+
+  test("DownscalePixelPerfect: 4×4 scaled-by-2 round-trips to original logical 2×2") {
+    val raw = RawImage(4, 4, scaled2x2())
+    val out = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    assertEquals(out.width, 2)
+    assertEquals(out.height, 2)
+    val expected = Array(
+      255.toByte, 0.toByte, 0.toByte, 255.toByte,
+      0.toByte, 255.toByte, 0.toByte, 255.toByte,
+      0.toByte, 0.toByte, 255.toByte, 255.toByte,
+      255.toByte, 255.toByte, 255.toByte, 255.toByte
+    )
+    assert(out.data.sameElements(expected), s"expected ${expected.toSeq}, got ${out.data.toSeq}")
+  }
+
+  test("DownscalePixelPerfect: 4-color 8×8 (4×4 blocks) preserves exactly 4 colors") {
+    val red    = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green  = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
+    val blue   = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
+    val yellow = (255.toByte, 255.toByte, 0.toByte, 255.toByte)
+    val logical = Array(Array(red, green), Array(blue, yellow))
+    val data = rgba(8, 8) { (x, y) =>
+      logical(y / 4)(x / 4)
+    }
+    val raw = RawImage(8, 8, data)
+    val out = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    assertEquals(uniqueColors(out).size, 4)
+  }
+
+  test("DownscalePixelPerfect: non-aligned 5×5 source only contains colors from the source") {
+    val red   = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
+    val blue  = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
+    val palette = Array(red, green, blue)
+    val data = rgba(5, 5) { (x, y) =>
+      palette((x + y) % 3)
+    }
+    val raw     = RawImage(5, 5, data)
+    val src     = uniqueColors(raw)
+    val out     = SizeReductionService.downscale(raw, 3, 3, DownscalePixelPerfect)
+    assert(out.width <= 3 && out.height <= 3, s"expected ≤ 3×3, got ${out.width}×${out.height}")
+    val outset = uniqueColors(out)
+    assert(outset.subsetOf(src), s"output colors $outset not subset of source $src")
   }
 
   test("round-trip: 2×2 upscaled to 4×4 then detected and downscaled matches logical 2×2") {

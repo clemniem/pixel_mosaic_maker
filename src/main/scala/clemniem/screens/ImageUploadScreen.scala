@@ -21,6 +21,7 @@ import clemniem.common.image.{
   ColorQuantizationService,
   DownscaleAverage,
   DownscaleBayer,
+  DownscalePixelPerfect,
   DownscaleStrategy,
   FloydSteinbergDithering,
   NoColorDithering,
@@ -47,7 +48,7 @@ object ImageUploadScreen extends Screen {
   private val fileInputId     = "image-upload-file"
 
   val downscaleStrategies: List[DownscaleStrategy] =
-    List(DownscaleAverage, DownscaleBayer.Size2, DownscaleBayer.Size4)
+    List(DownscalePixelPerfect, DownscaleAverage, DownscaleBayer.Size2, DownscaleBayer.Size4)
   val paletteColorCounts: List[Int] = (4 to 16).toList
   val colorDitheringOptions: List[ColorDithering] =
     List(
@@ -65,7 +66,7 @@ object ImageUploadScreen extends Screen {
       loading = false,
       sourceDataUrl = None,
       sourceFileName = None,
-      downscaleStrategy = DownscaleAverage,
+      downscaleStrategy = DownscalePixelPerfect,
       paletteMode = UploadPaletteMode.Auto(16),
       colorDithering = NoColorDithering,
       pipelineRunId = 0L,

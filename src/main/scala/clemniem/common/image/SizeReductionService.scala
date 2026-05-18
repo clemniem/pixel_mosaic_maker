@@ -1,5 +1,7 @@
 package clemniem.common.image
 
+import clemniem.common.PixelArtDetection
+
 /** Strategy for choosing the value of each output pixel when downscaling (one pixel per block). */
 sealed trait DownscaleStrategy {
   def name: String
@@ -18,6 +20,13 @@ final case class DownscaleBayer(matrixSize: Int) extends DownscaleStrategy {
 object DownscaleBayer {
   val Size2: DownscaleBayer = DownscaleBayer(2)
   val Size4: DownscaleBayer = DownscaleBayer(4)
+}
+
+/** Pure nearest-neighbor downscale that preserves the original color set. When the source is an integer
+  * nearest-neighbor upscale (e.g. a 4x scaled GB Camera image), the original pixels are recovered exactly.
+  */
+case object DownscalePixelPerfect extends DownscaleStrategy {
+  override def name: String = "Pixel-perfect (nearest)"
 }
 
 /** Standalone service: validate upload size, downscale image to target max dimensions. */
@@ -40,20 +49,96 @@ object SizeReductionService {
   ): RawImage = {
     val w = image.width
     val h = image.height
-    if (w <= targetMaxW && h <= targetMaxH) image.copy()
-    else {
-      val scaleX = w.toDouble / targetMaxW
-      val scaleY = h.toDouble / targetMaxH
-      val scale  = math.max(scaleX, scaleY)
-      val nw     = (w / scale).toInt.max(1).min(targetMaxW)
-      val nh     = (h / scale).toInt.max(1).min(targetMaxH)
-      strategy match {
-        case DownscaleAverage =>
-          downscaleAverage(image, nw, nh)
-        case b: DownscaleBayer =>
-          downscaleBayer(image, nw, nh, b.matrixSize)
-      }
+    strategy match {
+      case DownscalePixelPerfect =>
+        downscalePixelPerfect(image, targetMaxW, targetMaxH)
+      case _ if w <= targetMaxW && h <= targetMaxH =>
+        image.copy
+      case _ =>
+        val scaleX = w.toDouble / targetMaxW
+        val scaleY = h.toDouble / targetMaxH
+        val scale  = math.max(scaleX, scaleY)
+        val nw     = (w / scale).toInt.max(1).min(targetMaxW)
+        val nh     = (h / scale).toInt.max(1).min(targetMaxH)
+        strategy match {
+          case DownscaleAverage =>
+            downscaleAverage(image, nw, nh)
+          case b: DownscaleBayer =>
+            downscaleBayer(image, nw, nh, b.matrixSize)
+          case DownscalePixelPerfect =>
+            downscaleNearest(image, nw, nh)
+        }
     }
+  }
+
+  /** Pixel-perfect strategy: detect integer NN upscale factor and divide exactly. If no factor is detected, sample
+    * one source pixel per output cell with no averaging (still preserves the original color set, though aliasing
+    * may pick a subset of the source colors).
+    */
+  private def downscalePixelPerfect(src: RawImage, targetMaxW: Int, targetMaxH: Int): RawImage = {
+    val w = src.width
+    val h = src.height
+    val detectedFactor =
+      PixelArtDetection.detectNearestNeighborScaleFromBytes(w, h, src.data)
+    val factor =
+      detectedFactor.filter(f => (w / f) <= targetMaxW && (h / f) <= targetMaxH)
+    factor match {
+      case Some(f) =>
+        nearestByFactor(src, f)
+      case None if w <= targetMaxW && h <= targetMaxH =>
+        src.copy
+      case None =>
+        val scaleX = w.toDouble / targetMaxW
+        val scaleY = h.toDouble / targetMaxH
+        val scale  = math.max(scaleX, scaleY)
+        val nw     = (w / scale).toInt.max(1).min(targetMaxW)
+        val nh     = (h / scale).toInt.max(1).min(targetMaxH)
+        downscaleNearest(src, nw, nh)
+    }
+  }
+
+  /** Take one pixel per `factor`x`factor` block (top-left). Exact inverse of integer NN upscale. */
+  private def nearestByFactor(src: RawImage, factor: Int): RawImage = {
+    val w   = src.width
+    val h   = src.height
+    val nw  = w / factor
+    val nh  = h / factor
+    val out = RawImage.create(nw, nh)
+    for {
+      dy <- 0 until nh
+      dx <- 0 until nw
+    } {
+      val sx = dx * factor
+      val sy = dy * factor
+      val si = (sy * w + sx) * 4
+      val o  = (dy * nw + dx) * 4
+      out.data(o) = src.data(si)
+      out.data(o + 1) = src.data(si + 1)
+      out.data(o + 2) = src.data(si + 2)
+      out.data(o + 3) = src.data(si + 3)
+    }
+    out
+  }
+
+  /** Pure nearest-neighbor downscale to arbitrary target size. Picks one pixel per output cell with no averaging. */
+  private def downscaleNearest(src: RawImage, nw: Int, nh: Int): RawImage = {
+    val w   = src.width
+    val h   = src.height
+    val out = RawImage.create(nw, nh)
+    for {
+      dy <- 0 until nh
+      dx <- 0 until nw
+    } {
+      val sx = (dx * w) / nw
+      val sy = (dy * h) / nh
+      val si = (sy * w + sx) * 4
+      val o  = (dy * nw + dx) * 4
+      out.data(o) = src.data(si)
+      out.data(o + 1) = src.data(si + 1)
+      out.data(o + 2) = src.data(si + 2)
+      out.data(o + 3) = src.data(si + 3)
+    }
+    out
   }
 
   private def downscaleAverage(src: RawImage, nw: Int, nh: Int): RawImage = {
