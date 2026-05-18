@@ -31,6 +31,19 @@ object CanvasUtils {
     if (n <= 0) io
     else runAfterNextFrame(runAfterFrames(n - 1)(io))
 
+  /** Yield to the browser so the latest DOM commit can actually be painted before we start a long synchronous task.
+    *
+    * `requestAnimationFrame` fires immediately **before** the next paint, so chaining a `setTimeout(0)` (here:
+    * `IO.sleep(0.millis)`) inside the rAF callback guarantees the work runs **after** the frame has been painted.
+    * Without this, a loading indicator set in the previous Tyrian update would never become visible: the browser
+    * batches the DOM mutation and the immediately-following heavy IO into the same task and skips the paint.
+    *
+    * Use this to wrap any blocking work that exceeds ~50 ms on a mid-range mobile device (image decode + downscale +
+    * quantize easily reaches this on a 5000×5000 upload).
+    */
+  def yieldAfterPaint: IO[Unit] =
+    runAfterNextFrame(IO.sleep(0.millis))
+
   /** Standard gallery preview size (all galleries use 120×80). */
   val galleryPreviewWidth: Int  = 120
   val galleryPreviewHeight: Int = 80

@@ -1347,6 +1347,54 @@ input[type="number"].nes-input {
   transition: width 0.2s;
 }
 
+/* Indeterminate progress: a stripe sliding back and forth. Used during image upload processing where we don't know
+   the actual completion percentage. The transition declared above doesn't affect the transform animation. */
+.progress-bar-indeterminate {
+  width: 35%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--nes-success, #4caf50) 30%,
+    var(--nes-success, #4caf50) 70%,
+    transparent 100%
+  );
+  animation: progress-indeterminate 1.4s infinite ease-in-out;
+}
+
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(180%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* Loading banner shown while the upload pipeline runs (decode → downscale → quantize). */
+.upload-loading-banner {
+  margin: 0.5rem 0 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upload-loading-banner__label {
+  font-size: 0.9rem;
+}
+
+.upload-loading-banner__bar {
+  margin-top: 0;
+  height: 12px;
+}
+
+/* Dim the settings + preview area while a pipeline run is in flight. Disables interaction so users can't queue
+   another change mid-process (which would be redundant — the new change will trigger its own re-run). */
+.upload-content {
+  transition: opacity 0.15s ease;
+}
+
+.upload-content--loading {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 /* ========== Mobile / small screen ========== */
 /* Prevent fixed-width inputs from overflowing viewport */
 .input-w-5,

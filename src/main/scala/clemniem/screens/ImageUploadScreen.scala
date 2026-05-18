@@ -122,22 +122,24 @@ object ImageUploadScreen extends Screen {
             val colors = model.savedPalettes.flatMap(_.find(_.id == id)).map(_.colors).getOrElse(Vector.empty)
             FromPalette(colors.map(c => (c.r.toByte, c.g.toByte, c.b.toByte, 255.toByte)))
         }
+        // Yield to the browser BEFORE the long synchronous decode/downscale/quantize so the "Processing image…" banner
+        // (set on the previous update via loading=true) actually paints. Without this the main thread blocks before
+        // the browser ever gets a frame.
+        val pipeline = CanvasUtils.yieldAfterPaint *> PixelPicService.processUploadedImage(
+          url,
+          fileName,
+          model.downscaleStrategy,
+          paletteMode,
+          model.colorDithering
+        )
         CmdUtils.run(
-          PixelPicService
-            .processUploadedImage(
-              url,
-              fileName,
-              model.downscaleStrategy,
-              paletteMode,
-              model.colorDithering
-            )
-            .map(e =>
-              e.fold(
-                msg => ImageUploadMsg.ImageDecodedError(msg, Some(runId)),
-                { case (pic, detectedColors) =>
-                  ImageUploadMsg.ImageDecoded(pic, Some(fileName), detectedColors, runId)
-                }
-              )),
+          pipeline.map(e =>
+            e.fold(
+              msg => ImageUploadMsg.ImageDecodedError(msg, Some(runId)),
+              { case (pic, detectedColors) =>
+                ImageUploadMsg.ImageDecoded(pic, Some(fileName), detectedColors, runId)
+              }
+            )),
           identity[ImageUploadMsg],
           e => ImageUploadMsg.ImageDecodedError(e.getMessage, Some(runId))
         )
@@ -327,6 +329,24 @@ object ImageUploadScreen extends Screen {
       model.error
         .map(err => div(`class` := s"${NesCss.container} ${NesCss.containerRounded} error-box")(text(err)))
         .getOrElse(div(`class` := "hidden")(text(""))),
+      loadingBanner(model),
+      contentArea(model)
+    )
+
+  private def loadingBanner(model: Model): Html[Msg] =
+    if (model.loading)
+      div(`class` := s"${NesCss.container} ${NesCss.containerRounded} upload-loading-banner")(
+        tyrian.Html.span(`class` := s"${NesCss.text} upload-loading-banner__label")(text("Processing image…")),
+        div(`class` := "progress-bar upload-loading-banner__bar")(
+          div(`class` := "progress-bar-fill progress-bar-indeterminate")()
+        )
+      )
+    else
+      div(`class` := "hidden")(text(""))
+
+  private def contentArea(model: Model): Html[Msg] = {
+    val cls = if (model.loading) "upload-content upload-content--loading" else "upload-content"
+    div(`class` := cls)(
       model.pixelPic match {
         case Some(pic) =>
           val colorCount = pic.paletteLookup.size
@@ -346,12 +366,18 @@ object ImageUploadScreen extends Screen {
               PixelPreviewBox("image-upload-preview", pic.width, pic.height, None)
             )
           )
+        case None if model.loading =>
+          // First-time upload: no previous pic to dim; show a placeholder so the layout doesn't jump
+          div(`class` := s"${NesCss.container} empty-state")(
+            tyrian.Html.span(`class` := NesCss.text)(text("Decoding and downscaling…"))
+          )
         case None =>
           div(`class` := s"${NesCss.container} empty-state")(
             tyrian.Html.span(`class` := NesCss.text)(text("Click Upload and choose an image."))
           )
       }
     )
+  }
 
   private def nameRow(model: Model): Html[Msg] =
     div(`class` := "field-block--lg")(

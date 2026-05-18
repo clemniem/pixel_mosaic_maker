@@ -52,9 +52,9 @@ class ResizeSpec extends FunSuite {
     out
   }
 
-  test("detectNearestNeighborScaleFromBytes detects factor 2 on 4×4 uniform (all same pixel)") {
+  test("detectNearestNeighborScaleFromBytes returns LARGEST matching factor (4 on 4×4 uniform, not 2)") {
     val data = rgba(4, 4)((_, _) => (100.toByte, 101.toByte, 102.toByte, 255.toByte))
-    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, data), Some(2))
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, data), Some(4))
   }
 
   test("detectNearestNeighborScaleFromBytes detects factor 2 on 4×4 that is 2×2 repeated") {
@@ -183,6 +183,102 @@ class ResizeSpec extends FunSuite {
       out(o + 3) = data(o + 3)
     }
     out
+  }
+
+  test("detect picks LARGEST factor: 4-color image NN-upscaled by 4 is detected as factor 4 (not 2)") {
+    // Logical 2×2 image with 4 colours, upscaled by 4 to 8×8. Every 2×2 block is uniform (lives inside one 4×4
+    // logical block) AND every 4×4 block is uniform — both factors 2 and 4 match. We must pick 4 (the true factor)
+    // so the output resolution is the logical 2×2, not 4×4.
+    val red    = (200.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green  = (0.toByte, 200.toByte, 0.toByte, 255.toByte)
+    val blue   = (0.toByte, 0.toByte, 200.toByte, 255.toByte)
+    val yellow = (200.toByte, 200.toByte, 0.toByte, 255.toByte)
+    def logicalColor(lx: Int, ly: Int): (Byte, Byte, Byte, Byte) =
+      if (lx == 0 && ly == 0) red
+      else if (lx == 1 && ly == 0) green
+      else if (lx == 0 && ly == 1) blue
+      else yellow
+    val data = rgba(8, 8) { (x, y) => logicalColor(x / 4, y / 4) }
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(8, 8, data), Some(4))
+  }
+
+  test("DownscalePixelPerfect: GB-native size at 2× (256×224) downscales to 128×112") {
+    // 128×112 is the raw Game Boy Camera sensor output; 256×224 is its 2× NN upscale.
+    val red   = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
+    val data  = rgba(256, 224) { (x, y) => if (((x / 2) + (y / 2)) % 2 == 0) red else green }
+    val raw   = RawImage(256, 224, data)
+    val out   = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    assertEquals(out.width, 128)
+    assertEquals(out.height, 112)
+    assertEquals(uniqueColors(out).size, 2)
+  }
+
+  test("DownscalePixelPerfect: GB-shape shortcut works even when pixel-level detection would reject (sub-block noise)") {
+    // 320×288 = 2× of 160×144 (GB with frame). Inject extra-noisy pixels (delta > tolerance 8) at random offsets
+    // inside each 2×2 block so the tolerant pixel-equality detector returns None — but the GB-shape shortcut still
+    // recognises the dimensions and divides by 2.
+    val baseRed   = (200, 10, 10)
+    val baseBlue  = (10, 10, 200)
+    val baseGreen = (10, 200, 10)
+    val baseWhite = (250, 250, 250)
+    val data = rgba(320, 288) { (x, y) =>
+      val logical = ((x / 2) + (y / 2) * 7) % 4
+      val (r, g, b) = logical match {
+        case 0 => baseRed
+        case 1 => baseBlue
+        case 2 => baseGreen
+        case _ => baseWhite
+      }
+      // Add ±40 noise per channel to break the tolerant equality check (tolerance is 8)
+      val seed = (x * 31 + y) & 0x7
+      val nr   = (r + (seed - 4) * 10).max(0).min(255)
+      val ng   = (g + (seed - 4) * 10).max(0).min(255)
+      val nb   = (b + (seed - 4) * 10).max(0).min(255)
+      (nr.toByte, ng.toByte, nb.toByte, 255.toByte)
+    }
+    // Confirm general detector cannot find a factor on this noisy data
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(320, 288, data, 8), None)
+    val raw = RawImage(320, 288, data)
+    val out = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    // GB-shape shortcut routes through nearestByFactor(src, 2) regardless of the pixel-level check
+    assertEquals(out.width, 160)
+    assertEquals(out.height, 144)
+  }
+
+  test("DownscalePixelPerfect: non-GB-shape image still routes through general detector") {
+    // 200×200 is not a GB multiple. Built as a clean 4× NN upscale of a 50×50 logical image with 4 colours, so the
+    // tolerant detector should still find factor 4 → 50×50 output.
+    val palette = Array(
+      (255.toByte, 0.toByte, 0.toByte, 255.toByte),
+      (0.toByte, 255.toByte, 0.toByte, 255.toByte),
+      (0.toByte, 0.toByte, 255.toByte, 255.toByte),
+      (255.toByte, 255.toByte, 0.toByte, 255.toByte)
+    )
+    val data = rgba(200, 200) { (x, y) => palette(((x / 4) + (y / 4)) % 4) }
+    val raw  = RawImage(200, 200, data)
+    val out  = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    assertEquals(out.width, 50)
+    assertEquals(out.height, 50)
+    assertEquals(uniqueColors(out).size, 4)
+  }
+
+  test("DownscalePixelPerfect: GB-Camera-shaped 4× upscale (640×576) downscales to logical 160×144 with 4 colours") {
+    // Mirrors the user's actual failure case (zip with 1×, 2×, 3×, 4× exports). The 4× version is the only one that
+    // exceeds the 500×500 target and so actually goes through the algorithm. Before the largest-factor fix this
+    // returned factor 2 and produced 320×288; the truthful result is factor 4 → 160×144.
+    val palette = Array(
+      (0.toByte, 0.toByte, 0.toByte, 255.toByte),
+      (0.toByte, 0.toByte, 255.toByte, 255.toByte),
+      (99.toByte, 165.toByte, 255.toByte, 255.toByte),
+      (255.toByte, 255.toByte, 255.toByte, 255.toByte)
+    )
+    val data = rgba(640, 576) { (x, y) => palette(((x / 4) + (y / 4) * 3) % 4) }
+    val raw  = RawImage(640, 576, data)
+    val out  = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    assertEquals(out.width, 160)
+    assertEquals(out.height, 144)
+    assertEquals(uniqueColors(out).size, 4)
   }
 
   test("tolerant detect: noisy 4×4 (±2 noise) detected with tolerance 8, not with 0") {

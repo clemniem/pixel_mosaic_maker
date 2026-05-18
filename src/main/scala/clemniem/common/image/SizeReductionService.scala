@@ -75,16 +75,34 @@ object SizeReductionService {
 
   private val PixelPerfectTolerance = 8
 
-  /** Pixel-perfect strategy: tolerant integer-factor detection (handles canvas sRGB noise), then mode-filter fallback.
-    * Never invents a new colour — always picks an existing source pixel as the representative.
+  /** Native Game Boy Camera image sizes:
+    *   - 128×112: raw sensor output, no UI frame.
+    *   - 160×144: with the standard Game Boy LCD frame applied (this is also the Game Boy screen resolution).
+    * Almost every user upload originates from one of these (often integer-NN-upscaled by emulators or export tools),
+    * so we treat a clean integer multiple of either size as a definitive answer that bypasses pixel-level detection.
+    */
+  private val GbCameraNativeSizes: List[(Int, Int)] = List((128, 112), (160, 144))
+
+  /** Return Some(F) (F in 1..10) iff `(w, h)` equals (bw*F, bh*F) for some Game Boy Camera native size `(bw, bh)`. */
+  private def gbCameraFactor(w: Int, h: Int): Option[Int] =
+    GbCameraNativeSizes.iterator
+      .flatMap { case (bw, bh) =>
+        if (w % bw == 0 && h % bh == 0 && (w / bw) == (h / bh)) Some(w / bw) else None
+      }
+      .find(f => f >= 1 && f <= 10)
+
+  /** Pixel-perfect strategy: GB-Camera shape shortcut, then tolerant integer-factor detection (handles canvas sRGB
+    * noise), then mode-filter fallback. Never invents a new colour — always picks an existing source pixel as the
+    * representative.
     */
   private def downscalePixelPerfect(src: RawImage, targetMaxW: Int, targetMaxH: Int): RawImage = {
     val w = src.width
     val h = src.height
     val detectedFactor =
-      PixelArtDetection.detectNearestNeighborScaleFromBytes(w, h, src.data, PixelPerfectTolerance)
+      gbCameraFactor(w, h).orElse(
+        PixelArtDetection.detectNearestNeighborScaleFromBytes(w, h, src.data, PixelPerfectTolerance))
     val factor =
-      detectedFactor.filter(f => (w / f) <= targetMaxW && (h / f) <= targetMaxH)
+      detectedFactor.filter(f => f >= 2 && (w / f) <= targetMaxW && (h / f) <= targetMaxH)
     factor match {
       case Some(f) =>
         nearestByFactor(src, f)

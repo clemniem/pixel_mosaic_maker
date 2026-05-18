@@ -28,6 +28,12 @@ object PixelArtDetection {
   def detectNearestNeighborScaleFromBytes(width: Int, height: Int, data: Array[Byte], tolerance: Int): Option[Int] =
     detectNearestNeighborScaleFromBytesWithTolerance(width, height, i => (data(i) & 0xff).toByte, tolerance)
 
+  /** Iterate from the LARGEST candidate factor (10) down to 2 and return the first match.
+    *
+    * A nearest-neighbor F-times upscale by definition also satisfies the test for every divisor of F (e.g. an image
+    * upscaled by 4 also has uniform 2x2 blocks). Picking the smallest match would return 2 for a 4x upscale and only
+    * recover half the resolution; picking the largest match returns the true logical factor.
+    */
   private def detectNearestNeighborScaleFromBytesWithTolerance(
     width: Int,
     height: Int,
@@ -35,7 +41,7 @@ object PixelArtDetection {
     tolerance: Int
   ): Option[Int] =
     boundary {
-      for (scaleFactor <- 2 to 10) {
+      for (scaleFactor <- 10 to 2 by -1) {
         val pw = width / scaleFactor
         val ph = height / scaleFactor
         if (pw >= 1 && ph >= 1) {
