@@ -2,6 +2,8 @@ package clemniem.common.image
 
 import clemniem.common.PixelArtDetection
 
+import scala.collection.mutable.ArrayBuffer
+
 /** Strategy for choosing the value of each output pixel when downscaling (one pixel per block). */
 sealed trait DownscaleStrategy {
   def name: String
@@ -66,20 +68,21 @@ object SizeReductionService {
           case b: DownscaleBayer =>
             downscaleBayer(image, nw, nh, b.matrixSize)
           case DownscalePixelPerfect =>
-            downscaleNearest(image, nw, nh)
+            downscaleModeFilter(image, nw, nh)
         }
     }
   }
 
-  /** Pixel-perfect strategy: detect integer NN upscale factor and divide exactly. If no factor is detected, sample
-    * one source pixel per output cell with no averaging (still preserves the original color set, though aliasing
-    * may pick a subset of the source colors).
+  private val PixelPerfectTolerance = 8
+
+  /** Pixel-perfect strategy: tolerant integer-factor detection (handles canvas sRGB noise), then mode-filter fallback.
+    * Never invents a new colour — always picks an existing source pixel as the representative.
     */
   private def downscalePixelPerfect(src: RawImage, targetMaxW: Int, targetMaxH: Int): RawImage = {
     val w = src.width
     val h = src.height
     val detectedFactor =
-      PixelArtDetection.detectNearestNeighborScaleFromBytes(w, h, src.data)
+      PixelArtDetection.detectNearestNeighborScaleFromBytes(w, h, src.data, PixelPerfectTolerance)
     val factor =
       detectedFactor.filter(f => (w / f) <= targetMaxW && (h / f) <= targetMaxH)
     factor match {
@@ -93,7 +96,7 @@ object SizeReductionService {
         val scale  = math.max(scaleX, scaleY)
         val nw     = (w / scale).toInt.max(1).min(targetMaxW)
         val nh     = (h / scale).toInt.max(1).min(targetMaxH)
-        downscaleNearest(src, nw, nh)
+        downscaleModeFilter(src, nw, nh)
     }
   }
 
@@ -120,23 +123,63 @@ object SizeReductionService {
     out
   }
 
-  /** Pure nearest-neighbor downscale to arbitrary target size. Picks one pixel per output cell with no averaging. */
-  private def downscaleNearest(src: RawImage, nw: Int, nh: Int): RawImage = {
-    val w   = src.width
-    val h   = src.height
-    val out = RawImage.create(nw, nh)
+  /** Mode-filter (majority-colour) downscale. For each output cell the most frequent colour bucket in the source block
+    * wins, and the representative pixel is the first source pixel belonging to that bucket. Never invents a new colour.
+    *
+    * Bucket key: 4 bits per channel (R, G, B) → 4096 buckets of size 16. This absorbs ±8 canvas sRGB noise while
+    * still distinguishing palette colours that differ by ≥16 in any channel.
+    *
+    * Implementation is scalafix-clean: no var/while/return/null. The histogram array is pre-allocated once per call and
+    * zeroed lazily per cell via a touched-index list.
+    */
+  private def downscaleModeFilter(src: RawImage, nw: Int, nh: Int): RawImage = {
+    val w       = src.width
+    val h       = src.height
+    val out     = RawImage.create(nw, nh)
+    val hist    = new Array[Int](4096)
+    val touched = ArrayBuffer.empty[Int]
+
     for {
       dy <- 0 until nh
       dx <- 0 until nw
     } {
-      val sx = (dx * w) / nw
-      val sy = (dy * h) / nh
-      val si = (sy * w + sx) * 4
-      val o  = (dy * nw + dx) * 4
+      val x0 = (dx * w) / nw
+      val y0 = (dy * h) / nh
+      val x1 = (((dx + 1) * w) / nw).min(w)
+      val y1 = (((dy + 1) * h) / nh).min(h)
+
+      touched.clear()
+
+      // Accumulate histogram and record representative pixel per bucket.
+      // We encode (si, count) per bucket: hist stores count, repPixel stores first si seen.
+      // To avoid a second array we store the first source-pixel index inline in a parallel array.
+      val repPixel = new Array[Int](4096)
+
+      for {
+        sy <- y0 until y1
+        sx <- x0 until x1
+      } {
+        val si  = (sy * w + sx) * 4
+        val r   = src.data(si) & 0xff
+        val g   = src.data(si + 1) & 0xff
+        val b   = src.data(si + 2) & 0xff
+        val key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4)
+        if (hist(key) == 0) {
+          touched += key
+          repPixel(key) = si
+        }
+        hist(key) += 1
+      }
+
+      val bestKey = touched.maxBy(k => hist(k))
+      val si      = repPixel(bestKey)
+      val o       = (dy * nw + dx) * 4
       out.data(o) = src.data(si)
       out.data(o + 1) = src.data(si + 1)
       out.data(o + 2) = src.data(si + 2)
       out.data(o + 3) = src.data(si + 3)
+
+      touched.foreach(k => hist(k) = 0)
     }
     out
   }

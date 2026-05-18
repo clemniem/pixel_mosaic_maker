@@ -15,14 +15,25 @@ object PixelArtDetection {
     val w = imageData.width
     val h = imageData.height
     val d = imageData.data
-    detectNearestNeighborScaleFromBytes(w, h, i => (d(i) & 0xff).toByte)
+    detectNearestNeighborScaleFromBytesWithTolerance(w, h, i => (d(i) & 0xff).toByte, 0)
   }
 
-  /** Same as [[detectNearestNeighborScale]] but on raw bytes (no DOM). Used for unit tests. */
+  /** Same as [[detectNearestNeighborScale]] but on raw bytes (no DOM). Used for unit tests. Strict equality. */
   def detectNearestNeighborScaleFromBytes(width: Int, height: Int, data: Array[Byte]): Option[Int] =
-    detectNearestNeighborScaleFromBytes(width, height, i => (data(i) & 0xff).toByte)
+    detectNearestNeighborScaleFromBytesWithTolerance(width, height, i => (data(i) & 0xff).toByte, 0)
 
-  private def detectNearestNeighborScaleFromBytes(width: Int, height: Int, getByte: Int => Byte): Option[Int] =
+  /** Same as [[detectNearestNeighborScaleFromBytes]] but allows per-channel deviation up to `tolerance`. Useful when
+    * source bytes come from a canvas (sRGB pipeline may shift values by a few units).
+    */
+  def detectNearestNeighborScaleFromBytes(width: Int, height: Int, data: Array[Byte], tolerance: Int): Option[Int] =
+    detectNearestNeighborScaleFromBytesWithTolerance(width, height, i => (data(i) & 0xff).toByte, tolerance)
+
+  private def detectNearestNeighborScaleFromBytesWithTolerance(
+    width: Int,
+    height: Int,
+    getByte: Int => Byte,
+    tolerance: Int
+  ): Option[Int] =
     boundary {
       for (scaleFactor <- 2 to 10) {
         val pw = width / scaleFactor
@@ -31,13 +42,17 @@ object PixelArtDetection {
           val allMatch = (0 until ph).forall { y =>
             (0 until pw).forall { x =>
               val index = ((y * scaleFactor) * width + (x * scaleFactor)) * 4
-              val ref   = (getByte(index), getByte(index + 1), getByte(index + 2), getByte(index + 3))
+              val refR  = getByte(index) & 0xff
+              val refG  = getByte(index + 1) & 0xff
+              val refB  = getByte(index + 2) & 0xff
+              val refA  = getByte(index + 3) & 0xff
               (0 until scaleFactor).forall { dy =>
                 (0 until scaleFactor).forall { dx =>
-                  val testIndex = ((y * scaleFactor + dy) * width + (x * scaleFactor + dx)) * 4
-                  val test =
-                    (getByte(testIndex), getByte(testIndex + 1), getByte(testIndex + 2), getByte(testIndex + 3))
-                  test == ref
+                  val ti = ((y * scaleFactor + dy) * width + (x * scaleFactor + dx)) * 4
+                  math.abs((getByte(ti) & 0xff) - refR) <= tolerance &&
+                  math.abs((getByte(ti + 1) & 0xff) - refG) <= tolerance &&
+                  math.abs((getByte(ti + 2) & 0xff) - refB) <= tolerance &&
+                  math.abs((getByte(ti + 3) & 0xff) - refA) <= tolerance
                 }
               }
             }

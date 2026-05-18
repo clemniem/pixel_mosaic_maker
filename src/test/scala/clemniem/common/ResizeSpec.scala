@@ -170,6 +170,62 @@ class ResizeSpec extends FunSuite {
     assert(outset.subsetOf(src), s"output colors $outset not subset of source $src")
   }
 
+  /** Add per-channel noise clamped to [0, 255], keeping alpha at 255. */
+  private def addNoise(data: Array[Byte], noise: Int): Array[Byte] = {
+    val out    = data.clone()
+    val rng    = new scala.util.Random(42)
+    val nPx    = data.length / 4
+    for (i <- 0 until nPx) {
+      val o = i * 4
+      out(o) = (((data(o) & 0xff) + rng.nextInt(2 * noise + 1) - noise).max(0).min(255)).toByte
+      out(o + 1) = (((data(o + 1) & 0xff) + rng.nextInt(2 * noise + 1) - noise).max(0).min(255)).toByte
+      out(o + 2) = (((data(o + 2) & 0xff) + rng.nextInt(2 * noise + 1) - noise).max(0).min(255)).toByte
+      out(o + 3) = data(o + 3)
+    }
+    out
+  }
+
+  test("tolerant detect: noisy 4×4 (±2 noise) detected with tolerance 8, not with 0") {
+    val clean = scaled2x2()
+    val noisy = addNoise(clean, 2)
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, noisy, 8), Some(2))
+    assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, noisy, 0), None)
+  }
+
+  test("DownscalePixelPerfect: 8×8 (factor-2 NN upscale, uniform sRGB-style colour shift) output has exactly 4 colours") {
+    // Realistic sRGB simulation: all pixels of the same original colour get the SAME fixed shift,
+    // so each 2×2 block remains identical and the factor-2 upscale is still detected.
+    val red   = (202.toByte, 1.toByte, 1.toByte, 255.toByte)
+    val green = (1.toByte, 199.toByte, 1.toByte, 255.toByte)
+    val blue  = (1.toByte, 1.toByte, 197.toByte, 255.toByte)
+    val white = (201.toByte, 200.toByte, 199.toByte, 255.toByte)
+    def logicalColor(lx: Int, ly: Int): (Byte, Byte, Byte, Byte) =
+      if (lx < 2 && ly < 2) red
+      else if (lx >= 2 && ly < 2) green
+      else if (lx < 2 && ly >= 2) blue
+      else white
+    val data = rgba(8, 8) { (x, y) => logicalColor(x / 2, y / 2) }
+    val raw  = RawImage(8, 8, data)
+    val out  = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    assertEquals(uniqueColors(out).size, 4)
+  }
+
+  test("DownscalePixelPerfect: mode-filter output colours are always a subset of source colours") {
+    // 9×9 image with a 3×3 grid of 3×3 solid-colour blocks (no straddling when downscaled to 3×3).
+    val red   = (180.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green = (0.toByte, 180.toByte, 0.toByte, 255.toByte)
+    val blue  = (0.toByte, 0.toByte, 180.toByte, 255.toByte)
+    val palette = Array(red, green, blue)
+    val data   = rgba(9, 9) { (x, y) => palette(((x / 3) + (y / 3)) % 3) }
+    val raw    = RawImage(9, 9, data)
+    val srcSet = uniqueColors(raw)
+    val out    = SizeReductionService.downscale(raw, 3, 3, DownscalePixelPerfect)
+    assertEquals(out.width, 3)
+    assertEquals(out.height, 3)
+    val outSet = uniqueColors(out)
+    assert(outSet.subsetOf(srcSet), s"output colours $outSet not subset of source $srcSet")
+  }
+
   test("round-trip: 2×2 upscaled to 4×4 then detected and downscaled matches logical 2×2") {
     val data4x4 = scaled2x2()
     assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, data4x4), Some(2))
