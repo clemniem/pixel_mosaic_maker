@@ -281,6 +281,26 @@ class ResizeSpec extends FunSuite {
     assertEquals(uniqueColors(out).size, 4)
   }
 
+  test("DownscalePixelPerfect: 4-colour 4x upscale with per-pixel canvas-style noise collapses to exactly 4 unique output bytes") {
+    // Reproduces the user-reported failure: 640×576 GB-framed image with 4 logical colours, 4× NN upscaled,
+    // then a deterministic ±2 per-channel jitter applied to EVERY pixel independently (canvas sRGB roundtrip).
+    // Before the canonical-bucket fix, countUniqueColors reported 8 (5 near-identical blacks + white + 2 grays).
+    // With canonical mode filter, each FxF source block maps to the same canonical bucket bytes → exactly 4.
+    val black = (0.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val blue  = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
+    val light = (99.toByte, 165.toByte, 255.toByte, 255.toByte)
+    val white = (255.toByte, 255.toByte, 255.toByte, 255.toByte)
+    val palette = Array(black, blue, light, white)
+    val cleanData = rgba(640, 576) { (x, y) => palette(((x / 4) + (y / 4) * 3) % 4) }
+    // Apply per-pixel ±2 noise (different value per pixel, as the canvas sRGB pipeline does)
+    val noisyData = addNoise(cleanData, 2)
+    val raw = RawImage(640, 576, noisyData)
+    val out = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    assertEquals(out.width, 160)
+    assertEquals(out.height, 144)
+    assertEquals(uniqueColors(out).size, 4)
+  }
+
   test("tolerant detect: noisy 4×4 (±2 noise) detected with tolerance 8, not with 0") {
     val clean = scaled2x2()
     val noisy = addNoise(clean, 2)

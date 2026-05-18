@@ -105,7 +105,7 @@ object SizeReductionService {
       detectedFactor.filter(f => f >= 2 && (w / f) <= targetMaxW && (h / f) <= targetMaxH)
     factor match {
       case Some(f) =>
-        nearestByFactor(src, f)
+        downscaleModeFilter(src, w / f, h / f)
       case None if w <= targetMaxW && h <= targetMaxH =>
         src.copy
       case None =>
@@ -118,45 +118,45 @@ object SizeReductionService {
     }
   }
 
-  /** Take one pixel per `factor`x`factor` block (top-left). Exact inverse of integer NN upscale. */
-  private def nearestByFactor(src: RawImage, factor: Int): RawImage = {
-    val w   = src.width
-    val h   = src.height
-    val nw  = w / factor
-    val nh  = h / factor
-    val out = RawImage.create(nw, nh)
-    for {
-      dy <- 0 until nh
-      dx <- 0 until nw
-    } {
-      val sx = dx * factor
-      val sy = dy * factor
-      val si = (sy * w + sx) * 4
-      val o  = (dy * nw + dx) * 4
-      out.data(o) = src.data(si)
-      out.data(o + 1) = src.data(si + 1)
-      out.data(o + 2) = src.data(si + 2)
-      out.data(o + 3) = src.data(si + 3)
-    }
-    out
-  }
-
   /** Mode-filter (majority-colour) downscale. For each output cell the most frequent colour bucket in the source block
-    * wins, and the representative pixel is the first source pixel belonging to that bucket. Never invents a new colour.
+    * wins, and the bucket is materialised as a **globally consistent canonical pixel** — the first source pixel ever
+    * seen in that bucket. Two cells that pick the same bucket therefore emit byte-identical output, which is critical
+    * for the downstream `countUniqueColors` heuristic that drives the auto palette size in the upload UI.
+    *
+    * Without the canonical pass, two cells could both pick "bucket = black" but emit `(0,0,0)` vs `(0,0,1)` (depending
+    * on which noisy source pixel they happened to scan first), so a 4-colour source ends up looking like an 8-colour
+    * image and the auto-quantizer over-splits — the user sees e.g. "5 nearly-identical blacks".
     *
     * Bucket key: 4 bits per channel (R, G, B) → 4096 buckets of size 16. This absorbs ±8 canvas sRGB noise while
     * still distinguishing palette colours that differ by ≥16 in any channel.
     *
-    * Implementation is scalafix-clean: no var/while/return/null. The histogram array is pre-allocated once per call and
-    * zeroed lazily per cell via a touched-index list.
+    * Implementation is scalafix-clean: no var/while/return/null. Two passes:
+    *   1. Single linear scan to record the first source pixel index per bucket (`canonicalSi`).
+    *   2. Standard per-cell histogram → pick winning bucket → emit canonical bytes.
+    *
+    * Both passes are O(W·H). The per-cell histogram array is pre-allocated once and zeroed lazily via a touched-index
+    * list.
     */
   private def downscaleModeFilter(src: RawImage, nw: Int, nh: Int): RawImage = {
-    val w       = src.width
-    val h       = src.height
-    val out     = RawImage.create(nw, nh)
+    val w   = src.width
+    val h   = src.height
+    val out = RawImage.create(nw, nh)
+
+    // Pass 1: record the first source-pixel index that lands in each bucket. -1 means "bucket unused".
+    val canonicalSi = Array.fill(4096)(-1)
+    val totalPx     = w * h
+    for (i <- 0 until totalPx) {
+      val si  = i * 4
+      val r   = src.data(si) & 0xff
+      val g   = src.data(si + 1) & 0xff
+      val b   = src.data(si + 2) & 0xff
+      val key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4)
+      if (canonicalSi(key) < 0) canonicalSi(key) = si
+    }
+
+    // Pass 2: per-cell mode → output canonical bytes.
     val hist    = new Array[Int](4096)
     val touched = ArrayBuffer.empty[Int]
-
     for {
       dy <- 0 until nh
       dx <- 0 until nw
@@ -167,12 +167,6 @@ object SizeReductionService {
       val y1 = (((dy + 1) * h) / nh).min(h)
 
       touched.clear()
-
-      // Accumulate histogram and record representative pixel per bucket.
-      // We encode (si, count) per bucket: hist stores count, repPixel stores first si seen.
-      // To avoid a second array we store the first source-pixel index inline in a parallel array.
-      val repPixel = new Array[Int](4096)
-
       for {
         sy <- y0 until y1
         sx <- x0 until x1
@@ -182,20 +176,17 @@ object SizeReductionService {
         val g   = src.data(si + 1) & 0xff
         val b   = src.data(si + 2) & 0xff
         val key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4)
-        if (hist(key) == 0) {
-          touched += key
-          repPixel(key) = si
-        }
+        if (hist(key) == 0) touched += key
         hist(key) += 1
       }
 
       val bestKey = touched.maxBy(k => hist(k))
-      val si      = repPixel(bestKey)
+      val csi     = canonicalSi(bestKey)
       val o       = (dy * nw + dx) * 4
-      out.data(o) = src.data(si)
-      out.data(o + 1) = src.data(si + 1)
-      out.data(o + 2) = src.data(si + 2)
-      out.data(o + 3) = src.data(si + 3)
+      out.data(o) = src.data(csi)
+      out.data(o + 1) = src.data(csi + 1)
+      out.data(o + 2) = src.data(csi + 2)
+      out.data(o + 3) = src.data(csi + 3)
 
       touched.foreach(k => hist(k) = 0)
     }
