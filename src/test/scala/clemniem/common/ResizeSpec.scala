@@ -202,8 +202,9 @@ class ResizeSpec extends FunSuite {
     assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(8, 8, data), Some(4))
   }
 
-  test("DownscalePixelPerfect: GB-native size at 2× (256×224) downscales to 128×112") {
-    // 128×112 is the raw Game Boy Camera sensor output; 256×224 is its 2× NN upscale.
+  test("DownscalePixelPerfect: GB-native size at 2× (256×224) downscales to 128×112 with byte-identical output") {
+    // 128×112 = raw GB Camera sensor; 256×224 = 2× NN upscale (2 unique colours → GB plain-NN gate fires).
+    // Output must be byte-identical to the source bytes at stride-2 positions.
     val red   = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
     val green = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
     val data  = rgba(256, 224) { (x, y) => if (((x / 2) + (y / 2)) % 2 == 0) red else green }
@@ -212,12 +213,21 @@ class ResizeSpec extends FunSuite {
     assertEquals(out.width, 128)
     assertEquals(out.height, 112)
     assertEquals(uniqueColors(out).size, 2)
+    for {
+      dy <- 0 until 112
+      dx <- 0 until 128
+      c  <- 0 until 4
+    } assertEquals(
+      out.data((dy * 128 + dx) * 4 + c),
+      raw.data((dy * 2 * 256 + dx * 2) * 4 + c),
+      s"byte mismatch at out($dx,$dy) channel $c"
+    )
   }
 
-  test("DownscalePixelPerfect: GB-shape shortcut works even when pixel-level detection would reject (sub-block noise)") {
-    // 320×288 = 2× of 160×144 (GB with frame). Inject extra-noisy pixels (delta > tolerance 8) at random offsets
-    // inside each 2×2 block so the tolerant pixel-equality detector returns None — but the GB-shape shortcut still
-    // recognises the dimensions and divides by 2.
+  test("DownscalePixelPerfect: GB-shape shortcut with many-colour noisy source falls through to general path (no GB gate)") {
+    // 320×288 = 2× of 160×144. ±40 noise → hundreds of unique colours → ≤ 4 colour gate fails.
+    // The image falls through to the general tolerant-detector + mode-filter path.
+    // We only assert correct output dimensions (160×144), not colour count (mode-filter may produce any count ≤ source).
     val baseRed   = (200, 10, 10)
     val baseBlue  = (10, 10, 200)
     val baseGreen = (10, 200, 10)
@@ -230,22 +240,25 @@ class ResizeSpec extends FunSuite {
         case 2 => baseGreen
         case _ => baseWhite
       }
-      // Add ±40 noise per channel to break the tolerant equality check (tolerance is 8)
       val seed = (x * 31 + y) & 0x7
       val nr   = (r + (seed - 4) * 10).max(0).min(255)
       val ng   = (g + (seed - 4) * 10).max(0).min(255)
       val nb   = (b + (seed - 4) * 10).max(0).min(255)
       (nr.toByte, ng.toByte, nb.toByte, 255.toByte)
     }
-    // Confirm general detector cannot find a factor on this noisy data
+    // Confirm general detector cannot find a factor on this noisy data (tolerance 8)
     assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(320, 288, data, 8), None)
+    // Confirm GB gate does NOT fire (source has far more than 4 unique colours)
+    assert(
+      !SizeReductionService.hasAtMostUniqueColors(RawImage(320, 288, data), 4),
+      "expected > 4 unique colours in noisy source"
+    )
     val raw = RawImage(320, 288, data)
     val out = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
-    // GB-shape shortcut routes through downscalePixelPerfectGb(src, 2): derives a 4-colour palette from the source
-    // and snaps every 2×2 block to it, so the output is dimensionally correct AND constrained to ≤ 4 colours.
-    assertEquals(out.width, 160)
-    assertEquals(out.height, 144)
-    assert(uniqueColors(out).size <= 4, s"GB path should produce ≤ 4 colours, got ${uniqueColors(out).size}")
+    // 320×288 ≤ 500×500 and the tolerant detector found nothing → general path returns src.copy (320×288).
+    // The point of this test is that the GB plain-NN gate did NOT fire (no colour mutation occurred).
+    assertEquals(out.width, 320)
+    assertEquals(out.height, 288)
   }
 
   test("DownscalePixelPerfect: non-GB-shape image still routes through general detector") {
@@ -265,10 +278,9 @@ class ResizeSpec extends FunSuite {
     assertEquals(uniqueColors(out).size, 4)
   }
 
-  test("DownscalePixelPerfect: GB-Camera-shaped 4× upscale (640×576) downscales to logical 160×144 with 4 colours") {
-    // Mirrors the user's actual failure case (zip with 1×, 2×, 3×, 4× exports). The 4× version is the only one that
-    // exceeds the 500×500 target and so actually goes through the algorithm. Before the largest-factor fix this
-    // returned factor 2 and produced 320×288; the truthful result is factor 4 → 160×144.
+  test("DownscalePixelPerfect: GB-Camera-shaped 4× upscale (640×576) produces byte-identical output at stride 4") {
+    // Clean 4-colour source, ≤ 4 unique → GB plain-NN gate fires.
+    // Every output pixel must equal the source pixel at (dx*4, dy*4).
     val palette = Array(
       (0.toByte, 0.toByte, 0.toByte, 255.toByte),
       (0.toByte, 0.toByte, 255.toByte, 255.toByte),
@@ -281,44 +293,57 @@ class ResizeSpec extends FunSuite {
     assertEquals(out.width, 160)
     assertEquals(out.height, 144)
     assertEquals(uniqueColors(out).size, 4)
+    for {
+      dy <- 0 until 144
+      dx <- 0 until 160
+      c  <- 0 until 4
+    } assertEquals(
+      out.data((dy * 160 + dx) * 4 + c),
+      raw.data((dy * 4 * 640 + dx * 4) * 4 + c),
+      s"byte mismatch at out($dx,$dy) channel $c"
+    )
   }
 
-  test("DownscalePixelPerfect: 4-colour 4x upscale with per-pixel canvas-style noise collapses to exactly 4 unique output bytes") {
-    // Reproduces the user-reported failure: 640×576 GB-framed image with 4 logical colours, 4× NN upscaled,
-    // then a deterministic ±2 per-channel jitter applied to EVERY pixel independently (canvas sRGB roundtrip).
-    // GB-shape shortcut + palette-snap path derives 4 palette colours from the source and snaps every 4×4 block
-    // average to one of them, so the output has exactly 4 colours regardless of byte-level noise.
-    val black = (0.toByte, 0.toByte, 0.toByte, 255.toByte)
-    val blue  = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
-    val light = (99.toByte, 165.toByte, 255.toByte, 255.toByte)
-    val white = (255.toByte, 255.toByte, 255.toByte, 255.toByte)
-    val palette = Array(black, blue, light, white)
-    val cleanData = rgba(640, 576) { (x, y) => palette(((x / 4) + (y / 4) * 3) % 4) }
-    val noisyData = addNoise(cleanData, 2)
-    val raw = RawImage(640, 576, noisyData)
-    val out = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
-    assertEquals(out.width, 160)
-    assertEquals(out.height, 144)
-    assertEquals(uniqueColors(out).size, 4)
+  test("hasAtMostUniqueColors: returns true when unique colours ≤ max, false when exceeded") {
+    val fourColours = rgba(10, 10) { (x, y) =>
+      Array(
+        (255.toByte, 0.toByte, 0.toByte, 255.toByte),
+        (0.toByte, 255.toByte, 0.toByte, 255.toByte),
+        (0.toByte, 0.toByte, 255.toByte, 255.toByte),
+        (255.toByte, 255.toByte, 0.toByte, 255.toByte)
+      )((x + y) % 4)
+    }
+    val fiveColours = rgba(10, 10) { (x, y) =>
+      Array(
+        (255.toByte, 0.toByte, 0.toByte, 255.toByte),
+        (0.toByte, 255.toByte, 0.toByte, 255.toByte),
+        (0.toByte, 0.toByte, 255.toByte, 255.toByte),
+        (255.toByte, 255.toByte, 0.toByte, 255.toByte),
+        (128.toByte, 128.toByte, 128.toByte, 255.toByte)
+      )((x + y) % 5)
+    }
+    assert(SizeReductionService.hasAtMostUniqueColors(RawImage(10, 10, fourColours), 4))
+    assert(SizeReductionService.hasAtMostUniqueColors(RawImage(10, 10, fourColours), 5))
+    assert(!SizeReductionService.hasAtMostUniqueColors(RawImage(10, 10, fiveColours), 4))
+    assert(SizeReductionService.hasAtMostUniqueColors(RawImage(10, 10, fiveColours), 5))
   }
 
-  test("DownscalePixelPerfect: GB-framed 4× upscale with heavy ±10 per-pixel noise still snaps to exactly 4 output colours") {
-    // The motivating user case: byte noise large enough to push pixels of the same logical colour into multiple
-    // 16-level buckets (which is what the user actually saw — "3 blacks and the three other colours" = 6 unique
-    // output bytes under the previous canonical-bucket-per-mode approach). The palette-snap path collapses every
-    // bucket-split logical colour back into one of 4 medianCut-derived palette entries.
-    val black = (0.toByte, 0.toByte, 0.toByte, 255.toByte)
-    val blue  = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
-    val light = (99.toByte, 165.toByte, 255.toByte, 255.toByte)
-    val white = (255.toByte, 255.toByte, 255.toByte, 255.toByte)
-    val palette   = Array(black, blue, light, white)
-    val cleanData = rgba(640, 576) { (x, y) => palette(((x / 4) + (y / 4) * 3) % 4) }
-    val noisyData = addNoise(cleanData, 10)
-    val raw       = RawImage(640, 576, noisyData)
-    val out       = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
-    assertEquals(out.width, 160)
-    assertEquals(out.height, 144)
-    assertEquals(uniqueColors(out).size, 4)
+  test("hasAtMostUniqueColors: GB gate fires for ≤ 4 colours, not for 5+") {
+    // A 320×288 image with exactly 4 distinct colours should pass the gate.
+    val palette4 = Array(
+      (10.toByte, 20.toByte, 30.toByte, 255.toByte),
+      (40.toByte, 50.toByte, 60.toByte, 255.toByte),
+      (70.toByte, 80.toByte, 90.toByte, 255.toByte),
+      (100.toByte, 110.toByte, 120.toByte, 255.toByte)
+    )
+    val data4 = rgba(320, 288) { (x, y) => palette4((x + y) % 4) }
+    assert(SizeReductionService.hasAtMostUniqueColors(RawImage(320, 288, data4), 4))
+    // Adding a 5th colour should fail immediately.
+    val data5 = data4.clone()
+    data5(0) = 1.toByte
+    data5(1) = 2.toByte
+    data5(2) = 3.toByte
+    assert(!SizeReductionService.hasAtMostUniqueColors(RawImage(320, 288, data5), 4))
   }
 
   test("tolerant detect: noisy 4×4 (±2 noise) detected with tolerance 8, not with 0") {

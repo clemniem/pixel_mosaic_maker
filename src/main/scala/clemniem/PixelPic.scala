@@ -167,16 +167,14 @@ object PixelPic {
   }
 
   private[clemniem] def sortPixelVector(pp: PixelPic): PixelPic = {
-    val sortedPixels  = pp.paletteLookup.sortBy(_.brightness)
-    val pixelToNewIdx = sortedPixels.zipWithIndex.toMap
-    val oldIndexToNew = (0 until pp.paletteLookup.size).iterator
-      .map(i => i -> pixelToNewIdx(pp.paletteLookup(i)))
-      .toMap
-    if (oldIndexToNew.isEmpty) pp
-    else
-      pp.copy(
-        paletteLookup = sortedPixels,
-        pixels = pp.pixels.map(idx => oldIndexToNew.getOrElse(idx, idx))
-      )
+    val distinctSorted = pp.paletteLookup.distinct.sortBy(_.brightness)
+    val newIdx         = distinctSorted.zipWithIndex.toMap
+    val oldToNew       = pp.paletteLookup.zipWithIndex.map { case (px, i) => i -> newIdx(px) }.toMap
+    if (distinctSorted == pp.paletteLookup) pp
+    else {
+      val newPixels = pp.pixels.map(oldToNew)
+      val newCounts = newPixels.groupBy(identity).view.mapValues(_.length).toMap
+      pp.copy(paletteLookup = distinctSorted, pixels = newPixels, palette = newCounts)
+    }
   }
 }

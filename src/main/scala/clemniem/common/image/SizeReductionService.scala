@@ -91,18 +91,15 @@ object SizeReductionService {
       }
       .find(f => f >= 1 && f <= 10)
 
-  /** Game Boy Camera images are guaranteed to have a 4-colour palette. When we recognise the dimensions, we lock the
-    * output to exactly 4 colours by deriving the palette from the source (median cut + k-means refinement) and
-    * snapping every output block to the nearest of those 4. Sidesteps any byte-level canvas/JPEG noise that would
-    * otherwise split a single logical colour across multiple buckets.
-    */
+  /** Upper bound on unique colours treated as "pixel art / GB Camera" for the plain-NN gate. */
   private val GbCameraPaletteSize = 4
 
   /** Pixel-perfect strategy:
-    *   1. If the dimensions are an integer multiple of a Game Boy Camera native size (`gbCameraFactor`), use the
-    *      palette-snap path that locks the output to exactly 4 colours.
-    *   2. Otherwise fall back to tolerant integer-factor detection + canonical-bucket mode filter (which absorbs
-    *      ±8 byte noise but does not enforce a fixed palette size).
+    *   1. If the dimensions are factor-1 of a GB Camera native size, return `src.copy` (already at native resolution).
+    *   2. If the dimensions are an integer multiple F ≥ 2 of a GB Camera native size **and** the source has ≤ 4
+    *      unique colours, use plain stride-F nearest-neighbour sampling. Source bytes are preserved exactly — no
+    *      averaging, no snap, no palette derivation. Multicoloured / HDR images at GB dimensions fall through.
+    *   3. Otherwise: tolerant integer-factor detection + canonical-bucket mode filter.
     */
   private def downscalePixelPerfect(src: RawImage, targetMaxW: Int, targetMaxH: Int): RawImage = {
     val w = src.width
@@ -110,7 +107,9 @@ object SizeReductionService {
     gbCameraFactor(w, h) match {
       case Some(1) =>
         src.copy
-      case Some(f) if (w / f) <= targetMaxW && (h / f) <= targetMaxH =>
+      case Some(f)
+          if (w / f) <= targetMaxW && (h / f) <= targetMaxH
+            && hasAtMostUniqueColors(src, GbCameraPaletteSize) =>
         downscalePixelPerfectGb(src, f)
       case _ =>
         val detectedFactor =
@@ -133,59 +132,47 @@ object SizeReductionService {
     }
   }
 
-  /** GB-Camera-specific downscale: derive a 4-colour palette from the source, then for each FxF source block compute
-    * its average colour and snap to the nearest palette entry. Guarantees exactly 4 (or fewer) unique output colours.
-    *
-    * For a perfectly clean GB Camera PNG, the average of each FxF block equals one of the 4 palette colours exactly,
-    * so the snap is a no-op and output bytes match the source. For a noisy upload (sRGB roundtrip, light JPEG,
-    * re-encoded screenshots), the average denoises the block and the snap collapses the result to the closest of the
-    * 4 dominant colours that median cut + k-means identified — exactly matching the user's request to "re-create the
-    * image by jumping from bucket to bucket and re-assigning it the colour closest from the 4 original palettes".
+  /** True iff `src` has at most `max` distinct RGBA colours. Short-circuits on the first pixel that would push the
+    * unique count above `max`, so it is O(1) for non-matching images and only O(W·H) for matching ones.
+    */
+  private[common] def hasAtMostUniqueColors(src: RawImage, max: Int): Boolean = {
+    val data = src.data
+    val n    = src.pixelCount
+    val seen = scala.collection.mutable.HashSet.empty[Long]
+    !(0 until n).iterator.exists { i =>
+      val o   = i * 4
+      val key =
+        ((data(o) & 0xff).toLong << 24) |
+          ((data(o + 1) & 0xff).toLong << 16) |
+          ((data(o + 2) & 0xff).toLong << 8) |
+          (data(o + 3) & 0xff).toLong
+      seen += key
+      seen.size > max
+    }
+  }
+
+  /** Plain integer-stride nearest-neighbour downscale for confirmed GB Camera pixel art (≤ 4 unique colours,
+    * dimensions = N × native GB size). Picks the top-left pixel of each F×F block. Source bytes are copied verbatim —
+    * no colour mutation of any kind.
     */
   private def downscalePixelPerfectGb(src: RawImage, factor: Int): RawImage = {
-    val w       = src.width
-    val h       = src.height
-    val nw      = w / factor
-    val nh      = h / factor
-    val out     = RawImage.create(nw, nh)
-    val palette = ColorQuantizationService.medianCutPalette(src, GbCameraPaletteSize)
-
+    val w   = src.width
+    val h   = src.height
+    val nw  = w / factor
+    val nh  = h / factor
+    val out = RawImage.create(nw, nh)
     for {
       dy <- 0 until nh
       dx <- 0 until nw
     } {
-      val x0 = dx * factor
-      val y0 = dy * factor
-      val x1 = (dx + 1) * factor
-      val y1 = (dy + 1) * factor
-
-      val (sr, sg, sb, n) =
-        (y0 until y1).flatMap(sy => (x0 until x1).map(sx => (sy, sx))).foldLeft((0L, 0L, 0L, 0L)) {
-          case ((rr, gg, bb, nn), (sy, sx)) =>
-            val si = (sy * w + sx) * 4
-            (
-              rr + (src.data(si) & 0xff),
-              gg + (src.data(si + 1) & 0xff),
-              bb + (src.data(si + 2) & 0xff),
-              nn + 1)
-        }
-      val avgR = (sr / n).toInt
-      val avgG = (sg / n).toInt
-      val avgB = (sb / n).toInt
-
-      val bestIdx = palette.indices.minBy { i =>
-        val (pr, pg, pb, _) = palette(i)
-        val dr              = avgR - (pr & 0xff)
-        val dg              = avgG - (pg & 0xff)
-        val db              = avgB - (pb & 0xff)
-        dr * dr + dg * dg + db * db
-      }
-      val (pr, pg, pb, pa) = palette(bestIdx)
-      val o                = (dy * nw + dx) * 4
-      out.data(o) = pr
-      out.data(o + 1) = pg
-      out.data(o + 2) = pb
-      out.data(o + 3) = pa
+      val sy = dy * factor
+      val sx = dx * factor
+      val si = (sy * w + sx) * 4
+      val o  = (dy * nw + dx) * 4
+      out.data(o)     = src.data(si)
+      out.data(o + 1) = src.data(si + 1)
+      out.data(o + 2) = src.data(si + 2)
+      out.data(o + 3) = src.data(si + 3)
     }
     out
   }

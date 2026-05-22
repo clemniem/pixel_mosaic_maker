@@ -185,4 +185,34 @@ class PixelPicTests extends FunSuite {
     assertEquals(pp(white), 3)
     assertEquals(pp(red), 1)
   }
+
+  test("fromQuantized with duplicate palette entries deduplicates paletteLookup and keeps pixels/palette consistent") {
+    // Simulates the root-cause of the moon-image bug: median-cut on a skewed histogram produces 3 identical
+    // "black" centroids and one distinct colour. sortPixelVector previously collapsed indices silently so that
+    // paletteLookup.size stayed at 4 but palette.keys.size (used for build steps) dropped to 2.
+    import clemniem.common.image.QuantizedResult
+    val blackByte = 0.toByte
+    val whiteByte = 255.toByte
+    val alpha     = 255.toByte
+    val dupPalette = Vector(
+      (blackByte, blackByte, blackByte, alpha),
+      (blackByte, blackByte, blackByte, alpha),
+      (blackByte, blackByte, blackByte, alpha),
+      (whiteByte, whiteByte, whiteByte, alpha)
+    )
+    val indices = Array(0, 1, 2, 3, 0, 1, 2, 3)
+    val result  = QuantizedResult(dupPalette, indices)
+    val pic     = PixelPic.fromQuantized(2, 4, result, "dup-test")
+    assert(pic.isDefined, "fromQuantized should succeed with a valid (dup) palette")
+    val p = pic.get
+    // After deduplication: only 2 distinct colours (black, white)
+    assertEquals(p.paletteLookup.size, 2)
+    // palette map must agree: exactly 2 keys
+    assertEquals(p.palette.size, 2)
+    // All pixel indices must reference valid palette slots
+    assert(p.pixels.forall(i => i >= 0 && i < p.paletteLookup.size), s"out-of-range index in ${p.pixels}")
+    // The two unique colours are black and white
+    val colours = p.paletteLookup.map(px => (px.r, px.g, px.b)).toSet
+    assertEquals(colours, Set((0, 0, 0), (255, 255, 255)))
+  }
 }

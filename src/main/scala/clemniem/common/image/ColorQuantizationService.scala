@@ -40,9 +40,14 @@ object ColorQuantizationService {
     }.toVector
     if (pixels.isEmpty) Vector.fill(numColors)((0.toByte, 0.toByte, 0.toByte, 255.toByte))
     else {
-      val boxes   = medianCutIterative(pixels, numColors)
-      val initial = boxes.map(avgColor).toVector
-      kMeansRefine(pixels, initial, KMeansIterations)
+      val distinct = pixels.distinct
+      if (distinct.size <= numColors)
+        distinct.map { case (r, g, b, a) => (r.toByte, g.toByte, b.toByte, a.toByte) }
+      else {
+        val boxes   = medianCutIterative(pixels, numColors)
+        val initial = boxes.map(avgColor).toVector
+        kMeansRefine(pixels, initial, KMeansIterations)
+      }
     }
   }
 
