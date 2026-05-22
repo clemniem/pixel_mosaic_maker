@@ -241,9 +241,11 @@ class ResizeSpec extends FunSuite {
     assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(320, 288, data, 8), None)
     val raw = RawImage(320, 288, data)
     val out = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
-    // GB-shape shortcut routes through nearestByFactor(src, 2) regardless of the pixel-level check
+    // GB-shape shortcut routes through downscalePixelPerfectGb(src, 2): derives a 4-colour palette from the source
+    // and snaps every 2×2 block to it, so the output is dimensionally correct AND constrained to ≤ 4 colours.
     assertEquals(out.width, 160)
     assertEquals(out.height, 144)
+    assert(uniqueColors(out).size <= 4, s"GB path should produce ≤ 4 colours, got ${uniqueColors(out).size}")
   }
 
   test("DownscalePixelPerfect: non-GB-shape image still routes through general detector") {
@@ -284,18 +286,36 @@ class ResizeSpec extends FunSuite {
   test("DownscalePixelPerfect: 4-colour 4x upscale with per-pixel canvas-style noise collapses to exactly 4 unique output bytes") {
     // Reproduces the user-reported failure: 640×576 GB-framed image with 4 logical colours, 4× NN upscaled,
     // then a deterministic ±2 per-channel jitter applied to EVERY pixel independently (canvas sRGB roundtrip).
-    // Before the canonical-bucket fix, countUniqueColors reported 8 (5 near-identical blacks + white + 2 grays).
-    // With canonical mode filter, each FxF source block maps to the same canonical bucket bytes → exactly 4.
+    // GB-shape shortcut + palette-snap path derives 4 palette colours from the source and snaps every 4×4 block
+    // average to one of them, so the output has exactly 4 colours regardless of byte-level noise.
     val black = (0.toByte, 0.toByte, 0.toByte, 255.toByte)
     val blue  = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
     val light = (99.toByte, 165.toByte, 255.toByte, 255.toByte)
     val white = (255.toByte, 255.toByte, 255.toByte, 255.toByte)
     val palette = Array(black, blue, light, white)
     val cleanData = rgba(640, 576) { (x, y) => palette(((x / 4) + (y / 4) * 3) % 4) }
-    // Apply per-pixel ±2 noise (different value per pixel, as the canvas sRGB pipeline does)
     val noisyData = addNoise(cleanData, 2)
     val raw = RawImage(640, 576, noisyData)
     val out = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
+    assertEquals(out.width, 160)
+    assertEquals(out.height, 144)
+    assertEquals(uniqueColors(out).size, 4)
+  }
+
+  test("DownscalePixelPerfect: GB-framed 4× upscale with heavy ±10 per-pixel noise still snaps to exactly 4 output colours") {
+    // The motivating user case: byte noise large enough to push pixels of the same logical colour into multiple
+    // 16-level buckets (which is what the user actually saw — "3 blacks and the three other colours" = 6 unique
+    // output bytes under the previous canonical-bucket-per-mode approach). The palette-snap path collapses every
+    // bucket-split logical colour back into one of 4 medianCut-derived palette entries.
+    val black = (0.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val blue  = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
+    val light = (99.toByte, 165.toByte, 255.toByte, 255.toByte)
+    val white = (255.toByte, 255.toByte, 255.toByte, 255.toByte)
+    val palette   = Array(black, blue, light, white)
+    val cleanData = rgba(640, 576) { (x, y) => palette(((x / 4) + (y / 4) * 3) % 4) }
+    val noisyData = addNoise(cleanData, 10)
+    val raw       = RawImage(640, 576, noisyData)
+    val out       = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
     assertEquals(out.width, 160)
     assertEquals(out.height, 144)
     assertEquals(uniqueColors(out).size, 4)

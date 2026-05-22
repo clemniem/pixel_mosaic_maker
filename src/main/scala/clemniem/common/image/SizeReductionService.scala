@@ -91,31 +91,103 @@ object SizeReductionService {
       }
       .find(f => f >= 1 && f <= 10)
 
-  /** Pixel-perfect strategy: GB-Camera shape shortcut, then tolerant integer-factor detection (handles canvas sRGB
-    * noise), then mode-filter fallback. Never invents a new colour — always picks an existing source pixel as the
-    * representative.
+  /** Game Boy Camera images are guaranteed to have a 4-colour palette. When we recognise the dimensions, we lock the
+    * output to exactly 4 colours by deriving the palette from the source (median cut + k-means refinement) and
+    * snapping every output block to the nearest of those 4. Sidesteps any byte-level canvas/JPEG noise that would
+    * otherwise split a single logical colour across multiple buckets.
+    */
+  private val GbCameraPaletteSize = 4
+
+  /** Pixel-perfect strategy:
+    *   1. If the dimensions are an integer multiple of a Game Boy Camera native size (`gbCameraFactor`), use the
+    *      palette-snap path that locks the output to exactly 4 colours.
+    *   2. Otherwise fall back to tolerant integer-factor detection + canonical-bucket mode filter (which absorbs
+    *      ±8 byte noise but does not enforce a fixed palette size).
     */
   private def downscalePixelPerfect(src: RawImage, targetMaxW: Int, targetMaxH: Int): RawImage = {
     val w = src.width
     val h = src.height
-    val detectedFactor =
-      gbCameraFactor(w, h).orElse(
-        PixelArtDetection.detectNearestNeighborScaleFromBytes(w, h, src.data, PixelPerfectTolerance))
-    val factor =
-      detectedFactor.filter(f => f >= 2 && (w / f) <= targetMaxW && (h / f) <= targetMaxH)
-    factor match {
-      case Some(f) =>
-        downscaleModeFilter(src, w / f, h / f)
-      case None if w <= targetMaxW && h <= targetMaxH =>
+    gbCameraFactor(w, h) match {
+      case Some(1) =>
         src.copy
-      case None =>
-        val scaleX = w.toDouble / targetMaxW
-        val scaleY = h.toDouble / targetMaxH
-        val scale  = math.max(scaleX, scaleY)
-        val nw     = (w / scale).toInt.max(1).min(targetMaxW)
-        val nh     = (h / scale).toInt.max(1).min(targetMaxH)
-        downscaleModeFilter(src, nw, nh)
+      case Some(f) if (w / f) <= targetMaxW && (h / f) <= targetMaxH =>
+        downscalePixelPerfectGb(src, f)
+      case _ =>
+        val detectedFactor =
+          PixelArtDetection.detectNearestNeighborScaleFromBytes(w, h, src.data, PixelPerfectTolerance)
+        val factor =
+          detectedFactor.filter(f => f >= 2 && (w / f) <= targetMaxW && (h / f) <= targetMaxH)
+        factor match {
+          case Some(f) =>
+            downscaleModeFilter(src, w / f, h / f)
+          case None if w <= targetMaxW && h <= targetMaxH =>
+            src.copy
+          case None =>
+            val scaleX = w.toDouble / targetMaxW
+            val scaleY = h.toDouble / targetMaxH
+            val scale  = math.max(scaleX, scaleY)
+            val nw     = (w / scale).toInt.max(1).min(targetMaxW)
+            val nh     = (h / scale).toInt.max(1).min(targetMaxH)
+            downscaleModeFilter(src, nw, nh)
+        }
     }
+  }
+
+  /** GB-Camera-specific downscale: derive a 4-colour palette from the source, then for each FxF source block compute
+    * its average colour and snap to the nearest palette entry. Guarantees exactly 4 (or fewer) unique output colours.
+    *
+    * For a perfectly clean GB Camera PNG, the average of each FxF block equals one of the 4 palette colours exactly,
+    * so the snap is a no-op and output bytes match the source. For a noisy upload (sRGB roundtrip, light JPEG,
+    * re-encoded screenshots), the average denoises the block and the snap collapses the result to the closest of the
+    * 4 dominant colours that median cut + k-means identified — exactly matching the user's request to "re-create the
+    * image by jumping from bucket to bucket and re-assigning it the colour closest from the 4 original palettes".
+    */
+  private def downscalePixelPerfectGb(src: RawImage, factor: Int): RawImage = {
+    val w       = src.width
+    val h       = src.height
+    val nw      = w / factor
+    val nh      = h / factor
+    val out     = RawImage.create(nw, nh)
+    val palette = ColorQuantizationService.medianCutPalette(src, GbCameraPaletteSize)
+
+    for {
+      dy <- 0 until nh
+      dx <- 0 until nw
+    } {
+      val x0 = dx * factor
+      val y0 = dy * factor
+      val x1 = (dx + 1) * factor
+      val y1 = (dy + 1) * factor
+
+      val (sr, sg, sb, n) =
+        (y0 until y1).flatMap(sy => (x0 until x1).map(sx => (sy, sx))).foldLeft((0L, 0L, 0L, 0L)) {
+          case ((rr, gg, bb, nn), (sy, sx)) =>
+            val si = (sy * w + sx) * 4
+            (
+              rr + (src.data(si) & 0xff),
+              gg + (src.data(si + 1) & 0xff),
+              bb + (src.data(si + 2) & 0xff),
+              nn + 1)
+        }
+      val avgR = (sr / n).toInt
+      val avgG = (sg / n).toInt
+      val avgB = (sb / n).toInt
+
+      val bestIdx = palette.indices.minBy { i =>
+        val (pr, pg, pb, _) = palette(i)
+        val dr              = avgR - (pr & 0xff)
+        val dg              = avgG - (pg & 0xff)
+        val db              = avgB - (pb & 0xff)
+        dr * dr + dg * dg + db * db
+      }
+      val (pr, pg, pb, pa) = palette(bestIdx)
+      val o                = (dy * nw + dx) * 4
+      out.data(o) = pr
+      out.data(o + 1) = pg
+      out.data(o + 2) = pb
+      out.data(o + 3) = pa
+    }
+    out
   }
 
   /** Mode-filter (majority-colour) downscale. For each output cell the most frequent colour bucket in the source block
