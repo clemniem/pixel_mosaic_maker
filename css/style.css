@@ -807,6 +807,29 @@ input[type="number"].nes-input {
   justify-content: flex-start;
 }
 
+.color-count-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  margin-top: 0.75rem;
+  align-items: center;
+}
+
+.color-count-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6rem;
+}
+
+.color-count-swatch {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  display: inline-block;
+}
+
 /* Build config: offset X/Y sliders (same width as dropdown selectors) */
 .offset-sliders {
   display: flex;
