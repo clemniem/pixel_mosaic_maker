@@ -294,23 +294,6 @@ object BuildScreen extends Screen {
       renderers.BuildStepRenderer.drawStepPreview(canvas, ctx, patchOpt, model.patchBackgroundColorHex, model.stacked, cols, patchSize)
     }
 
-  private def colorCountOverview(patchOpt: Option[PixelPic]): Html[Msg] =
-    patchOpt match {
-      case None => div()()
-      case Some(patch) =>
-        val sorted = renderers.BuildStepRenderer.colorsByCountAsc(patch)
-        div(`class` := "color-count-overview")(
-          sorted.map { case (paletteIndex, count) =>
-            val px  = patch.paletteLookup(paletteIndex)
-            val hex = Color(px.r, px.g, px.b).toHex
-            div(`class` := "color-count-row")(
-              div(`class` := "color-count-swatch", style := s"background: $hex;")(),
-              span(text(s"$count px"))
-            )
-          }*
-        )
-    }
-
   def view(model: Model): Html[Msg] = {
     val steps    = model.steps
     val total    = steps.size
@@ -413,7 +396,7 @@ object BuildScreen extends Screen {
         div(`class` := "build-preview-inner", onLoad(BuildScreenMsg.Draw))(
           canvas(id := previewCanvasId, width := 32, height := 32, `class` := "pixel-canvas")()
         ),
-        colorCountOverview(patchOpt)
+        PaletteStripView.colorCountOverview(patchOpt)
       )
     )
   }

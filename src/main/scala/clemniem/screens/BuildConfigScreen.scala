@@ -257,7 +257,11 @@ object BuildConfigScreen extends Screen {
     )
   }
 
-  def view(model: Model): Html[Msg] =
+  def view(model: Model): Html[Msg] = {
+    val gridOpt    = model.selectedGridId.flatMap(id => model.layouts.flatMap(_.find(_.id == id)))
+    val regionPicOpt = picWithPalette(model).flatMap { pic =>
+      gridOpt.flatMap(g => pic.crop(model.offsetX, model.offsetY, g.config.width, g.config.height))
+    }
     div(`class` := s"${NesCss.screenContainer} screen-container--wide")(
       ScreenHeader(
         screenId.title,
@@ -303,8 +307,10 @@ object BuildConfigScreen extends Screen {
             canvas(id := previewCanvasId, width := 300, height := 200, `class` := "pixel-canvas")()
           )
         )
-      )
+      ),
+      PaletteStripView.colorCountOverview(regionPicOpt)
     )
+  }
 
   private def offsetRow(model: Model): Html[Msg] = {
     val (maxX, maxY) = maxOffsets(model)
