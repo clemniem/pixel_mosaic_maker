@@ -21,8 +21,7 @@ object Gallery {
   final case class State[A](
     items: Loadable[List[A]],
     pendingDeleteId: Option[String],
-    currentPage: Int
-  )
+    currentPage: Int)
 
   /** Initial empty gallery state (loading). */
   def initState[A]: State[A] = State(Loadable.Loading, None, 1)
@@ -63,7 +62,7 @@ object Gallery {
     cancelMsg: M
   )(using Encoder[List[A]]
   ): (State[A], Cmd[IO, M]) = {
-    val listOpt = state.items.toOption
+    val listOpt                    = state.items.toOption
     val (newListOpt, newPage, cmd) = LocalStorageUtils.confirmDelete(
       listOpt,
       id,

@@ -4,8 +4,8 @@ import clemniem.StoredEntity
 import clemniem.common.Loadable
 import munit.FunSuite
 
-/** Tests for Gallery update helpers — pure function tests (model + action -> model).
-  * No browser/DOM required since these are all pure state transformations.
+/** Tests for Gallery update helpers — pure function tests (model + action -> model). No browser/DOM required since
+  * these are all pure state transformations.
   */
 class GallerySpec extends FunSuite {
 
@@ -63,7 +63,8 @@ class GallerySpec extends FunSuite {
   }
 
   test("onRequestDelete: replaces previous pendingDeleteId") {
-    val state = Gallery.onLoaded(Gallery.initState[TestEntity], List(TestEntity("1", "A"), TestEntity("2", "B")), pageSize)
+    val state =
+      Gallery.onLoaded(Gallery.initState[TestEntity], List(TestEntity("1", "A"), TestEntity("2", "B")), pageSize)
     val step1 = Gallery.onRequestDelete(state, "1")
     val step2 = Gallery.onRequestDelete(step1, "2")
     assertEquals(step2.pendingDeleteId, Some("2"))
@@ -159,10 +160,10 @@ class GallerySpec extends FunSuite {
   }
 
   test("onNextPage preserves pendingDeleteId") {
-    val items = (1 to 7).map(i => TestEntity(i.toString, s"Item $i")).toList
-    val state = Gallery.onLoaded(Gallery.initState[TestEntity], items, pageSize)
+    val items      = (1 to 7).map(i => TestEntity(i.toString, s"Item $i")).toList
+    val state      = Gallery.onLoaded(Gallery.initState[TestEntity], items, pageSize)
     val withDelete = Gallery.onRequestDelete(state, "3")
-    val next = Gallery.onNextPage(withDelete, pageSize)
+    val next       = Gallery.onNextPage(withDelete, pageSize)
     assertEquals(next.pendingDeleteId, Some("3"))
     assertEquals(next.currentPage, 2)
   }

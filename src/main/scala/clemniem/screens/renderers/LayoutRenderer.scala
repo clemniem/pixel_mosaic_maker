@@ -28,12 +28,8 @@ object LayoutRenderer {
     ctx.clearRect(0, 0, previewW, previewH)
     if (grid.parts.nonEmpty && grid.width > 0 && grid.height > 0) {
       val margin = 4
-      val fit = CanvasUtils.scaleToFit(
-        grid.width,
-        grid.height,
-        previewW - margin * 2,
-        previewH - margin * 2,
-        Double.MaxValue)
+      val fit    =
+        CanvasUtils.scaleToFit(grid.width, grid.height, previewW - margin * 2, previewH - margin * 2, Double.MaxValue)
       val ox = fit.offsetX + margin
       val oy = fit.offsetY + margin
 

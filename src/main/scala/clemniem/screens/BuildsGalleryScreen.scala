@@ -30,14 +30,11 @@ object BuildsGalleryScreen extends Screen {
   private val patchSize          = 16
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val model = BuildsGalleryModel(
-      Gallery.initState,
-      None,
-      None,
-      None,
-      None,
-      showNewBuildDropdown = false)
-    val loadBuilds = Gallery.loadCmd(StorageKeys.builds, BuildsGalleryMsg.LoadedBuilds.apply, (msg, _) => BuildsGalleryMsg.LoadFailed(msg))
+    val model      = BuildsGalleryModel(Gallery.initState, None, None, None, None, showNewBuildDropdown = false)
+    val loadBuilds = Gallery.loadCmd(
+      StorageKeys.builds,
+      BuildsGalleryMsg.LoadedBuilds.apply,
+      (msg, _) => BuildsGalleryMsg.LoadFailed(msg))
     val loadConfigs = LocalStorageUtils.loadList(StorageKeys.buildConfigs)(
       BuildsGalleryMsg.LoadedBuildConfigs.apply,
       (_, _) => BuildsGalleryMsg.LoadedBuildConfigs(Nil)
@@ -81,7 +78,8 @@ object BuildsGalleryScreen extends Screen {
             model.images.getOrElse(Nil),
             model.palettes.getOrElse(Nil)),
           BuildsGalleryMsg.NoOp,
-          _ => BuildsGalleryMsg.NoOp))
+          _ => BuildsGalleryMsg.NoOp
+        ))
     case BuildsGalleryMsg.ShowNewBuildDropdown =>
       (model.copy(showNewBuildDropdown = true), Cmd.None)
     case BuildsGalleryMsg.SetSelectedBuildConfigId(id) =>
@@ -93,7 +91,9 @@ object BuildsGalleryScreen extends Screen {
         stored  <- configs.find(_.id == id)
       } yield stored)
         .fold[(Model, Cmd[IO, Msg])]((model, Cmd.None))(stored =>
-          (model.copy(showNewBuildDropdown = false, selectedBuildConfigId = None), navCmd(ScreenId.BuildId, Some(ScreenOutput.StartBuild(stored)))))
+          (
+            model.copy(showNewBuildDropdown = false, selectedBuildConfigId = None),
+            navCmd(ScreenId.BuildId, Some(ScreenOutput.StartBuild(stored)))))
     case BuildsGalleryMsg.CancelNewBuild =>
       (model.copy(showNewBuildDropdown = false, selectedBuildConfigId = None), Cmd.None)
     case BuildsGalleryMsg.ResumeBuild(stored) =>
@@ -101,17 +101,22 @@ object BuildsGalleryScreen extends Screen {
     case BuildsGalleryMsg.Delete(stored) =>
       (model.copy(gallery = Gallery.onRequestDelete(model.gallery, stored.id)), Cmd.None)
     case BuildsGalleryMsg.ConfirmDelete(id) =>
-      val (gs, cmd) = Gallery.onConfirmDelete(model.gallery, id, StorageKeys.builds, GalleryLayout.defaultPageSize, BuildsGalleryMsg.CancelDelete)
+      val (gs, cmd) = Gallery.onConfirmDelete(
+        model.gallery,
+        id,
+        StorageKeys.builds,
+        GalleryLayout.defaultPageSize,
+        BuildsGalleryMsg.CancelDelete)
       (model.copy(gallery = gs), cmd)
     case BuildsGalleryMsg.CancelDelete =>
       (model.copy(gallery = Gallery.onCancelDelete(model.gallery)), Cmd.None)
     case BuildsGalleryMsg.PreviousPage =>
       val next = model.copy(gallery = Gallery.onPreviousPage(model.gallery))
-      val cmd = if (next.canDrawPreviews) redrawCurrentPageCmd(next) else Cmd.None
+      val cmd  = if (next.canDrawPreviews) redrawCurrentPageCmd(next) else Cmd.None
       (next, cmd)
     case BuildsGalleryMsg.NextPage =>
       val next = model.copy(gallery = Gallery.onNextPage(model.gallery, GalleryLayout.defaultPageSize))
-      val cmd = if (next.canDrawPreviews) redrawCurrentPageCmd(next) else Cmd.None
+      val cmd  = if (next.canDrawPreviews) redrawCurrentPageCmd(next) else Cmd.None
       (next, cmd)
     case BuildsGalleryMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
@@ -256,9 +261,12 @@ object BuildsGalleryScreen extends Screen {
       val configs  = model.buildConfigs.getOrElse(Nil)
       val images   = model.images.getOrElse(Nil)
       val palettes = model.palettes.getOrElse(Nil)
-      CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(
-        slice.foldLeft(IO.unit)((acc, build) => acc.flatMap(_ => drawBuildPreview(build, configs, images, palettes)))),
-        BuildsGalleryMsg.NoOp, _ => BuildsGalleryMsg.NoOp)
+      CmdUtils.fireAndForget(
+        CanvasUtils.runAfterFrames(3)(slice.foldLeft(IO.unit)((acc, build) =>
+          acc.flatMap(_ => drawBuildPreview(build, configs, images, palettes)))),
+        BuildsGalleryMsg.NoOp,
+        _ => BuildsGalleryMsg.NoOp
+      )
     }
   }
 
@@ -271,9 +279,8 @@ object BuildsGalleryScreen extends Screen {
     val configOpt = configs.find(_.id == build.buildConfigRef)
     configOpt match {
       case None =>
-        CanvasUtils.drawGalleryPreview(s"builds-preview-${build.id}") {
-          (_: Canvas, ctx: CanvasRenderingContext2D) =>
-            CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Missing config")
+        CanvasUtils.drawGalleryPreview(s"builds-preview-${build.id}") { (_: Canvas, ctx: CanvasRenderingContext2D) =>
+          CanvasUtils.drawCenteredErrorText(ctx, buildPreviewWidth, buildPreviewHeight, "Missing config")
         }
       case Some(stored) =>
         val steps       = BuildScreen.stepsForConfig(stored.config)
@@ -281,11 +288,17 @@ object BuildsGalleryScreen extends Screen {
         val currentStep = if (steps.isEmpty) None else Some(steps(stepIndex))
         val picOpt      = clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
 
-        CanvasUtils.drawGalleryPreview(s"builds-preview-${build.id}")(
-          (_: Canvas, ctx: CanvasRenderingContext2D) =>
-            renderers.BuildPreviewRenderer.drawGalleryPreview(
-              ctx, picOpt, stored.config.grid, stored.config.offsetX, stored.config.offsetY,
-              currentStep, patchSize, buildPreviewWidth, buildPreviewHeight))
+        CanvasUtils.drawGalleryPreview(s"builds-preview-${build.id}")((_: Canvas, ctx: CanvasRenderingContext2D) =>
+          renderers.BuildPreviewRenderer.drawGalleryPreview(
+            ctx,
+            picOpt,
+            stored.config.grid,
+            stored.config.offsetX,
+            stored.config.offsetY,
+            currentStep,
+            patchSize,
+            buildPreviewWidth,
+            buildPreviewHeight))
     }
   }
 }
@@ -296,8 +309,7 @@ final case class BuildsGalleryModel(
   images: Option[List[StoredImage]],
   palettes: Option[List[StoredPalette]],
   selectedBuildConfigId: Option[String],
-  showNewBuildDropdown: Boolean
-) {
+  showNewBuildDropdown: Boolean) {
   def canDrawPreviews: Boolean =
     gallery.items.isLoaded && buildConfigs.isDefined && images.isDefined && palettes.isDefined
 }

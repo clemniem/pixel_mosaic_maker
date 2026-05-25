@@ -16,7 +16,8 @@ object PdfLayout {
   /** Instructions for the cover page (title only, no mosaic). Does not include Save. Margins offset content so the
     * white border stays unpainted.
     */
-  def coverInstructions(title: String, sideMarginMm: Double, topBottomMarginMm: Double, config: PdfLayoutConfig): List[Instruction] =
+  def coverInstructions(title: String, sideMarginMm: Double, topBottomMarginMm: Double, config: PdfLayoutConfig)
+    : List[Instruction] =
     List(
       Instruction.PageSize(config.global.pageSizeMm, config.global.pageSizeMm),
       Instruction.FontSize(config.cover.titleFontSizePt),

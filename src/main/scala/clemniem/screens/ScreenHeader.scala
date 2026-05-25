@@ -36,7 +36,7 @@ object ScreenHeader {
     extraRowClass: String
   ): Html[Msg] = {
     val rowClass = s"${NesCss.field} screen-header-name-row $extraRowClass".trim
-    val attrs = Seq(
+    val attrs    = Seq(
       `type`      := "text",
       placeholder := "Name",
       value       := nameValue,

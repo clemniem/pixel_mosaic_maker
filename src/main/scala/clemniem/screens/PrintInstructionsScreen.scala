@@ -23,7 +23,6 @@ import tyrian.*
 
 import scala.concurrent.duration.DurationInt
 
-
 /** Fixed step size options (px). Only those that divide every section width/height are shown. Default 16 if available
   * else smallest.
   */
@@ -46,7 +45,7 @@ object PrintInstructionsScreen extends Screen {
   private val previewDebounceMs  = 250
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val base = previous.collect { case ScreenOutput.OpenPrintConfig(stored) => stored }
+    val base  = previous.collect { case ScreenOutput.OpenPrintConfig(stored) => stored }
     val model = PrintInstructionsModel(
       builds = None,
       buildConfigs = None,
@@ -97,17 +96,18 @@ object PrintInstructionsScreen extends Screen {
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case PrintInstructionsMsg.LoadedBuilds(list) =>
       // Auto-select first build (if nothing already selected), and derive build config from it
-      val selBuildId = model.selectedBuildId.orElse(list.headOption.map(_.id))
+      val selBuildId  = model.selectedBuildId.orElse(list.headOption.map(_.id))
       val selConfigId = selBuildId
         .flatMap(id => list.find(_.id == id).map(_.buildConfigRef))
         .orElse(model.selectedBuildConfigId)
-      val next = invalidatePreview(model.copy(builds = Some(list), selectedBuildId = selBuildId, selectedBuildConfigId = selConfigId))
+      val next = invalidatePreview(
+        model.copy(builds = Some(list), selectedBuildId = selBuildId, selectedBuildConfigId = selConfigId))
       (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.LoadedBuildConfigs(list) =>
       // Only fall back to first config if no build has already set a config id
       val selectedId = model.selectedBuildConfigId.orElse(list.headOption.map(_.id))
       val nextBase   = model.copy(buildConfigs = Some(list), selectedBuildConfigId = selectedId)
-      val available =
+      val available  =
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
         if (available.contains(nextBase.stepSizePx)) nextBase.stepSizePx else defaultStepSizeForAvailable(available)
@@ -115,7 +115,8 @@ object PrintInstructionsScreen extends Screen {
       (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.SetBuild(id) =>
       val configId = model.builds.getOrElse(Nil).find(_.id == id).map(_.buildConfigRef)
-      val nextBase = model.copy(selectedBuildId = Some(id), selectedBuildConfigId = configId.orElse(model.selectedBuildConfigId))
+      val nextBase =
+        model.copy(selectedBuildId = Some(id), selectedBuildConfigId = configId.orElse(model.selectedBuildConfigId))
       val available =
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
@@ -129,7 +130,7 @@ object PrintInstructionsScreen extends Screen {
       val next = invalidatePreview(model.copy(palettes = Some(list)))
       (next, redrawOverviewAndRebuildPreviewCmd(next))
     case PrintInstructionsMsg.SetBuildConfig(id) =>
-      val nextBase = model.copy(selectedBuildConfigId = Some(id))
+      val nextBase  = model.copy(selectedBuildConfigId = Some(id))
       val available =
         nextBase.selectedStored.map(s => availableStepSizesForGrid(s.config.grid)).getOrElse(stepSizeCandidates)
       val stepSize =
@@ -188,7 +189,7 @@ object PrintInstructionsScreen extends Screen {
       if (version != model.previewRequestVersion) (model, Cmd.None)
       else {
         val clamped = clampPreviewPageIdx(model.pdfPreviewPageIdx, preview)
-        val next = model.copy(
+        val next    = model.copy(
           pdfPreviewPageIdx = clamped,
           previewCache = Some(CachedPdfPreview(fingerprint, preview))
         )
@@ -197,7 +198,7 @@ object PrintInstructionsScreen extends Screen {
     case PrintInstructionsMsg.LoadedPrintConfigs(list) =>
       (model.copy(printConfigs = Some(list)), Cmd.None)
     case PrintInstructionsMsg.SaveConfig =>
-      val id = model.savedConfigId.getOrElse(LocalStorageUtils.newId("printconfig"))
+      val id     = model.savedConfigId.getOrElse(LocalStorageUtils.newId("printconfig"))
       val stored = StoredPrintConfig(
         id = id,
         name = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
@@ -215,7 +216,7 @@ object PrintInstructionsScreen extends Screen {
       )
       val existing = model.printConfigs.getOrElse(Nil)
       val updated  = stored :: existing.filterNot(_.id == id)
-      val saveCmd = LocalStorageUtils.saveList(StorageKeys.printConfigs, updated)(
+      val saveCmd  = LocalStorageUtils.saveList(StorageKeys.printConfigs, updated)(
         list => PrintInstructionsMsg.ConfigSaved(id, list),
         (_, _) => PrintInstructionsMsg.ConfigSaved(id, updated)
       )
@@ -419,7 +420,11 @@ object PrintInstructionsScreen extends Screen {
         )
       ),
       div(`class` := s"${NesCss.field} field-block--lg build-stacked-block")(
-        infoLabel("Inner page margin", "inner-margin", "Off = no white gap where pages meet. On = uniform margins.", model),
+        infoLabel(
+          "Inner page margin",
+          "inner-margin",
+          "Off = no white gap where pages meet. On = uniform margins.",
+          model),
         div(`class` := "stacked-radios")(
           label(`class` := "stacked-radio-option")(
             input(
@@ -453,7 +458,9 @@ object PrintInstructionsScreen extends Screen {
           ),
           span(`class` := "info-toggle", onClick(PrintInstructionsMsg.ToggleInfo("top-offset")))(text("i"))
         ),
-        span(`class` := (if (model.expandedInfoIds.contains("top-offset")) "info-hint info-hint--visible nes-text" else "info-hint nes-text"))(
+        span(
+          `class` := (if (model.expandedInfoIds.contains("top-offset")) "info-hint info-hint--visible nes-text"
+                      else "info-hint nes-text"))(
           text("Push all page content down. Default 2 mm.")
         ),
         input(
@@ -462,14 +469,15 @@ object PrintInstructionsScreen extends Screen {
           max    := "40",
           step   := "0.5",
           value  := model.contentTopOffsetMm.toString,
-          onInput(s => PrintInstructionsMsg.SetContentTopOffsetMm(s.toDoubleOption.getOrElse(PdfUtils.defaultContentTopOffsetMm)))
+          onInput(s =>
+            PrintInstructionsMsg.SetContentTopOffsetMm(s.toDoubleOption.getOrElse(PdfUtils.defaultContentTopOffsetMm)))
         )
       )
     )
   }
 
   private def infoLabel(labelText: String, infoId: String, hintText: String, model: Model): Html[Msg] = {
-    val expanded = model.expandedInfoIds.contains(infoId)
+    val expanded  = model.expandedInfoIds.contains(infoId)
     val hintClass = if (expanded) "info-hint info-hint--visible nes-text" else "info-hint nes-text"
     div(
       div(`class` := "label-with-info")(
@@ -534,7 +542,9 @@ object PrintInstructionsScreen extends Screen {
     }
 
     val stepInfoExpanded = model.expandedInfoIds.contains("step-size")
-    val stepHintClass = if (stepInfoExpanded) "info-hint info-hint--visible nes-text helper-text--top" else "info-hint nes-text helper-text--top"
+    val stepHintClass    =
+      if (stepInfoExpanded) "info-hint info-hint--visible nes-text helper-text--top"
+      else "info-hint nes-text helper-text--top"
     div(`class` := "step-size-block")(
       div(`class` := "label-with-info")(
         label(`class` := "label-block")(text("Section size (pixels)")),
@@ -590,7 +600,7 @@ object PrintInstructionsScreen extends Screen {
           case Some(cache) if cache.fingerprint == previewFingerprintForModel(model) =>
             val preview = cache.preview
             val idx     = clampPreviewPageIdx(model.pdfPreviewPageIdx, preview)
-            val pageBg =
+            val pageBg  =
               if (model.pageBackgroundColorHex.isBlank) PdfUtils.defaultPageBackgroundColor
               else Color.fromHex(model.pageBackgroundColorHex)
             if (preview.pages.isEmpty)
@@ -667,7 +677,8 @@ object PrintInstructionsScreen extends Screen {
       selectedBuildConfigId = model.selectedBuildConfigId,
       title = if (model.title.trim.nonEmpty) model.title.trim else "Mosaic",
       stepSizePx = model.stepSizePx,
-      pageBackgroundColorHex = Color.normalizeHex(model.pageBackgroundColorHex, PdfUtils.defaultPageBackgroundColor.toHex),
+      pageBackgroundColorHex =
+        Color.normalizeHex(model.pageBackgroundColorHex, PdfUtils.defaultPageBackgroundColor.toHex),
       patchBackgroundColorHex = Color.normalizeHex(model.patchBackgroundColorHex, Color.layerPatchBackground.toHex),
       stacked = model.stacked,
       sideMarginMm = model.sideMarginMm,
@@ -704,7 +715,7 @@ object PrintInstructionsScreen extends Screen {
     palettes: List[StoredPalette]
   ): Option[(PixelPic, Layout)] =
     for {
-      pic <- clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
+      pic     <- clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
       cropped <- pic.crop(
         stored.config.offsetX,
         stored.config.offsetY,

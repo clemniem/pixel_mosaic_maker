@@ -20,16 +20,21 @@ object ImagesGalleryScreen extends Screen {
   private val previewHeight = CanvasUtils.galleryPreviewHeight
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val cmd = Gallery.loadCmd(StorageKeys.images, ImagesGalleryMsg.Loaded.apply, (msg, _) => ImagesGalleryMsg.LoadFailed(msg))
+    val cmd =
+      Gallery.loadCmd(StorageKeys.images, ImagesGalleryMsg.Loaded.apply, (msg, _) => ImagesGalleryMsg.LoadFailed(msg))
     (Gallery.initState, cmd)
   }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case ImagesGalleryMsg.Loaded(list) =>
       val next = Gallery.onLoaded(model, list, GalleryLayout.defaultPageSize)
-      val cmd =
+      val cmd  =
         if (list.isEmpty) Cmd.None
-        else CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(list)), ImagesGalleryMsg.NoOp, _ => ImagesGalleryMsg.NoOp)
+        else
+          CmdUtils.fireAndForget(
+            CanvasUtils.runAfterFrames(3)(drawPreviewsIO(list)),
+            ImagesGalleryMsg.NoOp,
+            _ => ImagesGalleryMsg.NoOp)
       (next, cmd)
     case ImagesGalleryMsg.CreateNew =>
       (model, navCmd(ScreenId.ImageUploadId, None))
@@ -40,7 +45,12 @@ object ImagesGalleryScreen extends Screen {
     case ImagesGalleryMsg.Delete(stored) =>
       (Gallery.onRequestDelete(model, stored.id), Cmd.None)
     case ImagesGalleryMsg.ConfirmDelete(id) =>
-      Gallery.onConfirmDelete(model, id, StorageKeys.images, GalleryLayout.defaultPageSize, ImagesGalleryMsg.CancelDelete)
+      Gallery.onConfirmDelete(
+        model,
+        id,
+        StorageKeys.images,
+        GalleryLayout.defaultPageSize,
+        ImagesGalleryMsg.CancelDelete)
     case ImagesGalleryMsg.CancelDelete =>
       (Gallery.onCancelDelete(model), Cmd.None)
     case ImagesGalleryMsg.PreviousPage =>
@@ -58,7 +68,8 @@ object ImagesGalleryScreen extends Screen {
       )
       (Gallery.initState, cmd)
     case ImagesGalleryMsg.Retry =>
-      val cmd = Gallery.loadCmd(StorageKeys.images, ImagesGalleryMsg.Loaded.apply, (msg, _) => ImagesGalleryMsg.LoadFailed(msg))
+      val cmd =
+        Gallery.loadCmd(StorageKeys.images, ImagesGalleryMsg.Loaded.apply, (msg, _) => ImagesGalleryMsg.LoadFailed(msg))
       (Gallery.initState, cmd)
     case ImagesGalleryMsg.NoOp =>
       (model, Cmd.None)
@@ -86,7 +97,8 @@ object ImagesGalleryScreen extends Screen {
       div(`class` := "gallery-card-body")(
         span(`class` := "gallery-card-title")(text(item.name)),
         span(`class` := "gallery-card-meta nes-text")(
-          text(s"${item.pixelPic.width}\u00d7${item.pixelPic.height} px \u00b7 ${item.pixelPic.paletteLookup.size} colors")
+          text(
+            s"${item.pixelPic.width}\u00d7${item.pixelPic.height} px \u00b7 ${item.pixelPic.paletteLookup.size} colors")
         ),
         paletteRow(item),
         Gallery.deleteOrActions(
@@ -117,9 +129,7 @@ object ImagesGalleryScreen extends Screen {
       colors = item.pixelPic.paletteLookup.map(p => Color(p.r, p.g, p.b)).toVector
     )
     div(style := "margin-top: 0.35rem;", title := "Click to save as palette")(
-      button(
-        `class` := s"${NesCss.btn} palette-button-inline",
-        onClick(navMsg(ScreenId.PaletteId, Some(output))))(
+      button(`class` := s"${NesCss.btn} palette-button-inline", onClick(navMsg(ScreenId.PaletteId, Some(output))))(
         PaletteStripView.swatches(colors)*
       )
     )
@@ -130,7 +140,10 @@ object ImagesGalleryScreen extends Screen {
       case Loadable.Loaded(list) if list.nonEmpty =>
         val start = (model.currentPage - 1) * GalleryLayout.defaultPageSize
         val slice = list.slice(start, start + GalleryLayout.defaultPageSize)
-        CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)), ImagesGalleryMsg.NoOp, _ => ImagesGalleryMsg.NoOp)
+        CmdUtils.fireAndForget(
+          CanvasUtils.runAfterFrames(3)(drawPreviewsIO(slice)),
+          ImagesGalleryMsg.NoOp,
+          _ => ImagesGalleryMsg.NoOp)
       case _ => Cmd.None
     }
 

@@ -30,12 +30,12 @@ object JsPDF {
       val _ = doc.rect(0, 0, w, h, "F")
     } else if (removeInnerMargin) {
       val isRightHand = pageIndex0Based % 2 == 0
-      val mLR = sideMarginMm.max(0.0)
-      val mTB = topBottomMarginMm.max(0.0)
-      val x  = if (isRightHand) 0.0 else mLR
-      val rw = (w - mLR).max(0)
-      val rh = (h - 2 * mTB).max(0)
-      val _  = doc.rect(x, mTB, rw, rh, "F")
+      val mLR         = sideMarginMm.max(0.0)
+      val mTB         = topBottomMarginMm.max(0.0)
+      val x           = if (isRightHand) 0.0 else mLR
+      val rw          = (w - mLR).max(0)
+      val rh          = (h - 2 * mTB).max(0)
+      val _           = doc.rect(x, mTB, rw, rh, "F")
     } else {
       val x  = sideMarginMm.max(0.0)
       val y  = topBottomMarginMm.max(0.0)
@@ -57,11 +57,12 @@ object JsPDF {
     topBottomMarginMm: Double,
     removeInnerMargin: Boolean
   ): Unit = {
-    val base64Val = js.Dynamic.global.selectDynamic("pressStartBase64")
+    val base64Val     = js.Dynamic.global.selectDynamic("pressStartBase64")
     val fontBase64Opt =
       if (js.typeOf(base64Val) == "undefined") None
       else Some(base64Val.asInstanceOf[String]).filter(_.nonEmpty)
-    val _ = setTimeout(0)(runNow(instructions, bgR, bgG, bgB, sideMarginMm, topBottomMarginMm, removeInnerMargin, fontBase64Opt))
+    val _ = setTimeout(0)(
+      runNow(instructions, bgR, bgG, bgB, sideMarginMm, topBottomMarginMm, removeInnerMargin, fontBase64Opt))
   }
 
   /** Total page count: 1 + number of AddPage (Save is not a page). */
@@ -116,7 +117,7 @@ object JsPDF {
           val (docOpt, (pageW, pageH), pageIndex) = state
           inst match {
             case Instruction.PageSize(w, h) =>
-              val _ = docOpt
+              val _    = docOpt
               val opts = js.Dynamic.literal(
                 orientation = "p",
                 unit = "mm",
@@ -176,7 +177,17 @@ object JsPDF {
               docOpt.foreach { doc =>
                 drawPageNumberIfNeeded(doc, pageW, pageH, pageIndex, totalPages, sideMarginMm, topBottomMarginMm)
                 val _ = doc.addPage()
-                fillPageBackground(doc, pageW, pageH, bgR, bgG, bgB, sideMarginMm, topBottomMarginMm, removeInnerMargin, pageIndex + 1)
+                fillPageBackground(
+                  doc,
+                  pageW,
+                  pageH,
+                  bgR,
+                  bgG,
+                  bgB,
+                  sideMarginMm,
+                  topBottomMarginMm,
+                  removeInnerMargin,
+                  pageIndex + 1)
               }
               (docOpt, (pageW, pageH), pageIndex + 1)
             case Instruction.DrawPixelGrid(x0, y0, wMm, hMm, cols, rows, rgbFlat) =>

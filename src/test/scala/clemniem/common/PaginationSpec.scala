@@ -60,7 +60,7 @@ class PaginationSpec extends FunSuite {
   // ---- sliceForPage ----
 
   test("sliceForPage: first page of multi-page list") {
-    val items                 = List("a", "b", "c", "d", "e")
+    val items                = List("a", "b", "c", "d", "e")
     val (slice, page, total) = Pagination.sliceForPage(items, 1, 3)
     assertEquals(slice, List("a", "b", "c"))
     assertEquals(page, 1)
@@ -68,7 +68,7 @@ class PaginationSpec extends FunSuite {
   }
 
   test("sliceForPage: second page of multi-page list") {
-    val items                 = List("a", "b", "c", "d", "e")
+    val items                = List("a", "b", "c", "d", "e")
     val (slice, page, total) = Pagination.sliceForPage(items, 2, 3)
     assertEquals(slice, List("d", "e"))
     assertEquals(page, 2)
@@ -76,7 +76,7 @@ class PaginationSpec extends FunSuite {
   }
 
   test("sliceForPage: page beyond total clamps to last page") {
-    val items                 = List("a", "b", "c", "d", "e")
+    val items                = List("a", "b", "c", "d", "e")
     val (slice, page, total) = Pagination.sliceForPage(items, 10, 3)
     assertEquals(slice, List("d", "e"))
     assertEquals(page, 2)
@@ -91,7 +91,7 @@ class PaginationSpec extends FunSuite {
   }
 
   test("sliceForPage: exactly one page") {
-    val items                 = List(1, 2, 3)
+    val items                = List(1, 2, 3)
     val (slice, page, total) = Pagination.sliceForPage(items, 1, 3)
     assertEquals(slice, List(1, 2, 3))
     assertEquals(page, 1)
