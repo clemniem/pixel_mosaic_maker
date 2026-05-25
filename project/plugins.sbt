@@ -4,4 +4,4 @@ addSbtPlugin("ch.epfl.scala"       % "sbt-scalafix" % "0.14.6")
 addSbtPlugin("com.github.reibitto" % "sbt-welcome"  % "0.5.0")
 
 // Code formatting (adds sbt tasks like `scalafmtAll`)
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.6")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.6.1")
