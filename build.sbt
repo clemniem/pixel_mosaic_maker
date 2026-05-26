@@ -11,14 +11,14 @@ lazy val pixel_mosaic_maker =
     .settings( // Normal settings
       name         := "pixel_mosaic_maker",
       version      := "0.0.1",
-      scalaVersion := "3.8.1",
+      scalaVersion := "3.8.2",
       organization := "clemniem",
       libraryDependencies ++= Seq(
         "io.indigoengine" %%% "tyrian-io"     % "0.14.0",
         "io.circe"        %%% "circe-core"    % "0.14.15",
         "io.circe"        %%% "circe-parser"  % "0.14.15",
         "io.circe"        %%% "circe-generic" % "0.14.15",
-        "org.scalameta"   %%% "munit"         % "1.2.2" % Test
+        "org.scalameta"   %%% "munit"         % "1.2.4" % Test
       ),
       testFrameworks += new TestFramework("munit.Framework"),
       scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
