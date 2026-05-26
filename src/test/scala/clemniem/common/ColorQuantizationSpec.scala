@@ -5,18 +5,21 @@ import munit.FunSuite
 
 /** Tests for ColorQuantizationService.medianCutPalette short-circuit and the general path.
   *
-  * Key invariant: when the source has ≤ numColors unique colours, the short-circuit returns those exact colours
-  * without median-cut or k-means, preventing skewed-histogram degeneracy (bug: duplicate centroids → 4→2 collapse).
+  * Key invariant: when the source has ≤ numColors unique colours, the short-circuit returns those exact colours without
+  * median-cut or k-means, preventing skewed-histogram degeneracy (bug: duplicate centroids → 4→2 collapse).
   */
 class ColorQuantizationSpec extends FunSuite {
 
-  /** Build a RawImage from a colour map: each colour covers exactly `count` pixels.
-    * Uses width=totalPixels, height=1 to avoid any padding.
+  /** Build a RawImage from a colour map: each colour covers exactly `count` pixels. Uses width=totalPixels, height=1 to
+    * avoid any padding.
     */
   private def buildRaw(colourCounts: List[((Int, Int, Int), Int)]): RawImage = {
-    val data = colourCounts.flatMap { case ((r, g, b), count) =>
-      List.fill(count)(List(r.toByte, g.toByte, b.toByte, 255.toByte))
-    }.flatten.toArray
+    val data = colourCounts
+      .flatMap { case ((r, g, b), count) =>
+        List.fill(count)(List(r.toByte, g.toByte, b.toByte, 255.toByte))
+      }
+      .flatten
+      .toArray
     val total = data.length / 4
     RawImage(total, 1, data)
   }
@@ -69,9 +72,9 @@ class ColorQuantizationSpec extends FunSuite {
     val side = 32
     val data = new Array[Byte](side * side * 4)
     for (i <- 0 until side * side) {
-      data(i * 4) = (i % 256).toByte
+      data(i * 4) = (i             % 256).toByte
       data(i * 4 + 1) = ((i / 256) % 256).toByte
-      data(i * 4 + 2) = ((i * 7) % 256).toByte
+      data(i * 4 + 2) = ((i * 7)   % 256).toByte
       data(i * 4 + 3) = 255.toByte
     }
     val raw    = RawImage(side, side, data)
@@ -88,8 +91,8 @@ class ColorQuantizationSpec extends FunSuite {
 
   test("medianCutPalette: 2-colour image at N=4 returns 2 entries (short-circuit, no padding to N)") {
     val twoColours: List[((Int, Int, Int), Int)] = List(((0, 0, 0), 500), ((255, 255, 255), 500))
-    val raw                                       = buildRaw(twoColours)
-    val result                                    = ColorQuantizationService.medianCutPalette(raw, 4)
+    val raw                                      = buildRaw(twoColours)
+    val result                                   = ColorQuantizationService.medianCutPalette(raw, 4)
     assertEquals(result.size, 2)
     assertEquals(paletteRgbSet(result), Set((0, 0, 0), (255, 255, 255)))
   }

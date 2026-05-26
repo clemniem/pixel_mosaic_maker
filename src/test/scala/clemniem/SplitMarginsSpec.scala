@@ -126,12 +126,13 @@ class SplitMarginsSpec extends FunSuite {
   }
 
   test("BookPreview carries separate side and top/bottom margins") {
-    val preview = PdfUtils.previewBookPages(PrintBookRequest(
-      title = "Margin Test",
-      mosaicPicAndGridOpt = None,
-      sideMarginMm = 7.0,
-      topBottomMarginMm = 3.0
-    ))
+    val preview = PdfUtils.previewBookPages(
+      PrintBookRequest(
+        title = "Margin Test",
+        mosaicPicAndGridOpt = None,
+        sideMarginMm = 7.0,
+        topBottomMarginMm = 3.0
+      ))
     assertEquals(preview.sideMarginMm, 7.0)
     assertEquals(preview.topBottomMarginMm, 3.0)
   }
@@ -144,7 +145,7 @@ class SplitMarginsSpec extends FunSuite {
 
   test("preview page count unchanged after margin split for mosaic request") {
     val black = Pixel(0, 0, 0, 255)
-    val pic = PixelPic(
+    val pic   = PixelPic(
       width = 16,
       height = 16,
       paletteLookup = Vector(black),
@@ -154,18 +155,20 @@ class SplitMarginsSpec extends FunSuite {
     ).getOrElse(fail("expected valid test picture"))
     val grid = Layout.make(Seq(16), Seq(16))
 
-    val previewOld = PdfUtils.previewBookPages(PrintBookRequest(
-      title = "Mosaic",
-      mosaicPicAndGridOpt = Some(pic -> grid),
-      sideMarginMm = 6.0,
-      topBottomMarginMm = 6.0
-    ))
-    val previewNew = PdfUtils.previewBookPages(PrintBookRequest(
-      title = "Mosaic",
-      mosaicPicAndGridOpt = Some(pic -> grid),
-      sideMarginMm = 6.0,
-      topBottomMarginMm = 5.0
-    ))
+    val previewOld = PdfUtils.previewBookPages(
+      PrintBookRequest(
+        title = "Mosaic",
+        mosaicPicAndGridOpt = Some(pic -> grid),
+        sideMarginMm = 6.0,
+        topBottomMarginMm = 6.0
+      ))
+    val previewNew = PdfUtils.previewBookPages(
+      PrintBookRequest(
+        title = "Mosaic",
+        mosaicPicAndGridOpt = Some(pic -> grid),
+        sideMarginMm = 6.0,
+        topBottomMarginMm = 5.0
+      ))
     assertEquals(previewOld.totalPages, previewNew.totalPages)
   }
 }

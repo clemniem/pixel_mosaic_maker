@@ -27,7 +27,7 @@ object PaletteStripView {
     */
   def colorCountOverview[Msg](patchOpt: Option[PixelPic]): Html[Msg] =
     patchOpt match {
-      case None => div()()
+      case None        => div()()
       case Some(patch) =>
         val sorted = patch.palette.toVector.sortBy(_._2)
         div(`class` := "color-count-overview")(

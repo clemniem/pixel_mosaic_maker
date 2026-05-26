@@ -3,8 +3,8 @@ package clemniem.common
 import clemniem.common.image.RawImage
 import org.scalajs.dom.ImageData
 
-/** Conversion helpers between [[ImageData]] and [[RawImage]]. Extracted from [[ImageUtils]] so the framework module
-  * has no domain-type imports.
+/** Conversion helpers between [[ImageData]] and [[RawImage]]. Extracted from [[ImageUtils]] so the framework module has
+  * no domain-type imports.
   */
 object RawImageUtils {
 

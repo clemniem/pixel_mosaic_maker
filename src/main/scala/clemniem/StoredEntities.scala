@@ -11,7 +11,8 @@ final case class StoredLayout(
   config: Layout,
   mode: Option[GridDefMode] = None,
   rowDefs: Option[List[RowDef]] = None,
-  columnDefs: Option[List[ColumnDef]] = None) extends StoredEntity
+  columnDefs: Option[List[ColumnDef]] = None)
+  extends StoredEntity
 object StoredLayout {
   given Encoder[StoredLayout] = deriveEncoder
   given Decoder[StoredLayout] = deriveDecoder
@@ -29,7 +30,8 @@ object StoredImage {
   given Decoder[StoredImage] = deriveDecoder
 }
 
-final case class StoredBuildConfig(id: String, name: String, config: BuildConfig, savedStepIndex: Option[Int] = None) extends StoredEntity
+final case class StoredBuildConfig(id: String, name: String, config: BuildConfig, savedStepIndex: Option[Int] = None)
+  extends StoredEntity
 object StoredBuildConfig {
   given Encoder[StoredBuildConfig] = deriveEncoder
   given Decoder[StoredBuildConfig] = deriveDecoder
@@ -41,7 +43,8 @@ final case class StoredBuild(
   name: String,
   buildConfigRef: String,
   savedStepIndex: Option[Int] = None,
-  patchBackgroundColorHex: Option[String] = None) extends StoredEntity
+  patchBackgroundColorHex: Option[String] = None)
+  extends StoredEntity
 object StoredBuild {
   given Encoder[StoredBuild] = deriveEncoder
   given Decoder[StoredBuild] = deriveDecoder
@@ -60,30 +63,41 @@ final case class StoredPrintConfig(
   sideMarginMm: Double,
   topBottomMarginMm: Double,
   contentTopOffsetMm: Double,
-  innerMargin: Boolean
-) extends StoredEntity
+  innerMargin: Boolean)
+  extends StoredEntity
 object StoredPrintConfig {
   given Encoder[StoredPrintConfig] = deriveEncoder
   given Decoder[StoredPrintConfig] = Decoder.instance { c =>
     for {
-      id                     <- c.get[String]("id")
-      name                   <- c.get[String]("name")
-      selectedBuildId        <- c.get[Option[String]]("selectedBuildId")
-      selectedBuildConfigId  <- c.get[Option[String]]("selectedBuildConfigId")
-      title                  <- c.get[String]("title")
-      stepSizePx             <- c.get[Int]("stepSizePx")
-      pageBackgroundColorHex <- c.get[String]("pageBackgroundColorHex")
+      id                      <- c.get[String]("id")
+      name                    <- c.get[String]("name")
+      selectedBuildId         <- c.get[Option[String]]("selectedBuildId")
+      selectedBuildConfigId   <- c.get[Option[String]]("selectedBuildConfigId")
+      title                   <- c.get[String]("title")
+      stepSizePx              <- c.get[Int]("stepSizePx")
+      pageBackgroundColorHex  <- c.get[String]("pageBackgroundColorHex")
       patchBackgroundColorHex <- c.get[String]("patchBackgroundColorHex")
-      stacked                <- c.get[Boolean]("stacked")
-      oldMargin              <- c.getOrElse[Option[Double]]("printerMarginMm")(None)
-      sideMarginMm           <- c.getOrElse[Double]("sideMarginMm")(oldMargin.getOrElse(6.0))
-      topBottomMarginMm      <- c.getOrElse[Double]("topBottomMarginMm")(oldMargin.getOrElse(5.0))
-      contentTopOffsetMm     <- c.get[Double]("contentTopOffsetMm")
-      innerMargin            <- c.getOrElse[Boolean]("innerMargin")(false)
+      stacked                 <- c.get[Boolean]("stacked")
+      oldMargin               <- c.getOrElse[Option[Double]]("printerMarginMm")(None)
+      sideMarginMm            <- c.getOrElse[Double]("sideMarginMm")(oldMargin.getOrElse(6.0))
+      topBottomMarginMm       <- c.getOrElse[Double]("topBottomMarginMm")(oldMargin.getOrElse(5.0))
+      contentTopOffsetMm      <- c.get[Double]("contentTopOffsetMm")
+      innerMargin             <- c.getOrElse[Boolean]("innerMargin")(false)
     } yield StoredPrintConfig(
-      id, name, selectedBuildId, selectedBuildConfigId, title, stepSizePx,
-      pageBackgroundColorHex, patchBackgroundColorHex, stacked, sideMarginMm,
-      topBottomMarginMm, contentTopOffsetMm, innerMargin)
+      id,
+      name,
+      selectedBuildId,
+      selectedBuildConfigId,
+      title,
+      stepSizePx,
+      pageBackgroundColorHex,
+      patchBackgroundColorHex,
+      stacked,
+      sideMarginMm,
+      topBottomMarginMm,
+      contentTopOffsetMm,
+      innerMargin
+    )
   }
 }
 

@@ -38,8 +38,8 @@ private[common] object PdfDrawHelpers {
       Vector(r, g, b)
     }.toVector
 
-  /** One pixel-count row: swatch (with black frame) + "× count". Uses [[Instruction.DrawSwatchRow]] (text centered
-    * with swatch).
+  /** One pixel-count row: swatch (with black frame) + "× count". Uses [[Instruction.DrawSwatchRow]] (text centered with
+    * swatch).
     */
   def drawSwatchRow(x: Double, y: Double, r: Int, g: Int, b: Int, count: Int, sw: PdfLayoutConfig.SwatchBlock)
     : List[Instruction] =
@@ -87,11 +87,11 @@ private[common] object PdfDrawHelpers {
     patchSizePx: Int,
     lineWidthMm: Double
   ): List[(Double, Double, Double, Double)] = {
-    val half  = lineWidthMm / 2
-    val nCols = sectionWidth / patchSizePx
-    val nRows = sectionHeight / patchSizePx
-    val pxW   = imageW / sectionWidth
-    val pxH   = imageH / sectionHeight
+    val half      = lineWidthMm / 2
+    val nCols     = sectionWidth / patchSizePx
+    val nRows     = sectionHeight / patchSizePx
+    val pxW       = imageW / sectionWidth
+    val pxH       = imageH / sectionHeight
     val verticals = (1 until nCols).map { i =>
       val x = x0 + i * patchSizePx * pxW - half
       (x, y0, lineWidthMm, imageH)
@@ -136,7 +136,7 @@ private[common] object PdfDrawHelpers {
         }
       }.toList
       val remainderStart = nFullDashes * period
-      val finalDash =
+      val finalDash      =
         if (remainderStart < length && dashLengthMm > 0) {
           val startT = remainderStart / length
           val ex     = x1 + 1.0 * (x2 - x1)
@@ -149,8 +149,8 @@ private[common] object PdfDrawHelpers {
     }
   }
 
-  /** Convert stroke rects (thin lines as rects) to dashed white+black line instructions. Each rect (x,y,w,h): if
-    * w>=h horizontal else vertical; line thickness from rect.
+  /** Convert stroke rects (thin lines as rects) to dashed white+black line instructions. Each rect (x,y,w,h): if w>=h
+    * horizontal else vertical; line thickness from rect.
     */
   def dashedStrokeRectsInstructions(
     rects: List[(Double, Double, Double, Double)],
@@ -234,7 +234,7 @@ private[common] object PdfDrawHelpers {
     grid: Layout
   ): List[Instruction] = {
     val (_, _, fullRgbFlat) = pixelPicToRgbFlat(fullPic)
-    val gridInstr = List(
+    val gridInstr           = List(
       Instruction
         .DrawPixelGrid(smallX0, smallY0, smallOverviewW, smallOverviewH, fullPic.width, fullPic.height, fullRgbFlat))
     val greyInstrs = greyRectsMm.map { case (x, y, w, h) =>

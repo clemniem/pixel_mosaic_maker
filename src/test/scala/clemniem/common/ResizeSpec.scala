@@ -132,21 +132,33 @@ class ResizeSpec extends FunSuite {
     assertEquals(out.width, 2)
     assertEquals(out.height, 2)
     val expected = Array(
-      255.toByte, 0.toByte, 0.toByte, 255.toByte,
-      0.toByte, 255.toByte, 0.toByte, 255.toByte,
-      0.toByte, 0.toByte, 255.toByte, 255.toByte,
-      255.toByte, 255.toByte, 255.toByte, 255.toByte
+      255.toByte,
+      0.toByte,
+      0.toByte,
+      255.toByte,
+      0.toByte,
+      255.toByte,
+      0.toByte,
+      255.toByte,
+      0.toByte,
+      0.toByte,
+      255.toByte,
+      255.toByte,
+      255.toByte,
+      255.toByte,
+      255.toByte,
+      255.toByte
     )
     assert(out.data.sameElements(expected), s"expected ${expected.toSeq}, got ${out.data.toSeq}")
   }
 
   test("DownscalePixelPerfect: 4-color 8×8 (4×4 blocks) preserves exactly 4 colors") {
-    val red    = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
-    val green  = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
-    val blue   = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
-    val yellow = (255.toByte, 255.toByte, 0.toByte, 255.toByte)
+    val red     = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green   = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
+    val blue    = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
+    val yellow  = (255.toByte, 255.toByte, 0.toByte, 255.toByte)
     val logical = Array(Array(red, green), Array(blue, yellow))
-    val data = rgba(8, 8) { (x, y) =>
+    val data    = rgba(8, 8) { (x, y) =>
       logical(y / 4)(x / 4)
     }
     val raw = RawImage(8, 8, data)
@@ -155,16 +167,16 @@ class ResizeSpec extends FunSuite {
   }
 
   test("DownscalePixelPerfect: non-aligned 5×5 source only contains colors from the source") {
-    val red   = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
-    val green = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
-    val blue  = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
+    val red     = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green   = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
+    val blue    = (0.toByte, 0.toByte, 255.toByte, 255.toByte)
     val palette = Array(red, green, blue)
-    val data = rgba(5, 5) { (x, y) =>
+    val data    = rgba(5, 5) { (x, y) =>
       palette((x + y) % 3)
     }
-    val raw     = RawImage(5, 5, data)
-    val src     = uniqueColors(raw)
-    val out     = SizeReductionService.downscale(raw, 3, 3, DownscalePixelPerfect)
+    val raw = RawImage(5, 5, data)
+    val src = uniqueColors(raw)
+    val out = SizeReductionService.downscale(raw, 3, 3, DownscalePixelPerfect)
     assert(out.width <= 3 && out.height <= 3, s"expected ≤ 3×3, got ${out.width}×${out.height}")
     val outset = uniqueColors(out)
     assert(outset.subsetOf(src), s"output colors $outset not subset of source $src")
@@ -172,9 +184,9 @@ class ResizeSpec extends FunSuite {
 
   /** Add per-channel noise clamped to [0, 255], keeping alpha at 255. */
   private def addNoise(data: Array[Byte], noise: Int): Array[Byte] = {
-    val out    = data.clone()
-    val rng    = new scala.util.Random(42)
-    val nPx    = data.length / 4
+    val out = data.clone()
+    val rng = new scala.util.Random(42)
+    val nPx = data.length / 4
     for (i <- 0 until nPx) {
       val o = i * 4
       out(o) = (((data(o) & 0xff) + rng.nextInt(2 * noise + 1) - noise).max(0).min(255)).toByte
@@ -189,16 +201,16 @@ class ResizeSpec extends FunSuite {
     // Logical 2×2 image with 4 colours, upscaled by 4 to 8×8. Every 2×2 block is uniform (lives inside one 4×4
     // logical block) AND every 4×4 block is uniform — both factors 2 and 4 match. We must pick 4 (the true factor)
     // so the output resolution is the logical 2×2, not 4×4.
-    val red    = (200.toByte, 0.toByte, 0.toByte, 255.toByte)
-    val green  = (0.toByte, 200.toByte, 0.toByte, 255.toByte)
-    val blue   = (0.toByte, 0.toByte, 200.toByte, 255.toByte)
-    val yellow = (200.toByte, 200.toByte, 0.toByte, 255.toByte)
+    val red                                                      = (200.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green                                                    = (0.toByte, 200.toByte, 0.toByte, 255.toByte)
+    val blue                                                     = (0.toByte, 0.toByte, 200.toByte, 255.toByte)
+    val yellow                                                   = (200.toByte, 200.toByte, 0.toByte, 255.toByte)
     def logicalColor(lx: Int, ly: Int): (Byte, Byte, Byte, Byte) =
       if (lx == 0 && ly == 0) red
       else if (lx == 1 && ly == 0) green
       else if (lx == 0 && ly == 1) blue
       else yellow
-    val data = rgba(8, 8) { (x, y) => logicalColor(x / 4, y / 4) }
+    val data = rgba(8, 8)((x, y) => logicalColor(x / 4, y / 4))
     assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(8, 8, data), Some(4))
   }
 
@@ -207,7 +219,7 @@ class ResizeSpec extends FunSuite {
     // Output must be byte-identical to the source bytes at stride-2 positions.
     val red   = (255.toByte, 0.toByte, 0.toByte, 255.toByte)
     val green = (0.toByte, 255.toByte, 0.toByte, 255.toByte)
-    val data  = rgba(256, 224) { (x, y) => if (((x / 2) + (y / 2)) % 2 == 0) red else green }
+    val data  = rgba(256, 224)((x, y) => if (((x / 2) + (y / 2)) % 2 == 0) red else green)
     val raw   = RawImage(256, 224, data)
     val out   = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
     assertEquals(out.width, 128)
@@ -224,7 +236,8 @@ class ResizeSpec extends FunSuite {
     )
   }
 
-  test("DownscalePixelPerfect: GB-shape shortcut with many-colour noisy source falls through to general path (no GB gate)") {
+  test(
+    "DownscalePixelPerfect: GB-shape shortcut with many-colour noisy source falls through to general path (no GB gate)") {
     // 320×288 = 2× of 160×144. ±40 noise → hundreds of unique colours → ≤ 4 colour gate fails.
     // The image falls through to the general tolerant-detector + mode-filter path.
     // We only assert correct output dimensions (160×144), not colour count (mode-filter may produce any count ≤ source).
@@ -232,8 +245,8 @@ class ResizeSpec extends FunSuite {
     val baseBlue  = (10, 10, 200)
     val baseGreen = (10, 200, 10)
     val baseWhite = (250, 250, 250)
-    val data = rgba(320, 288) { (x, y) =>
-      val logical = ((x / 2) + (y / 2) * 7) % 4
+    val data      = rgba(320, 288) { (x, y) =>
+      val logical   = ((x / 2) + (y / 2) * 7) % 4
       val (r, g, b) = logical match {
         case 0 => baseRed
         case 1 => baseBlue
@@ -270,7 +283,7 @@ class ResizeSpec extends FunSuite {
       (0.toByte, 0.toByte, 255.toByte, 255.toByte),
       (255.toByte, 255.toByte, 0.toByte, 255.toByte)
     )
-    val data = rgba(200, 200) { (x, y) => palette(((x / 4) + (y / 4)) % 4) }
+    val data = rgba(200, 200)((x, y) => palette(((x / 4) + (y / 4)) % 4))
     val raw  = RawImage(200, 200, data)
     val out  = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
     assertEquals(out.width, 50)
@@ -287,7 +300,7 @@ class ResizeSpec extends FunSuite {
       (99.toByte, 165.toByte, 255.toByte, 255.toByte),
       (255.toByte, 255.toByte, 255.toByte, 255.toByte)
     )
-    val data = rgba(640, 576) { (x, y) => palette(((x / 4) + (y / 4) * 3) % 4) }
+    val data = rgba(640, 576)((x, y) => palette(((x / 4) + (y / 4) * 3) % 4))
     val raw  = RawImage(640, 576, data)
     val out  = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
     assertEquals(out.width, 160)
@@ -336,7 +349,7 @@ class ResizeSpec extends FunSuite {
       (70.toByte, 80.toByte, 90.toByte, 255.toByte),
       (100.toByte, 110.toByte, 120.toByte, 255.toByte)
     )
-    val data4 = rgba(320, 288) { (x, y) => palette4((x + y) % 4) }
+    val data4 = rgba(320, 288)((x, y) => palette4((x + y) % 4))
     assert(SizeReductionService.hasAtMostUniqueColors(RawImage(320, 288, data4), 4))
     // Adding a 5th colour should fail immediately.
     val data5 = data4.clone()
@@ -353,19 +366,20 @@ class ResizeSpec extends FunSuite {
     assertEquals(PixelArtDetection.detectNearestNeighborScaleFromBytes(4, 4, noisy, 0), None)
   }
 
-  test("DownscalePixelPerfect: 8×8 (factor-2 NN upscale, uniform sRGB-style colour shift) output has exactly 4 colours") {
+  test(
+    "DownscalePixelPerfect: 8×8 (factor-2 NN upscale, uniform sRGB-style colour shift) output has exactly 4 colours") {
     // Realistic sRGB simulation: all pixels of the same original colour get the SAME fixed shift,
     // so each 2×2 block remains identical and the factor-2 upscale is still detected.
-    val red   = (202.toByte, 1.toByte, 1.toByte, 255.toByte)
-    val green = (1.toByte, 199.toByte, 1.toByte, 255.toByte)
-    val blue  = (1.toByte, 1.toByte, 197.toByte, 255.toByte)
-    val white = (201.toByte, 200.toByte, 199.toByte, 255.toByte)
+    val red                                                      = (202.toByte, 1.toByte, 1.toByte, 255.toByte)
+    val green                                                    = (1.toByte, 199.toByte, 1.toByte, 255.toByte)
+    val blue                                                     = (1.toByte, 1.toByte, 197.toByte, 255.toByte)
+    val white                                                    = (201.toByte, 200.toByte, 199.toByte, 255.toByte)
     def logicalColor(lx: Int, ly: Int): (Byte, Byte, Byte, Byte) =
       if (lx < 2 && ly < 2) red
       else if (lx >= 2 && ly < 2) green
       else if (lx < 2 && ly >= 2) blue
       else white
-    val data = rgba(8, 8) { (x, y) => logicalColor(x / 2, y / 2) }
+    val data = rgba(8, 8)((x, y) => logicalColor(x / 2, y / 2))
     val raw  = RawImage(8, 8, data)
     val out  = SizeReductionService.downscale(raw, 500, 500, DownscalePixelPerfect)
     assertEquals(uniqueColors(out).size, 4)
@@ -373,14 +387,14 @@ class ResizeSpec extends FunSuite {
 
   test("DownscalePixelPerfect: mode-filter output colours are always a subset of source colours") {
     // 9×9 image with a 3×3 grid of 3×3 solid-colour blocks (no straddling when downscaled to 3×3).
-    val red   = (180.toByte, 0.toByte, 0.toByte, 255.toByte)
-    val green = (0.toByte, 180.toByte, 0.toByte, 255.toByte)
-    val blue  = (0.toByte, 0.toByte, 180.toByte, 255.toByte)
+    val red     = (180.toByte, 0.toByte, 0.toByte, 255.toByte)
+    val green   = (0.toByte, 180.toByte, 0.toByte, 255.toByte)
+    val blue    = (0.toByte, 0.toByte, 180.toByte, 255.toByte)
     val palette = Array(red, green, blue)
-    val data   = rgba(9, 9) { (x, y) => palette(((x / 3) + (y / 3)) % 3) }
-    val raw    = RawImage(9, 9, data)
-    val srcSet = uniqueColors(raw)
-    val out    = SizeReductionService.downscale(raw, 3, 3, DownscalePixelPerfect)
+    val data    = rgba(9, 9)((x, y) => palette(((x / 3) + (y / 3)) % 3))
+    val raw     = RawImage(9, 9, data)
+    val srcSet  = uniqueColors(raw)
+    val out     = SizeReductionService.downscale(raw, 3, 3, DownscalePixelPerfect)
     assertEquals(out.width, 3)
     assertEquals(out.height, 3)
     val outSet = uniqueColors(out)

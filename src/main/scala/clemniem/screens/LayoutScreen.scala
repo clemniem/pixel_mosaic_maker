@@ -1,24 +1,13 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{
-  ColumnDef,
-  GridDefMode,
-  Layout,
-  RowDef,
-  Screen,
-  ScreenId,
-  ScreenOutput,
-  StorageKeys,
-  StoredLayout
-}
+import clemniem.{ColumnDef, GridDefMode, Layout, RowDef, Screen, ScreenId, ScreenOutput, StorageKeys, StoredLayout}
 import clemniem.common.{CanvasUtils, CmdUtils}
 import clemniem.common.LocalStorageUtils
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom
 import tyrian.Html.*
 import tyrian.*
-
 
 /** Step 1: Define layout of sections. Define by rows (height + widths per row) or by columns (width + heights per
   * column).
@@ -62,7 +51,7 @@ object LayoutScreen extends Screen {
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
     val model = previous match {
       case Some(ScreenOutput.EditLayout(stored)) =>
-        val mode = stored.mode.getOrElse(GridDefMode.ByRows)
+        val mode    = stored.mode.getOrElse(GridDefMode.ByRows)
         val rowDefs =
           stored.rowDefs.filter(_.nonEmpty).getOrElse(inferRowDefsFromConfig(stored.config))
         val columnDefs =
@@ -116,7 +105,7 @@ object LayoutScreen extends Screen {
       commitDraft(base, key, raw)
 
     case LayoutMsg.AddCellToRow(rowIdx) =>
-      val row = model.rowDefs(rowIdx)
+      val row  = model.rowDefs(rowIdx)
       val next = model.copy(
         rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = row.cellWidths :+ defaultCellWidth)),
         draftInputs = Map.empty)
@@ -126,7 +115,7 @@ object LayoutScreen extends Screen {
       val row = model.rowDefs(rowIdx)
       if (row.cellWidths.length <= 1) (model, Cmd.None)
       else {
-        val ws = row.cellWidths.patch(cellIdx, Nil, 1)
+        val ws   = row.cellWidths.patch(cellIdx, Nil, 1)
         val next =
           model.copy(rowDefs = model.rowDefs.updated(rowIdx, row.copy(cellWidths = ws)), draftInputs = Map.empty)
         (next, drawGridCmd(next.grid))
@@ -156,7 +145,7 @@ object LayoutScreen extends Screen {
       (next, drawGridCmd(next.grid))
 
     case LayoutMsg.AddCellToColumn(colIdx) =>
-      val col = model.columnDefs(colIdx)
+      val col  = model.columnDefs(colIdx)
       val next = model.copy(
         columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = col.cellHeights :+ defaultCellHeight)),
         draftInputs = Map.empty)
@@ -166,7 +155,7 @@ object LayoutScreen extends Screen {
       val col = model.columnDefs(colIdx)
       if (col.cellHeights.length <= 1) (model, Cmd.None)
       else {
-        val hs = col.cellHeights.patch(cellIdx, Nil, 1)
+        val hs   = col.cellHeights.patch(cellIdx, Nil, 1)
         val next =
           model.copy(columnDefs = model.columnDefs.updated(colIdx, col.copy(cellHeights = hs)), draftInputs = Map.empty)
         (next, drawGridCmd(next.grid))
@@ -230,7 +219,7 @@ object LayoutScreen extends Screen {
     case LayoutMsg.LoadedForSave(list) =>
       val normalizedConfig = model.normalizedGrid
       val id               = model.editingId.getOrElse(LocalStorageUtils.newId("grid"))
-      val stored = StoredLayout(
+      val stored           = StoredLayout(
         id = id,
         name = model.name,
         config = normalizedConfig,
@@ -281,7 +270,7 @@ object LayoutScreen extends Screen {
           val row = model.rowDefs(rowIdx)
           if (cellIdx >= row.cellWidths.length) noop
           else {
-            val w = raw.toIntOption.map(clampSize).getOrElse(row.cellWidths(cellIdx))
+            val w  = raw.toIntOption.map(clampSize).getOrElse(row.cellWidths(cellIdx))
             val ws =
               if (model.anchoredRows.contains(rowIdx)) List.fill(row.cellWidths.length)(w)
               else row.cellWidths.patch(cellIdx, List(w), 1)
@@ -307,7 +296,7 @@ object LayoutScreen extends Screen {
           val col = model.columnDefs(colIdx)
           if (cellIdx >= col.cellHeights.length) noop
           else {
-            val h = raw.toIntOption.map(clampSize).getOrElse(col.cellHeights(cellIdx))
+            val h  = raw.toIntOption.map(clampSize).getOrElse(col.cellHeights(cellIdx))
             val hs =
               if (model.anchoredColumns.contains(colIdx)) List.fill(col.cellHeights.length)(h)
               else col.cellHeights.patch(cellIdx, List(h), 1)
@@ -409,7 +398,7 @@ object LayoutScreen extends Screen {
   private def rowsEditor(rowDefs: List[RowDef], anchoredRows: Set[Int], drafts: Map[String, String]): Html[Msg] = {
     val rowElems = rowDefs.zipWithIndex.toList.map { case (row, rowIdx) =>
       val heightInput = draftNumberInput(s"rh:$rowIdx", row.height, drafts, s"${NesCss.input} input-w-4")
-      val cellInputs = row.cellWidths.zipWithIndex.map { case (w, cellIdx) =>
+      val cellInputs  = row.cellWidths.zipWithIndex.map { case (w, cellIdx) =>
         draftNumberInput(s"rcw:$rowIdx:$cellIdx", w, drafts, s"${NesCss.input} input-w-3half")
       }
       div(`class` := s"${NesCss.containerRounded} grid-editor-row")(

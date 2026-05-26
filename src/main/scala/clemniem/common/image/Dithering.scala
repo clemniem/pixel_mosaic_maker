@@ -13,7 +13,7 @@ trait ColorDithering {
 
 /** No dithering: each pixel mapped to nearest palette color. */
 object NoColorDithering extends ColorDithering {
-  override def name: String = "None"
+  override def name: String                                                                              = "None"
   override def quantizeToIndices(image: RawImage, palette: Vector[(Byte, Byte, Byte, Byte)]): Array[Int] = {
     val out = new Array[Int](image.pixelCount)
     val n   = image.width * image.height

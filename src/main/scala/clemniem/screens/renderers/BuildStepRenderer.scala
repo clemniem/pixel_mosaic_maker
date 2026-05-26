@@ -41,11 +41,7 @@ object BuildStepRenderer {
           val ry = sy - offsetY
           ctx.strokeStyle = Color.highlightStroke.rgba(0.9)
           ctx.lineWidth = 2
-          ctx.strokeRect(
-            rx * fit.scale,
-            ry * fit.scale,
-            (patchSize * fit.scale).max(1),
-            (patchSize * fit.scale).max(1))
+          ctx.strokeRect(rx * fit.scale, ry * fit.scale, (patchSize * fit.scale).max(1), (patchSize * fit.scale).max(1))
         }
       case None =>
         CanvasUtils.drawPlaceholder(canvas, ctx, maxDim, maxDim / 2, "Grid region out of bounds")
@@ -72,9 +68,37 @@ object BuildStepRenderer {
         val (bgR, bgG, bgB) = patchBackgroundRgb(bgHex)
 
         if (stacked) {
-          drawStacked(canvas, ctx, patch, sortedColors, cellPx, cellW, cellH, gap, gridStep, cols, bgR, bgG, bgB, patchSize)
+          drawStacked(
+            canvas,
+            ctx,
+            patch,
+            sortedColors,
+            cellPx,
+            cellW,
+            cellH,
+            gap,
+            gridStep,
+            cols,
+            bgR,
+            bgG,
+            bgB,
+            patchSize)
         } else {
-          drawGrid(canvas, ctx, patch, sortedColors, cellPx, cellW, cellH, gap, gridStep, cols, bgR, bgG, bgB, patchSize)
+          drawGrid(
+            canvas,
+            ctx,
+            patch,
+            sortedColors,
+            cellPx,
+            cellW,
+            cellH,
+            gap,
+            gridStep,
+            cols,
+            bgR,
+            bgG,
+            bgB,
+            patchSize)
         }
       case None =>
         canvas.width = patchSize
@@ -90,7 +114,7 @@ object BuildStepRenderer {
 
   /** Parse hex color to RGB, falling back to (238,238,238). */
   def patchBackgroundRgb(hex: String): (Int, Int, Int) = {
-    val h = Color.normalizeHex(hex, Color.layerPatchBackground.toHex)
+    val h                     = Color.normalizeHex(hex, Color.layerPatchBackground.toHex)
     def parse(s: String): Int = {
       val n = java.lang.Integer.parseInt(s, 16)
       if (n >= 0 && n <= 255) n else 238
@@ -137,7 +161,7 @@ object BuildStepRenderer {
         y <- 0 until patchSize
         x <- 0 until patchSize
       } {
-        val idx = y * patchSize + x
+        val idx       = y * patchSize + x
         val (r, g, b) =
           if (colorSet.contains(patch.pixels(idx))) {
             val px = patch.paletteLookup(patch.pixels(idx))
@@ -195,7 +219,7 @@ object BuildStepRenderer {
         y <- 0 until patchSize
         x <- 0 until patchSize
       } {
-        val idx = y * patchSize + x
+        val idx       = y * patchSize + x
         val (r, g, b) =
           if (patch.pixels(idx) == paletteIndex) (px.r, px.g, px.b)
           else (bgR, bgG, bgB)

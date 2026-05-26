@@ -1,15 +1,7 @@
 package clemniem.screens
 
 import cats.effect.IO
-import clemniem.{
-  Screen,
-  ScreenId,
-  ScreenOutput,
-  StorageKeys,
-  StoredBuildConfig,
-  StoredImage,
-  StoredPalette
-}
+import clemniem.{Screen, ScreenId, ScreenOutput, StorageKeys, StoredBuildConfig, StoredImage, StoredPalette}
 import clemniem.common.{CanvasUtils, CmdUtils, LocalStorageUtils}
 import clemniem.common.nescss.NesCss
 import org.scalajs.dom.CanvasRenderingContext2D
@@ -28,8 +20,11 @@ object BuildConfigGalleryScreen extends Screen {
   private val previewHeight = CanvasUtils.galleryPreviewHeight
 
   def init(previous: Option[Any]): (Model, Cmd[IO, Msg]) = {
-    val model = BuildConfigGalleryModel(Gallery.initState, None, None)
-    val loadBuildConfigs = Gallery.loadCmd(StorageKeys.buildConfigs, BuildConfigGalleryMsg.LoadedBuildConfigs.apply, (msg, _) => BuildConfigGalleryMsg.LoadFailed(msg))
+    val model            = BuildConfigGalleryModel(Gallery.initState, None, None)
+    val loadBuildConfigs = Gallery.loadCmd(
+      StorageKeys.buildConfigs,
+      BuildConfigGalleryMsg.LoadedBuildConfigs.apply,
+      (msg, _) => BuildConfigGalleryMsg.LoadFailed(msg))
     val loadImages = LocalStorageUtils.loadList(StorageKeys.images)(
       BuildConfigGalleryMsg.LoadedImages.apply,
       (_, _) => BuildConfigGalleryMsg.LoadedImages(Nil)
@@ -44,7 +39,7 @@ object BuildConfigGalleryScreen extends Screen {
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
     case BuildConfigGalleryMsg.LoadedBuildConfigs(list) =>
       val next = model.copy(gallery = Gallery.onLoaded(model.gallery, list, GalleryLayout.defaultPageSize))
-      val cmd = if (next.canDrawPreviews) drawAllPreviewsCmd(next) else Cmd.None
+      val cmd  = if (next.canDrawPreviews) drawAllPreviewsCmd(next) else Cmd.None
       (next, cmd)
     case BuildConfigGalleryMsg.LoadedImages(list) =>
       val next = model.copy(images = Some(list))
@@ -55,7 +50,12 @@ object BuildConfigGalleryScreen extends Screen {
       val cmd  = if (next.canDrawPreviews) drawAllPreviewsCmd(next) else Cmd.None
       (next, cmd)
     case BuildConfigGalleryMsg.DrawPreview(item) =>
-      (model, CmdUtils.fireAndForget(drawBuildConfigPreview(item, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil)), BuildConfigGalleryMsg.NoOp, _ => BuildConfigGalleryMsg.NoOp))
+      (
+        model,
+        CmdUtils.fireAndForget(
+          drawBuildConfigPreview(item, model.images.getOrElse(Nil), model.palettes.getOrElse(Nil)),
+          BuildConfigGalleryMsg.NoOp,
+          _ => BuildConfigGalleryMsg.NoOp))
     case BuildConfigGalleryMsg.CreateNew =>
       (model, navCmd(ScreenId.BuildConfigId, None))
     case BuildConfigGalleryMsg.Edit(stored) =>
@@ -63,17 +63,22 @@ object BuildConfigGalleryScreen extends Screen {
     case BuildConfigGalleryMsg.Delete(stored) =>
       (model.copy(gallery = Gallery.onRequestDelete(model.gallery, stored.id)), Cmd.None)
     case BuildConfigGalleryMsg.ConfirmDelete(id) =>
-      val (gs, cmd) = Gallery.onConfirmDelete(model.gallery, id, StorageKeys.buildConfigs, GalleryLayout.defaultPageSize, BuildConfigGalleryMsg.CancelDelete)
+      val (gs, cmd) = Gallery.onConfirmDelete(
+        model.gallery,
+        id,
+        StorageKeys.buildConfigs,
+        GalleryLayout.defaultPageSize,
+        BuildConfigGalleryMsg.CancelDelete)
       (model.copy(gallery = gs), cmd)
     case BuildConfigGalleryMsg.CancelDelete =>
       (model.copy(gallery = Gallery.onCancelDelete(model.gallery)), Cmd.None)
     case BuildConfigGalleryMsg.PreviousPage =>
       val next = model.copy(gallery = Gallery.onPreviousPage(model.gallery))
-      val cmd = if (next.canDrawPreviews) redrawCurrentPageCmd(next) else Cmd.None
+      val cmd  = if (next.canDrawPreviews) redrawCurrentPageCmd(next) else Cmd.None
       (next, cmd)
     case BuildConfigGalleryMsg.NextPage =>
       val next = model.copy(gallery = Gallery.onNextPage(model.gallery, GalleryLayout.defaultPageSize))
-      val cmd = if (next.canDrawPreviews) redrawCurrentPageCmd(next) else Cmd.None
+      val cmd  = if (next.canDrawPreviews) redrawCurrentPageCmd(next) else Cmd.None
       (next, cmd)
     case BuildConfigGalleryMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
@@ -154,9 +159,12 @@ object BuildConfigGalleryScreen extends Screen {
       val slice    = list.slice(start, start + GalleryLayout.defaultPageSize)
       val images   = model.images.getOrElse(Nil)
       val palettes = model.palettes.getOrElse(Nil)
-      CmdUtils.fireAndForget(CanvasUtils.runAfterFrames(3)(
-        slice.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawBuildConfigPreview(item, images, palettes)))),
-        BuildConfigGalleryMsg.NoOp, _ => BuildConfigGalleryMsg.NoOp)
+      CmdUtils.fireAndForget(
+        CanvasUtils.runAfterFrames(3)(
+          slice.foldLeft(IO.unit)((acc, item) => acc.flatMap(_ => drawBuildConfigPreview(item, images, palettes)))),
+        BuildConfigGalleryMsg.NoOp,
+        _ => BuildConfigGalleryMsg.NoOp
+      )
     }
   }
 
@@ -166,18 +174,22 @@ object BuildConfigGalleryScreen extends Screen {
     palettes: List[StoredPalette]
   ): IO[Unit] = {
     val picOpt = clemniem.PaletteUtils.picForBuildConfig(stored, images, palettes)
-    CanvasUtils.drawGalleryPreview(s"buildconfig-preview-${stored.id}")(
-      (_: Canvas, ctx: CanvasRenderingContext2D) =>
-        renderers.BuildConfigRenderer.drawGalleryPreview(
-          ctx, picOpt, stored.config.grid, stored.config.offsetX, stored.config.offsetY, previewWidth, previewHeight))
+    CanvasUtils.drawGalleryPreview(s"buildconfig-preview-${stored.id}")((_: Canvas, ctx: CanvasRenderingContext2D) =>
+      renderers.BuildConfigRenderer.drawGalleryPreview(
+        ctx,
+        picOpt,
+        stored.config.grid,
+        stored.config.offsetX,
+        stored.config.offsetY,
+        previewWidth,
+        previewHeight))
   }
 }
 
 final case class BuildConfigGalleryModel(
   gallery: Gallery.State[StoredBuildConfig],
   images: Option[List[StoredImage]],
-  palettes: Option[List[StoredPalette]]
-) {
+  palettes: Option[List[StoredPalette]]) {
   def canDrawPreviews: Boolean =
     gallery.items.isLoaded && images.isDefined && palettes.isDefined
 }

@@ -191,9 +191,9 @@ class PixelPicTests extends FunSuite {
     // "black" centroids and one distinct colour. sortPixelVector previously collapsed indices silently so that
     // paletteLookup.size stayed at 4 but palette.keys.size (used for build steps) dropped to 2.
     import clemniem.common.image.QuantizedResult
-    val blackByte = 0.toByte
-    val whiteByte = 255.toByte
-    val alpha     = 255.toByte
+    val blackByte  = 0.toByte
+    val whiteByte  = 255.toByte
+    val alpha      = 255.toByte
     val dupPalette = Vector(
       (blackByte, blackByte, blackByte, alpha),
       (blackByte, blackByte, blackByte, alpha),

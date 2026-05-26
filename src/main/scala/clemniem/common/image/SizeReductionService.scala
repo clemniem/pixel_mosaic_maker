@@ -78,8 +78,8 @@ object SizeReductionService {
   /** Native Game Boy Camera image sizes:
     *   - 128×112: raw sensor output, no UI frame.
     *   - 160×144: with the standard Game Boy LCD frame applied (this is also the Game Boy screen resolution).
-    * Almost every user upload originates from one of these (often integer-NN-upscaled by emulators or export tools),
-    * so we treat a clean integer multiple of either size as a definitive answer that bypasses pixel-level detection.
+    * Almost every user upload originates from one of these (often integer-NN-upscaled by emulators or export tools), so
+    * we treat a clean integer multiple of either size as a definitive answer that bypasses pixel-level detection.
     */
   private val GbCameraNativeSizes: List[(Int, Int)] = List((128, 112), (160, 144))
 
@@ -96,9 +96,9 @@ object SizeReductionService {
 
   /** Pixel-perfect strategy:
     *   1. If the dimensions are factor-1 of a GB Camera native size, return `src.copy` (already at native resolution).
-    *   2. If the dimensions are an integer multiple F ≥ 2 of a GB Camera native size **and** the source has ≤ 4
-    *      unique colours, use plain stride-F nearest-neighbour sampling. Source bytes are preserved exactly — no
-    *      averaging, no snap, no palette derivation. Multicoloured / HDR images at GB dimensions fall through.
+    *   2. If the dimensions are an integer multiple F ≥ 2 of a GB Camera native size **and** the source has ≤ 4 unique
+    *      colours, use plain stride-F nearest-neighbour sampling. Source bytes are preserved exactly — no averaging, no
+    *      snap, no palette derivation. Multicoloured / HDR images at GB dimensions fall through.
     *   3. Otherwise: tolerant integer-factor detection + canonical-bucket mode filter.
     */
   private def downscalePixelPerfect(src: RawImage, targetMaxW: Int, targetMaxH: Int): RawImage = {
@@ -151,9 +151,9 @@ object SizeReductionService {
     }
   }
 
-  /** Plain integer-stride nearest-neighbour downscale for confirmed GB Camera pixel art (≤ 4 unique colours,
-    * dimensions = N × native GB size). Picks the top-left pixel of each F×F block. Source bytes are copied verbatim —
-    * no colour mutation of any kind.
+  /** Plain integer-stride nearest-neighbour downscale for confirmed GB Camera pixel art (≤ 4 unique colours, dimensions =
+    * N × native GB size). Picks the top-left pixel of each F×F block. Source bytes are copied verbatim — no colour
+    * mutation of any kind.
     */
   private def downscalePixelPerfectGb(src: RawImage, factor: Int): RawImage = {
     val w   = src.width
@@ -169,7 +169,7 @@ object SizeReductionService {
       val sx = dx * factor
       val si = (sy * w + sx) * 4
       val o  = (dy * nw + dx) * 4
-      out.data(o)     = src.data(si)
+      out.data(o) = src.data(si)
       out.data(o + 1) = src.data(si + 1)
       out.data(o + 2) = src.data(si + 2)
       out.data(o + 3) = src.data(si + 3)
@@ -186,8 +186,8 @@ object SizeReductionService {
     * on which noisy source pixel they happened to scan first), so a 4-colour source ends up looking like an 8-colour
     * image and the auto-quantizer over-splits — the user sees e.g. "5 nearly-identical blacks".
     *
-    * Bucket key: 4 bits per channel (R, G, B) → 4096 buckets of size 16. This absorbs ±8 canvas sRGB noise while
-    * still distinguishing palette colours that differ by ≥16 in any channel.
+    * Bucket key: 4 bits per channel (R, G, B) → 4096 buckets of size 16. This absorbs ±8 canvas sRGB noise while still
+    * distinguishing palette colours that differ by ≥16 in any channel.
     *
     * Implementation is scalafix-clean: no var/while/return/null. Two passes:
     *   1. Single linear scan to record the first source pixel index per bucket (`canonicalSi`).
@@ -260,10 +260,10 @@ object SizeReductionService {
       dy <- 0 until nh
       dx <- 0 until nw
     } {
-      val x0 = (dx * w) / nw
-      val y0 = (dy * h) / nh
-      val x1 = ((dx + 1) * w).min(w)
-      val y1 = ((dy + 1) * h).min(h)
+      val x0              = (dx * w) / nw
+      val y0              = (dy * h) / nh
+      val x1              = ((dx + 1) * w).min(w)
+      val y1              = ((dy + 1) * h).min(h)
       val (r, g, b, a, n) =
         (y0 until y1).flatMap(sy => (x0 until x1).map(sx => (sy, sx))).foldLeft((0L, 0L, 0L, 0L, 0L)) {
           case ((r0, g0, b0, a0, n0), (sy, sx)) =>

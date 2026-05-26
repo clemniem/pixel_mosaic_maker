@@ -41,7 +41,9 @@ object AboutScreen extends Screen {
     case AboutMsg.DismissSeedResult =>
       (AboutState.Idle, Cmd.None)
     case AboutMsg.OpenUrl(url) =>
-      (model, CmdUtils.fireAndForget(IO.delay { val _ = dom.window.open(url, "_blank") }, AboutMsg.NoOp, _ => AboutMsg.NoOp))
+      (
+        model,
+        CmdUtils.fireAndForget(IO.delay { val _ = dom.window.open(url, "_blank") }, AboutMsg.NoOp, _ => AboutMsg.NoOp))
     case AboutMsg.Back =>
       (model, navCmd(ScreenId.OverviewId, None))
     case AboutMsg.NoOp =>
@@ -77,7 +79,8 @@ object AboutScreen extends Screen {
         p(`class` := NesCss.text)(text("Everything runs in the browser.")),
         p(`class` := NesCss.text)(text("Data is stored in LocalStorage. No server or account required.")),
         h2(`class` := "about-heading")(text("Sample data")),
-        p(`class` := NesCss.text)(text("Load demo images, palettes, layouts, and builds to explore the full workflow.")),
+        p(`class` := NesCss.text)(
+          text("Load demo images, palettes, layouts, and builds to explore the full workflow.")),
         seedSection(model),
         h2(`class` := "about-heading")(text("Libraries & tools")),
         div(`class` := "about-tools")(
@@ -121,9 +124,9 @@ object AboutScreen extends Screen {
           ),
           div(`class` := "flex-row flex-row--tight")(
             (if (count > 0)
-              button(`class` := NesCss.btnPrimary, onClick(AboutMsg.ConfirmRefresh))(text("Reload now"))
-            else
-              button(`class` := NesCss.btn, onClick(AboutMsg.DismissSeedResult))(text("OK")))
+               button(`class` := NesCss.btnPrimary, onClick(AboutMsg.ConfirmRefresh))(text("Reload now"))
+             else
+               button(`class` := NesCss.btn, onClick(AboutMsg.DismissSeedResult))(text("OK")))
           )
         )
       case AboutState.SeedResult(None) =>

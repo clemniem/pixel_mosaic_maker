@@ -94,7 +94,7 @@ object BuildScreen extends Screen {
     previous match {
       case Some(ScreenOutput.StartBuild(storedConfig)) =>
         val stepIndex = 0
-        val model = BuildScreenModel(
+        val model     = BuildScreenModel(
           buildConfig = Some(storedConfig),
           currentBuild = None,
           images = None,
@@ -116,7 +116,7 @@ object BuildScreen extends Screen {
       case Some(ScreenOutput.ResumeBuild(storedBuild)) =>
         val stepIndex = storedBuild.savedStepIndex.getOrElse(0)
         val patchBg   = storedBuild.patchBackgroundColorHex.getOrElse(defaultPatchBackground)
-        val model = BuildScreenModel(
+        val model     = BuildScreenModel(
           buildConfig = None,
           currentBuild = Some(storedBuild),
           images = None,
@@ -140,9 +140,7 @@ object BuildScreen extends Screen {
         (model, Cmd.Batch(loadConfigs, loadImages, loadPalettes))
 
       case _ =>
-        (
-          BuildScreenModel(None, None, None, None, 0, None, defaultPatchBackground),
-          navCmd(ScreenId.BuildsId, None))
+        (BuildScreenModel(None, None, None, None, 0, None, defaultPatchBackground), navCmd(ScreenId.BuildsId, None))
     }
 
   def update(model: Model): Msg => (Model, Cmd[IO, Msg]) = {
@@ -151,7 +149,7 @@ object BuildScreen extends Screen {
       val steps     = configOpt.map(c => stepsForConfig(c.config)).getOrElse(Vector.empty)
       val stepIndex = if (steps.isEmpty) 0 else model.stepIndex.max(0).min(steps.length - 1)
       val nextBase  = model.copy(buildConfig = configOpt, stepIndex = stepIndex)
-      val next =
+      val next      =
         if (nextBase.patchBackgroundColorHex == defaultPatchBackground)
           suggestedPatchBackground(nextBase).fold(nextBase)(bg => nextBase.copy(patchBackgroundColorHex = bg))
         else nextBase
@@ -163,7 +161,7 @@ object BuildScreen extends Screen {
 
     case BuildScreenMsg.LoadedPalettes(list) =>
       val nextBase = model.copy(palettes = Some(list))
-      val next =
+      val next     =
         if (nextBase.patchBackgroundColorHex == defaultPatchBackground)
           suggestedPatchBackground(nextBase).fold(nextBase)(bg => nextBase.copy(patchBackgroundColorHex = bg))
         else nextBase
@@ -179,7 +177,7 @@ object BuildScreen extends Screen {
 
     case BuildScreenMsg.CommitStepDraft =>
       model.draftStepInput match {
-        case None => (model, Cmd.None)
+        case None      => (model, Cmd.None)
         case Some(raw) =>
           val steps   = model.steps
           val maxStep = if (steps.isEmpty) 0 else steps.length - 1
@@ -205,7 +203,7 @@ object BuildScreen extends Screen {
         case (Some(storedConfig), _) =>
           val buildId   = model.currentBuild.map(_.id).getOrElse(LocalStorageUtils.newId("build"))
           val buildName = model.currentBuild.map(_.name).getOrElse(storedConfig.name)
-          val updated =
+          val updated   =
             StoredBuild(buildId, buildName, storedConfig.id, Some(model.stepIndex), Some(model.patchBackgroundColorHex))
           val cmd = LocalStorageUtils.loadList(StorageKeys.builds)(
             list => BuildScreenMsg.LoadedForSave(list),
@@ -256,7 +254,10 @@ object BuildScreen extends Screen {
   }
 
   private def drawCmd(model: Model): Cmd[IO, Msg] =
-    CmdUtils.fireAndForget(drawOverview(model).flatMap(_ => drawPreview(model)), BuildScreenMsg.NoOp, _ => BuildScreenMsg.NoOp)
+    CmdUtils.fireAndForget(
+      drawOverview(model).flatMap(_ => drawPreview(model)),
+      BuildScreenMsg.NoOp,
+      _ => BuildScreenMsg.NoOp)
 
   private def picWithPalette(model: Model): Option[PixelPic] =
     for {
@@ -273,8 +274,15 @@ object BuildScreen extends Screen {
       (picOpt, cfgOpt) match {
         case (Some(pic), Some(stored)) =>
           renderers.BuildStepRenderer.drawOverview(
-            canvas, ctx, pic, stored.config.grid, stored.config.offsetX, stored.config.offsetY,
-            model.currentStep, patchSize, 400)
+            canvas,
+            ctx,
+            pic,
+            stored.config.grid,
+            stored.config.offsetX,
+            stored.config.offsetY,
+            model.currentStep,
+            patchSize,
+            400)
         case _ =>
           CanvasUtils.drawPlaceholder(canvas, ctx, 400, 200, "Loading…")
       }
@@ -286,12 +294,19 @@ object BuildScreen extends Screen {
 
   private def drawPreview(model: Model): IO[Unit] =
     CanvasUtils.drawAfterViewReady(previewCanvasId, maxRetries = 100, delayMs = 1) { (canvas, ctx) =>
-      val picOpt  = picWithPalette(model)
+      val picOpt   = picWithPalette(model)
       val patchOpt = model.currentStep.flatMap { case (sx, sy) =>
         picOpt.flatMap(_.crop(sx, sy, patchSize, patchSize))
       }
       val cols = if (window.innerWidth <= previewColsBreakpoint) previewColsSmall else previewColsWide
-      renderers.BuildStepRenderer.drawStepPreview(canvas, ctx, patchOpt, model.patchBackgroundColorHex, model.stacked, cols, patchSize)
+      renderers.BuildStepRenderer.drawStepPreview(
+        canvas,
+        ctx,
+        patchOpt,
+        model.patchBackgroundColorHex,
+        model.stacked,
+        cols,
+        patchSize)
     }
 
   def view(model: Model): Html[Msg] = {
